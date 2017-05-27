@@ -21,6 +21,7 @@
 
 #include "bubble.h"
 #include "messagebuilder.h"
+#include "contactbuilder.h"
 #include "pixmapwrapper.h"
 #include "treehelper.h"
 
@@ -30,6 +31,7 @@ void RingQmlWidgets::registerTypes(const char *uri)
 
     qmlRegisterType<Bubble>(uri, 1, 0, "Bubble");
     qmlRegisterType<MessageBuilder>(uri, 1, 0, "MessageBuilder");
+    qmlRegisterType<ContactBuilder>(uri, 1, 0, "ContactBuilder");
     qmlRegisterType<TreeHelper>(uri, 1, 0, "TreeHelper");
     qmlRegisterType<PixmapWrapper>("Ring", 1,0, "PixmapWrapper");
 }

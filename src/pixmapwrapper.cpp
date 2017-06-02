@@ -38,13 +38,17 @@ void PixmapWrapper::paint(QPainter *painter)
     if (!m_icon.isNull()) {
         const QPixmap pxm = m_icon.pixmap(boundingRect().size().toSize());
 
-        painter->drawPixmap(boundingRect().toRect(),pxm);
+        painter->drawPixmap(
+            boundingRect().toRect(),
+            pxm,
+            pxm.rect()
+        );
     }
     else if (!m_pixmap.isNull()) {
         painter->drawPixmap(
             boundingRect(),
             m_pixmap,
-            QRect( 0,0, width(), height())
+            m_pixmap.rect()
         );
     }
 }

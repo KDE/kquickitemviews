@@ -15,33 +15,30 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#include "plugin.h"
+#pragma once
 
-#include <QtCore/QDebug>
+#include <QQuickItem>
+#include <QtCore/QItemSelectionModel>
 
-#include "bubble.h"
-#include "messagebuilder.h"
-#include "contactbuilder.h"
-#include "pixmapwrapper.h"
-#include "modelscrolladapter.h"
-#include "treehelper.h"
-#include "treeview.h"
-#include "multicall.h"
-#include "bindedcombobox.h"
-#include "snapshotadapter.h"
+class BindedComboBoxPrivate;
 
-void RingQmlWidgets::registerTypes(const char *uri)
+/**
+ * Extended QtQuickControls2 ComboBox with proper selection model support.
+ */
+class BindedComboBox : public QQuickItem
 {
-    Q_ASSERT(uri == QLatin1String("RingQmlWidgets"));
+    Q_OBJECT
+public:
+    Q_PROPERTY(QItemSelectionModel* selectionModel READ selectionModel WRITE setSelectionModel)
 
-    qmlRegisterType<Bubble>(uri, 1, 0, "Bubble");
-    qmlRegisterType<MultiCall>(uri, 1, 0, "MultiCall");
-    qmlRegisterType<TreeView>(uri, 1, 0, "TreeView");
-    qmlRegisterType<MessageBuilder>(uri, 1, 0, "MessageBuilder");
-    qmlRegisterType<ContactBuilder>(uri, 1, 0, "ContactBuilder");
-    qmlRegisterType<TreeHelper>(uri, 1, 0, "TreeHelper");
-    qmlRegisterType<ModelScrollAdapter>(uri, 1, 0, "ModelScrollAdapter");
-    qmlRegisterType<PixmapWrapper>("Ring", 1,0, "PixmapWrapper");
-    qmlRegisterType<BindedComboBox>(uri, 1, 0, "BindedComboBox");
-    qmlRegisterType<SnapshotAdapter>(uri, 1, 0, "SnapshotAdapter");
-}
+    explicit BindedComboBox(QQuickItem* parent = nullptr);
+    virtual ~BindedComboBox();
+
+    QItemSelectionModel* selectionModel() const;
+    void setSelectionModel(QItemSelectionModel* s);
+
+private:
+    BindedComboBoxPrivate* d_ptr;
+    Q_DECLARE_PRIVATE(BindedComboBox)
+};
+// Q_DECLARE_METATYPE(BindedComboBox*)

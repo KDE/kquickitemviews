@@ -29,6 +29,7 @@
 #include "multicall.h"
 #include "bindedcombobox.h"
 #include "snapshotadapter.h"
+#include "timelinedots.h"
 
 void RingQmlWidgets::registerTypes(const char *uri)
 {
@@ -44,4 +45,5 @@ void RingQmlWidgets::registerTypes(const char *uri)
     qmlRegisterType<PixmapWrapper>("Ring", 1,0, "PixmapWrapper");
     qmlRegisterType<BindedComboBox>(uri, 1, 0, "BindedComboBox");
     qmlRegisterType<SnapshotAdapter>(uri, 1, 0, "SnapshotAdapter");
+    qmlRegisterType<TimelineDots>(uri, 1, 0, "TimelineDots");
 }

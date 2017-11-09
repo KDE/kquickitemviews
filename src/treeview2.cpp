@@ -15,36 +15,21 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#include "treeview2.h"
 
-#include <simpleflickable.h>
-
-// Qt
-#include <QtCore/QAbstractItemModel>
-class QQmlComponent;
-
-class TreeViewPrivate;
-
-class TreeView : public SimpleFlickable
+class TreeView2Private
 {
-    Q_OBJECT
 public:
-    Q_PROPERTY(QSharedPointer<QAbstractItemModel> model READ model WRITE setModel NOTIFY modelChanged)
-    Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate)
 
-    explicit TreeView(QQuickItem* parent = nullptr);
-    virtual ~TreeView();
-
-    void setModel(QSharedPointer<QAbstractItemModel> model);
-    QSharedPointer<QAbstractItemModel> model() const;
-
-    void setDelegate(QQmlComponent* delegate);
-    QQmlComponent* delegate() const;
-
-Q_SIGNALS:
-    void modelChanged(QSharedPointer<QAbstractItemModel> model);
-
-private:
-    TreeViewPrivate* d_ptr;
-    Q_DECLARE_PRIVATE(TreeView)
 };
+
+TreeView2::TreeView2(QQuickItem* parent) : FlickableView(parent),
+    d_ptr(new TreeView2Private())
+{
+
+}
+
+TreeView2::~TreeView2()
+{
+    delete d_ptr;
+}

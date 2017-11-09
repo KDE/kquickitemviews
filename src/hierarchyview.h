@@ -15,36 +15,39 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#include "plugin.h"
+#pragma once
 
-#include <QtCore/QDebug>
+#include <flickableview.h>
 
-#include "bubble.h"
-#include "messagebuilder.h"
-#include "contactbuilder.h"
-#include "pixmapwrapper.h"
-#include "modelscrolladapter.h"
-#include "treehelper.h"
-#include "hierarchyview.h"
-#include "treeview2.h"
-#include "multicall.h"
-#include "bindedcombobox.h"
-#include "snapshotadapter.h"
-#include "timelinedots.h"
+// Qt
+#include <QtCore/QAbstractItemModel>
+class QQmlComponent;
 
-void RingQmlWidgets::registerTypes(const char *uri)
+class HierarchyViewPrivate;
+
+/**
+ * Model view intended for the tree topology.
+ *
+ * Each index has a big container QQuickItem that encompass the item and all
+ * its children.
+ *
+ * This view currently doesn't support lazy loading. It differs fromm the
+ * TreeView2 for the lazy loading part, but allows more flexibility without
+ * having to care about keeping everything in sync.
+ */
+class HierarchyView : public FlickableView
 {
-    Q_ASSERT(uri == QLatin1String("RingQmlWidgets"));
+    Q_OBJECT
+public:
+    explicit HierarchyView(QQuickItem* parent = nullptr);
+    virtual ~HierarchyView();
 
-    qmlRegisterType<Bubble>(uri, 1, 0, "Bubble");
-    qmlRegisterType<MultiCall>(uri, 1, 0, "MultiCall");
-    qmlRegisterType<HierarchyView>(uri, 1, 0, "HierarchyView");
-    qmlRegisterType<MessageBuilder>(uri, 1, 0, "MessageBuilder");
-    qmlRegisterType<ContactBuilder>(uri, 1, 0, "ContactBuilder");
-    qmlRegisterType<TreeHelper>(uri, 1, 0, "TreeHelper");
-    qmlRegisterType<ModelScrollAdapter>(uri, 1, 0, "ModelScrollAdapter");
-    qmlRegisterType<PixmapWrapper>("Ring", 1,0, "PixmapWrapper");
-    qmlRegisterType<BindedComboBox>(uri, 1, 0, "BindedComboBox");
-    qmlRegisterType<SnapshotAdapter>(uri, 1, 0, "SnapshotAdapter");
-    qmlRegisterType<TimelineDots>(uri, 1, 0, "TimelineDots");
-}
+    virtual void setModel(QSharedPointer<QAbstractItemModel> model) override;
+
+protected:
+    virtual void refresh() override;
+
+private:
+    HierarchyViewPrivate* d_ptr;
+    Q_DECLARE_PRIVATE(HierarchyView)
+};

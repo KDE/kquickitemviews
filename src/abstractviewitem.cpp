@@ -15,50 +15,36 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#include "abstractviewitem.h"
 
-#include <abstractquickview.h>
 
-// Qt
-class QQuickItem;
-class QQmlContext;
-
-class QuickTreeViewPrivate;
-class TreeViewPage;
-
-/**
- * Second generation of QtQuick treeview.
- *
- * The first one was designed for the chat view. It had a limited number of
- * requirements when it came to QtModel. However it required total control of
- * the layout.
- *
- * This is the opposite use case. The layout is classic, but the model support
- * has to be complete. Performance and lazy loading is also more important.
- *
- * It require less work to write a new treeview than refector the first one to
- * support the additional requirements. In the long run, the first generation
- * could be folded into this widget (if it ever makes sense, otherwise they will
- * keep diverging).
- */
-class QuickTreeView : public AbstractQuickView
+void AbstractViewItem::resetPosition()
 {
-    Q_OBJECT
+    //
+}
 
-    friend class QuickTreeViewItem;
-public:
 
-    explicit QuickTreeView(QQuickItem* parent = nullptr);
-    virtual ~QuickTreeView();
+AbstractViewItem* AbstractViewItem::up() const
+{
+    return nullptr;
+}
 
-Q_SIGNALS:
-    void contentChanged() final override;
+AbstractViewItem* AbstractViewItem::down () const
+{
+    return nullptr;
+}
 
-protected:
-    virtual VisualTreeItem* createItem() const override;
+AbstractViewItem* AbstractViewItem::left () const
+{
+    return nullptr;
+}
 
-private:
+AbstractViewItem* AbstractViewItem::right() const
+{
+    return nullptr;
+}
 
-    QuickTreeViewPrivate* d_ptr;
-    Q_DECLARE_PRIVATE(QuickTreeView)
-};
+AbstractViewItem* AbstractViewItem::parent() const
+{
+    return nullptr;
+}

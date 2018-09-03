@@ -20,10 +20,10 @@
 #include <QQmlExtensionPlugin>
 
 //![plugin]
-class RingQmlWidgets final : public QQmlExtensionPlugin
+class KQuickView final : public QQmlExtensionPlugin
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "RingQmlWidgets")
+    Q_PLUGIN_METADATA(IID "KQuickView")
 
 public:
     void registerTypes(const char *uri) override;

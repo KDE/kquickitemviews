@@ -1,7 +1,5 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
 
-ADD_DEFINITIONS("-std=c++11")
-
 PROJECT(libqmlwidgets)
 
 IF(POLICY CMP0063)
@@ -9,6 +7,7 @@ IF(POLICY CMP0063)
 ENDIF(POLICY CMP0063)
 
 FIND_PACKAGE(ECM 1.1.0 REQUIRED NO_MODULE)
+LIST(APPEND CMAKE_MODULE_PATH "${ECM_MODULE_PATH}")
 
 INCLUDE(ECMInstallIcons)
 INCLUDE(ECMOptionalAddSubdirectory)
@@ -21,7 +20,7 @@ SET(CMAKE_AUTOMOC ON)
 SET(CMAKE_AUTORCC ON)
 SET(CMAKE_AUTOUIC ON)
 
-FIND_PACKAGE ( LibRingQt QUIET )
+SET(CMAKE_CXX_STANDARD 14)
 
 FIND_PACKAGE(Qt5 CONFIG REQUIRED
     Core
@@ -32,13 +31,7 @@ FIND_PACKAGE(Qt5 CONFIG REQUIRED
     QuickControls2
 )
 
-FIND_PACKAGE(KF5 REQUIRED COMPONENTS
-    I18n
-    Config
-    ConfigWidgets
-)
-
-INCLUDE_DIRECTORIES(SYSTEM ${Qt5Widgets_INCLUDES} ${Qt5Core_INCLUDES} ${ringqt_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(SYSTEM ${Qt5Widgets_INCLUDES} ${Qt5Core_INCLUDES})
 
 ADD_DEFINITIONS(${Qt5Core_DEFINITIONS})
 
@@ -46,14 +39,8 @@ SET(GENERIC_LIB_VERSION "1.0.0")
 
 #File to compile
 SET( libqmlwidgets_LIB_SRCS
-    bubble.cpp
     plugin.cpp
-    messagebuilder.cpp
-    contactbuilder.cpp
-    cmiconengine.cpp
-    personiconengine.cpp
     pixmapwrapper.cpp
-    treehelper.cpp
     simpleflickable.cpp
     hierarchyview.cpp
     abstractquickview.cpp
@@ -66,37 +53,19 @@ SET( libqmlwidgets_LIB_SRCS
     quicklistview.cpp
     flickableview.cpp
     modelscrolladapter.cpp
-    multicall.cpp
     bindedcombobox.cpp
-    recentfilemodel.cpp
-    snapshotadapter.cpp
-    timelinedots.cpp
-    qmlaction.cpp
-    qactionbinder.cpp
     symboliccolorizer.cpp
     flickablescrollbar.cpp
-)
-
-QT5_ADD_RESOURCES(libqmlwidgets_LIB_SRCS
-   qmlwidgets.qrc
 )
 
 ADD_LIBRARY( libqmlwidgets  STATIC ${libqmlwidgets_LIB_SRCS} )
 
 target_link_libraries( libqmlwidgets
-    ringqt
-    libkring
-
     Qt5::Core
     Qt5::Gui
     Qt5::Quick
     Qt5::QuickWidgets
     Qt5::QuickControls2
-
-    KF5::ConfigCore
-    KF5::ConfigGui
-    KF5::ConfigWidgets
-    KF5::XmlGui
 )
 
 SET( libqmlwidgets_LIB_HDRS

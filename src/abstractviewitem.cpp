@@ -246,8 +246,12 @@ bool VisualTreeItem::performAction(VisualTreeItem::ViewAction a)
 
     const bool ret = (d_ptr->d_ptr ->* d_ptr->d_ptr->m_fStateMachine[s][(int)a])();
 
+    /*
+     * It can happen normally. For example, if the QML initialization sets the
+     * model before the delegate.
+     */
     if (m_State == VisualTreeItem::State::FAILED || !ret) {
-        Q_ASSERT(false);
+        //Q_ASSERT(false);
         m_State = VisualTreeItem::State::FAILED;
         //m_pTTI->d_ptr->m_FailedCount++;
     }

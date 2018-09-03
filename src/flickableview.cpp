@@ -94,6 +94,7 @@ QSharedPointer<QAbstractItemModel> FlickableView::model() const
 void FlickableView::setDelegate(QQmlComponent* delegate)
 {
     d_ptr->m_pDelegate = delegate;
+    emit delegateChanged(delegate);
     refresh();
 }
 

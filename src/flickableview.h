@@ -50,7 +50,7 @@ class FlickableView : public SimpleFlickable
 public:
     Q_PROPERTY(QSharedPointer<QAbstractItemModel> model READ model WRITE setModel NOTIFY modelChanged)
     Q_PROPERTY(QAbstractItemModel* rawModel WRITE setRawModel)
-    Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate)
+    Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged)
     Q_PROPERTY(bool empty READ isEmpty NOTIFY countChanged)
 
     explicit FlickableView(QQuickItem* parent = nullptr);
@@ -103,6 +103,7 @@ protected:
 Q_SIGNALS:
     void modelChanged(QSharedPointer<QAbstractItemModel> model);
     void countChanged();
+    void delegateChanged(QQmlComponent* delegate);
 
 private:
     FlickableViewPrivate* d_ptr;

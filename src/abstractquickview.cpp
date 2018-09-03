@@ -158,6 +158,8 @@ AbstractQuickView::AbstractQuickView(QQuickItem* parent) : FlickableView(parent)
 
     connect(this, &AbstractQuickView::currentYChanged,
         d_ptr, &AbstractQuickViewPrivate::slotViewportChanged);
+    connect(this, &AbstractQuickView::delegateChanged,
+        d_ptr->m_pReflector, &TreeTraversalReflector::resetEverything);
     connect(d_ptr->m_pReflector, &TreeTraversalReflector::contentChanged,
         d_ptr, &AbstractQuickViewPrivate::slotContentChanged);
     connect(d_ptr->m_pReflector, &TreeTraversalReflector::countChanged,

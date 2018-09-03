@@ -86,6 +86,9 @@ public:
     // factory
     AbstractViewItem* createItem() const;
 
+public Q_SLOTS:
+    void resetEverything();
+
 Q_SIGNALS:
     void contentChanged();
     void countChanged  ();

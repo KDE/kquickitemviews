@@ -20,6 +20,8 @@
 #include "abstractviewitem_p.h"
 #include "abstractviewitem.h"
 
+#include <QQmlComponent>
+
 // Use some constant for readability
 #define PREVIOUS 0
 #define NEXT 1
@@ -49,12 +51,13 @@ struct TreeTraversalItems
         DETACH = 3, /*!< Stop tracking for changes          */
         UPDATE = 4, /*!< Update the element                 */
         MOVE   = 5, /*!< Update the depth and lookup        */
+        RESET  = 6, /*!< Flush the visual item              */
     };
 
     typedef bool(TreeTraversalItems::*StateF)();
 
-    static const State  m_fStateMap    [6][6];
-    static const StateF m_fStateMachine[6][6];
+    static const State  m_fStateMap    [6][7];
+    static const StateF m_fStateMachine[6][7];
 
     bool performAction(Action);
 
@@ -67,6 +70,7 @@ struct TreeTraversalItems
     bool refresh();
     bool index  ();
     bool destroy();
+    bool reset  ();
 
     // Geometric navigation
     TreeTraversalItems* up   () const;
@@ -145,26 +149,26 @@ public Q_SLOTS:
 #include <treetraversalreflector_debug.h>
 
 #define S TreeTraversalItems::State::
-const TreeTraversalItems::State TreeTraversalItems::m_fStateMap[6][6] = {
-/*                 SHOW         HIDE        ATTACH     DETACH      UPDATE       MOVE     */
-/*BUFFER   */ { S VISIBLE, S BUFFER   , S REACHABLE, S DANGLING , S BUFFER , S BUFFER    },
-/*REMOVED  */ { S ERROR  , S ERROR    , S ERROR    , S BUFFER   , S ERROR  , S ERROR     },
-/*REACHABLE*/ { S VISIBLE, S REACHABLE, S ERROR    , S BUFFER   , S ERROR  , S REACHABLE },
-/*VISIBLE  */ { S VISIBLE, S REACHABLE, S ERROR    , S BUFFER   , S VISIBLE, S VISIBLE   },
-/*ERROR    */ { S ERROR  , S ERROR    , S ERROR    , S ERROR    , S ERROR  , S ERROR     },
-/*DANGLING */ { S ERROR  , S ERROR    , S ERROR    , S ERROR    , S ERROR  , S ERROR     },
+const TreeTraversalItems::State TreeTraversalItems::m_fStateMap[6][7] = {
+/*                 SHOW         HIDE        ATTACH     DETACH      UPDATE       MOVE         RESET    */
+/*BUFFER   */ { S VISIBLE, S BUFFER   , S REACHABLE, S DANGLING , S BUFFER , S BUFFER   , S BUFFER    },
+/*REMOVED  */ { S ERROR  , S ERROR    , S ERROR    , S BUFFER   , S ERROR  , S ERROR    , S ERROR     },
+/*REACHABLE*/ { S VISIBLE, S REACHABLE, S ERROR    , S BUFFER   , S ERROR  , S REACHABLE, S REACHABLE },
+/*VISIBLE  */ { S VISIBLE, S REACHABLE, S ERROR    , S BUFFER   , S VISIBLE, S VISIBLE  , S VISIBLE   },
+/*ERROR    */ { S ERROR  , S ERROR    , S ERROR    , S ERROR    , S ERROR  , S ERROR    , S ERROR     },
+/*DANGLING */ { S ERROR  , S ERROR    , S ERROR    , S ERROR    , S ERROR  , S ERROR    , S ERROR     },
 };
 #undef S
 
 #define A &TreeTraversalItems::
-const TreeTraversalItems::StateF TreeTraversalItems::m_fStateMachine[6][6] = {
-/*                 SHOW       HIDE      ATTACH    DETACH      UPDATE    MOVE   */
-/*BUFFER   */ { A show   , A nothing, A attach, A destroy , A refresh, A index },
-/*REMOVED  */ { A error  , A error  , A error , A detach  , A error  , A error },
-/*REACHABLE*/ { A show   , A nothing, A error , A detach  , A error  , A index },
-/*VISIBLE  */ { A nothing, A hide   , A error , A detach  , A refresh, A index },
-/*ERROR    */ { A error  , A error  , A error , A error   , A error  , A error },
-/*DANGLING */ { A error  , A error  , A error , A error   , A error  , A error },
+const TreeTraversalItems::StateF TreeTraversalItems::m_fStateMachine[6][7] = {
+/*                 SHOW       HIDE      ATTACH    DETACH      UPDATE    MOVE     RESET  */
+/*BUFFER   */ { A show   , A nothing, A attach, A destroy , A refresh, A index, A reset },
+/*REMOVED  */ { A error  , A error  , A error , A detach  , A error  , A error, A reset },
+/*REACHABLE*/ { A show   , A nothing, A error , A detach  , A error  , A index, A reset },
+/*VISIBLE  */ { A nothing, A hide   , A error , A detach  , A refresh, A index, A reset },
+/*ERROR    */ { A error  , A error  , A error , A error   , A error  , A error, A error },
+/*DANGLING */ { A error  , A error  , A error , A error   , A error  , A error, A error },
 };
 #undef A
 
@@ -392,6 +396,10 @@ bool TreeTraversalItems::refresh()
             break;
     }
 
+    //FIXME don't call directly
+    if (!m_pTreeItem)
+        show();
+
     return true;
 }
 
@@ -444,6 +452,27 @@ bool TreeTraversalItems::destroy()
     return true;
 }
 
+bool TreeTraversalItems::reset()
+{
+    for (auto i = m_tChildren[FIRST]; i; i = i->m_tSiblings[NEXT]) {
+        Q_ASSERT(i);
+        Q_ASSERT(i != this);
+        i->performAction(TreeTraversalItems::Action::RESET);
+
+        if (i == m_tChildren[LAST])
+            break;
+    }
+
+    if (m_pTreeItem) {
+        Q_ASSERT(this != d_ptr->m_pRoot);
+        m_pTreeItem->performAction(VisualTreeItem::ViewAction::LEAVE_BUFFER);
+        m_pTreeItem->performAction(VisualTreeItem::ViewAction::DETACH);
+        m_pTreeItem = nullptr;
+    }
+
+    return this == d_ptr->m_pRoot ?
+        true : performAction(TreeTraversalItems::Action::UPDATE);
+}
 
 TreeTraversalReflector::TreeTraversalReflector(QObject* parent) : QObject(parent),
     d_ptr(new TreeTraversalReflectorPrivate())
@@ -980,6 +1009,14 @@ void TreeTraversalReflectorPrivate::slotRowsMoved2(const QModelIndex &parent, in
     _test_validateTree(m_pRoot);
 }
 
+void TreeTraversalReflector::resetEverything()
+{
+    // There is nothing to reset when there is no model
+    if (!model())
+        return;
+
+    d_ptr->m_pRoot->performAction(TreeTraversalItems::Action::RESET);
+}
 
 QAbstractItemModel* TreeTraversalReflector::model() const
 {

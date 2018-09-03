@@ -127,6 +127,8 @@ bool QuickTreeViewItem::attach()
     m_pContent = pair.second;
     m_pItem    = pair.first;
 
+    Q_ASSERT(index().isValid());
+
     // Add some useful metadata
     m_pContent->setContextProperty("rowCount", index().model()->rowCount(index()));
     m_pContent->setContextProperty("index", index().row());

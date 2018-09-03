@@ -78,8 +78,6 @@ public:
 
     virtual ~AbstractQuickView();
 
-    virtual void setModel(QSharedPointer<QAbstractItemModel> model) override;
-
     bool hasUniformRowHeight() const;
     void setUniformRowHeight(bool value);
 
@@ -134,12 +132,14 @@ protected:
     // are implemented independently.
     void setSelectionManager(AbstractSelectableView* v);
     AbstractSelectableView* selectionManager() const;
+    virtual void applyModelChanges(QAbstractItemModel* m) override;
 
 Q_SIGNALS:
     void modelChanged(QSharedPointer<QAbstractItemModel> model);
     virtual void contentChanged() = 0;
 
 private:
+
     AbstractQuickViewPrivate* d_ptr;
     Q_DECLARE_PRIVATE(AbstractQuickView)
 };

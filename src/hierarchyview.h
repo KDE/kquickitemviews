@@ -42,14 +42,14 @@ public:
     explicit HierarchyView(QQuickItem* parent = nullptr);
     virtual ~HierarchyView();
 
-    virtual void setModel(QSharedPointer<QAbstractItemModel> model) override;
-
 protected:
     virtual void refresh() override;
     virtual AbstractViewItem* createItem() const override;
     virtual AbstractViewItem* itemForIndex(const QModelIndex& idx) const override;
+    virtual void applyModelChanges(QAbstractItemModel* m) override;
 
 private:
+
     HierarchyViewPrivate* d_ptr;
     Q_DECLARE_PRIVATE(HierarchyView)
 };

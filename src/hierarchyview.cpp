@@ -79,26 +79,30 @@ HierarchyView::~HierarchyView()
     delete d_ptr;
 }
 
-void HierarchyView::setModel(QSharedPointer<QAbstractItemModel> m)
+void HierarchyView::applyModelChanges(QAbstractItemModel* m)
 {
     if (model()) {
-        disconnect(model().data(), &QAbstractItemModel::rowsInserted , d_ptr, &HierarchyViewPrivate::slotRowsInserted );
-        disconnect(model().data(), &QAbstractItemModel::rowsRemoved  , d_ptr, &HierarchyViewPrivate::slotRowsRemoved  );
+        auto rm = model().data();
+        disconnect(rm, &QAbstractItemModel::rowsInserted , d_ptr, &HierarchyViewPrivate::slotRowsInserted );
+        disconnect(rm, &QAbstractItemModel::rowsRemoved  , d_ptr, &HierarchyViewPrivate::slotRowsRemoved  );
         //connect(model(), &QAbstractItemModel::rowsMoved    , d_ptr, &HierarchyViewPrivate::slotRowsMoved    );
-        disconnect(model().data(), &QAbstractItemModel::dataChanged  , d_ptr, &HierarchyViewPrivate::slotDataChanged  );
+        disconnect(rm, &QAbstractItemModel::dataChanged  , d_ptr, &HierarchyViewPrivate::slotDataChanged  );
     }
 
-    FlickableView::setModel(m);
+    FlickableView::applyModelChanges(m);
 
     d_ptr->clear();
 
     d_ptr->loadVisible();
     setCurrentY(contentHeight());
 
-    connect(model().data(), &QAbstractItemModel::rowsInserted , d_ptr, &HierarchyViewPrivate::slotRowsInserted );
-    connect(model().data(), &QAbstractItemModel::rowsRemoved  , d_ptr, &HierarchyViewPrivate::slotRowsRemoved  );
+    if (!m)
+        return;
+
+    connect(m, &QAbstractItemModel::rowsInserted , d_ptr, &HierarchyViewPrivate::slotRowsInserted );
+    connect(m, &QAbstractItemModel::rowsRemoved  , d_ptr, &HierarchyViewPrivate::slotRowsRemoved  );
     //connect(model(), &QAbstractItemModel::rowsMoved    , d_ptr, &HierarchyViewPrivate::slotRowsMoved    );
-    connect(model().data(), &QAbstractItemModel::dataChanged  , d_ptr, &HierarchyViewPrivate::slotDataChanged  );
+    connect(m, &QAbstractItemModel::dataChanged  , d_ptr, &HierarchyViewPrivate::slotDataChanged  );
 
 }
 

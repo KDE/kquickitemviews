@@ -56,7 +56,7 @@ public:
     explicit FlickableView(QQuickItem* parent = nullptr);
     virtual ~FlickableView();
 
-    virtual void setModel(QSharedPointer<QAbstractItemModel> model);
+    virtual void setModel(QSharedPointer<QAbstractItemModel> model) final;
     QSharedPointer<QAbstractItemModel> model() const;
     void setRawModel(QAbstractItemModel* m);
 
@@ -73,6 +73,7 @@ protected:
     virtual void applyRoles(QQmlContext* ctx, const QModelIndex& self) const;
     QPair<QQuickItem*, QQmlContext*> loadDelegate(QQuickItem* parentI, QQmlContext* parentCtx, const QModelIndex& self) const;
 
+
     /**
      * To be implemented by the final class.
      */
@@ -86,12 +87,24 @@ protected:
      */
     virtual AbstractViewItem* itemForIndex(const QModelIndex& idx) const = 0;
 
+    /**
+     * Calling `setModel` doesn't do anything that takes effect immediately.
+     *
+     * Rather, it will either wait to the next event loop iteration to make
+     * sure other properties have been applied. If no delegate is set, it will
+     * also avoid loading the model internal representation because that would
+     * be useless anyway.
+     *
+     * Override this method if extra steps are to be taken when replacing the
+     * model. Do not forget to call the superclass method.
+     */
+    virtual void applyModelChanges(QAbstractItemModel* m);
+
 Q_SIGNALS:
     void modelChanged(QSharedPointer<QAbstractItemModel> model);
     void countChanged();
 
 private:
-
     FlickableViewPrivate* d_ptr;
     Q_DECLARE_PRIVATE(FlickableView)
 };

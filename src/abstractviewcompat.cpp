@@ -73,13 +73,13 @@ void AbstractViewCompat::setSelectionModel(QSharedPointer<QItemSelectionModel> m
     selectionManager()->setSelectionModel(m);
 }
 
-void AbstractViewCompat::setModel(QSharedPointer<QAbstractItemModel> m)
+void AbstractViewCompat::applyModelChanges(QAbstractItemModel* m)
 {
     if (d_ptr->m_IsSortingEnabled && m) {
         m->sort(0);
     }
 
-    AbstractQuickView::setModel(m);
+    AbstractQuickView::applyModelChanges(m);
 }
 
 void AbstractViewCompat::applyRoles(QQmlContext* ctx, const QModelIndex& self) const

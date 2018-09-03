@@ -50,8 +50,6 @@ public:
     QQmlComponent* highlight() const;
     void setHighlight(QQmlComponent* h);
 
-    virtual void setModel(QSharedPointer<QAbstractItemModel> model) override;
-
     QSharedPointer<QItemSelectionModel> selectionModel() const;
     void setSelectionModel(QSharedPointer<QItemSelectionModel> m);
 
@@ -65,6 +63,7 @@ public:
 
 protected:
     virtual void applyRoles(QQmlContext* ctx, const QModelIndex& self) const override;
+    virtual void applyModelChanges(QAbstractItemModel* m) override;
 
 Q_SIGNALS:
     void currentIndexChanged(const QModelIndex& index);

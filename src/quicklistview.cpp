@@ -178,18 +178,18 @@ void QuickListView::setCurrentIndex(int index)
     );
 }
 
-void QuickListView::setModel(QSharedPointer<QAbstractItemModel> m)
+void QuickListView::applyModelChanges(QAbstractItemModel* m)
 {
     if (auto oldM = model())
         disconnect(oldM.data(), &QAbstractItemModel::dataChanged, d_ptr,
             &QuickListViewPrivate::slotDataChanged);
 
-    AbstractViewCompat::setModel(m);
+    AbstractViewCompat::applyModelChanges(m);
 
     if (!m)
         return;
 
-    connect(m.data(), &QAbstractItemModel::dataChanged, d_ptr,
+    connect(m, &QAbstractItemModel::dataChanged, d_ptr,
         &QuickListViewPrivate::slotDataChanged);
 }
 

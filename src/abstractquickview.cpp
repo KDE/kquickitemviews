@@ -169,21 +169,21 @@ AbstractQuickView::~AbstractQuickView()
     delete d_ptr;
 }
 
-void AbstractQuickView::setModel(QSharedPointer<QAbstractItemModel> m)
+void AbstractQuickView::applyModelChanges(QAbstractItemModel* m)
 {
     if (m == model())
         return;
 
-    d_ptr->m_pReflector->setModel(m.data());
-    selectionManager()->s_ptr->setModel(m.data());
+    d_ptr->m_pReflector->setModel(m);
+    selectionManager()->s_ptr->setModel(m);
 
     if (auto oldM = model())
         disconnect(oldM.data(), &QAbstractItemModel::dataChanged, d_ptr,
             &AbstractQuickViewPrivate::slotDataChanged);
 
-    FlickableView::setModel(m);
+    FlickableView::applyModelChanges(m);
 
-    connect(m.data(), &QAbstractItemModel::dataChanged, d_ptr,
+    connect(m, &QAbstractItemModel::dataChanged, d_ptr,
         &AbstractQuickViewPrivate::slotDataChanged);
 
     d_ptr->m_pReflector->populate();

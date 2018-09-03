@@ -31,6 +31,7 @@ public:
     QQmlEngine*                         m_pEngine         {nullptr};
     QQmlComponent*                      m_pComponent      {nullptr};
     mutable QQmlContext*                m_pRootContext    {nullptr};
+    QSharedPointer<QAbstractItemModel>  m_pNextModel      {nullptr};
 
     mutable QHash<int, QString> m_hRoleNames;
     mutable QHash<const QAbstractItemModel*, QHash<int, QString>*> m_hhOtherRoleNames;
@@ -51,19 +52,30 @@ FlickableView::~FlickableView()
     delete d_ptr;
 }
 
-void FlickableView::setModel(QSharedPointer<QAbstractItemModel> model)
+void FlickableView::applyModelChanges(QAbstractItemModel* m)
 {
-    if (d_ptr->m_pModel == model)
-        return;
+    Q_ASSERT(m == d_ptr->m_pNextModel);
 
-    d_ptr->m_pModel = model;
+    d_ptr->m_pModel = d_ptr->m_pNextModel;
     d_ptr->m_hRoleNames.clear();
 
-    emit modelChanged(model);
+    emit modelChanged(d_ptr->m_pModel);
     emit countChanged();
 
     refresh();
     setCurrentY(contentHeight());
+
+    d_ptr->m_pNextModel = nullptr;
+}
+
+void FlickableView::setModel(QSharedPointer<QAbstractItemModel> model)
+{
+    if (d_ptr->m_pNextModel == model || (d_ptr->m_pModel == model && !d_ptr->m_pNextModel))
+        return;
+
+    d_ptr->m_pNextModel = model;
+
+    applyModelChanges(d_ptr->m_pNextModel.data());
 }
 
 void FlickableView::setRawModel(QAbstractItemModel* m)

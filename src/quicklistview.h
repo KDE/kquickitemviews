@@ -34,7 +34,7 @@ class QuickListView;
  * the section model matches the sections. It is entirely the responsibility of
  * the programmer to provide a valid/compatible model.
  */
-class QuickListViewSections : public QObject
+class Q_DECL_EXPORT QuickListViewSections : public QObject
 {
     Q_OBJECT
 
@@ -87,7 +87,7 @@ Q_DECLARE_METATYPE(QuickListViewSections*)
  *    QtWidgets::QListView. Stable and mature models should not require modifications
  *    to acknowledge misguided QtQuick.ListView changes.
  */
-class QuickListView : public AbstractViewCompat
+class Q_DECL_EXPORT QuickListView : public AbstractViewCompat
 {
     Q_OBJECT
 

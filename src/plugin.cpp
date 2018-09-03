@@ -29,13 +29,19 @@
 
 void KQuickView::registerTypes(const char *uri)
 {
-    Q_ASSERT(uri == QLatin1String("kquickview"));
+    Q_ASSERT(uri == QLatin1String("org.kde.playground.kquickview"));
 
     qmlRegisterType<HierarchyView>(uri, 1, 0, "HierarchyView");
     qmlRegisterType<QuickTreeView>(uri, 1, 0, "QuickTreeView");
     qmlRegisterType<QuickListView>(uri, 1, 0, "QuickListView");
     qmlRegisterType<ModelScrollAdapter>(uri, 1, 0, "ModelScrollAdapter");
-    qmlRegisterType<PixmapWrapper>("Ring", 1,0, "PixmapWrapper");
+    qmlRegisterType<PixmapWrapper>(uri, 1,0, "PixmapWrapper");
     qmlRegisterType<BindedComboBox>(uri, 1, 0, "BindedComboBox");
     qmlRegisterType<FlickableScrollBar>(uri, 1, 0, "FlickableScrollBar");
+    qmlRegisterUncreatableType<QuickListViewSections>(uri, 1, 0, "QuickListViewSections", "");
+}
+
+void KQuickView::initializeEngine(QQmlEngine *engine, const char *uri)
+{
+    qDebug() << "\n\n\nCALLED!";
 }

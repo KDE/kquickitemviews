@@ -18,14 +18,16 @@
 #pragma once
 
 #include <QQmlExtensionPlugin>
+#include <QDebug>
 
 //![plugin]
-class KQuickView final : public QQmlExtensionPlugin
+class Q_DECL_EXPORT KQuickView final : public QQmlExtensionPlugin
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "KQuickView")
+    Q_PLUGIN_METADATA(IID "org.kde.playground.kquickview" FILE "kquickview.json")
 
 public:
     void registerTypes(const char *uri) override;
+    virtual void initializeEngine(QQmlEngine *engine, const char *uri) override;
 };
 //![plugin]

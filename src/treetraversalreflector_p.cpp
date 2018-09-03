@@ -179,27 +179,13 @@ TreeTraversalItems* TreeTraversalItems::up() const
         return nullptr;
     }
 
-    // The parent has no previous siblings, therefor it is directly above the item
-    if (!m_tSiblings[PREVIOUS]) {
-//         if (m_pParent->m_pParent && m_pParent->m_pParent->m_tChildren[FIRST])
-//             Q_ASSERT(m_pParent->m_pParent->m_tChildren[FIRST] == m_pParent);
-        //FIXME Q_ASSERT(index().row() == 0);
-
-        // This is the root, there is no previous element
-        if (!m_pParent->m_pTreeItem) {
-            //Q_ASSERT(!index().parent().isValid()); //Happens when reseting models
-            return nullptr;
-        }
-
-        ret = m_pParent;
-
-        // Avoids useless unreadable indentation
-        return ret;
-    }
+    // The parent is the element above in a Cartesian plan
+    if (d_ptr->m_pRoot != m_pParent && !m_tSiblings[PREVIOUS])
+        return m_pParent;
 
     ret = m_tSiblings[PREVIOUS];
 
-    while (ret->m_tChildren[LAST])
+    while (ret && ret->m_tChildren[LAST])
         ret = ret->m_tChildren[LAST];
 
     return ret;
@@ -219,10 +205,8 @@ TreeTraversalItems* TreeTraversalItems::down() const
 
     // Recursively unwrap the tree until an element is found
     while(i) {
-        if (i->m_tSiblings[NEXT]) {
-            ret = i->m_tSiblings[NEXT];
+        if (i->m_tSiblings[NEXT] && (ret = i->m_tSiblings[NEXT]))
             return ret;
-        }
 
         i = i->m_pParent;
     }
@@ -273,9 +257,14 @@ bool TreeTraversalItems::error()
 bool TreeTraversalItems::updateVisibility()
 {
     //TODO support horizontal visibility
-    const bool isVisible = m_pTreeItem->fitsInView();
+    const bool isVisible = m_pTreeItem && m_pTreeItem->fitsInView();
 
-    qDebug() << "\n\nUPDATE VIS" << isVisible << m_Index.row() << m_Index.data();
+    //TODO this is a cheap workaround, it leaves the m_tVisibleTTIRange in a
+    // potentially broken state
+    if ((!m_pTreeItem) && !isVisible)
+        return false;
+
+//     qDebug() << "\n\nUPDATE VIS" << isVisible << m_Index.row() << m_Index.data();
 
     if (auto up = m_pTreeItem->up()) {
         if (isVisible && !up->isVisible()) {
@@ -304,10 +293,18 @@ bool TreeTraversalItems::show()
         m_pTreeItem = d_ptr->q_ptr->createItem()->s_ptr;
         Q_ASSERT(m_pTreeItem);
         m_pTreeItem->m_pTTI = this;
-    }
 
+        m_pTreeItem->performAction(VisualTreeItem::ViewAction::ATTACH);
+    }
     m_pTreeItem->performAction(VisualTreeItem::ViewAction::ENTER_BUFFER);
     m_pTreeItem->performAction(VisualTreeItem::ViewAction::ENTER_VIEW  );
+
+    // For some reason creating the visual element failed, this can and will
+    // happen and need to be recovered from.
+    if (m_pTreeItem->hasFailed()) {
+        m_pTreeItem->performAction(VisualTreeItem::ViewAction::LEAVE_BUFFER);
+        m_pTreeItem = nullptr;
+    }
 
     updateVisibility();
 
@@ -495,8 +492,10 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
     Q_ASSERT((!parent.isValid()) || parent.model() == q_ptr->model());
 //     qDebug() << "\n\nADD" << first << last;
 
-    if (!q_ptr->isActive(parent, first, last))
+    if (!q_ptr->isActive(parent, first, last)) {
+        Q_ASSERT(false); //FIXME so I can't forget when time comes
         return;
+    }
 
 //     qDebug() << "\n\nADD2" << q_ptr->width() << q_ptr->height();
 
@@ -551,7 +550,15 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         if (auto rc = q_ptr->model()->rowCount(idx))
             slotRowsInserted(idx, 0, rc-1);
 
+        // Validate early to prevent propagating garbage that's nearly impossible
+        // to debug.
+        if (pitem && pitem != m_pRoot && !i) {
+            Q_ASSERT(e->up() == pitem);
+            Q_ASSERT(e == pitem->down());
+        }
+
         prev = e;
+
     }
 
     if ((!pitem->m_tChildren[LAST]) || last > pitem->m_tChildren[LAST]->m_Index.row())
@@ -1169,15 +1176,15 @@ VisualTreeItem* VisualTreeItem::up() const
         // "deletion in progress" or swap the f call and set state
     );
 
-    const auto ret = m_pTTI->up();
+    auto ret = m_pTTI->up();
     //TODO support collapsed nodes
 
-    // Recursively look for a valid element. Doing this here allows the views
+    // Linearly look for a valid element. Doing this here allows the views
     // that implement this (abstract) class to work without having to always
     // check if some of their item failed to load. This is non-fatal in the
     // other Qt views, so it isn't fatal here either.
-    if (ret && !ret->m_pTreeItem)
-        return ret->m_pTreeItem->up(); //FIXME loop until it's found
+    while (ret && !ret->m_pTreeItem)
+        ret = ret->up();
 
     return ret ? ret->m_pTreeItem : nullptr;
 }
@@ -1197,15 +1204,15 @@ VisualTreeItem* VisualTreeItem::down() const
         // "deletion in progress" or swap the f call and set state
     );
 
-    const auto ret = m_pTTI->down();
+    auto ret = m_pTTI->down();
     //TODO support collapsed entries
 
     // Recursively look for a valid element. Doing this here allows the views
     // that implement this (abstract) class to work without having to always
     // check if some of their item failed to load. This is non-fatal in the
     // other Qt views, so it isn't fatal here either.
-    if (ret && !ret->m_pTreeItem)
-        return down(); //FIXME loop
+    while (ret && !ret->m_pTreeItem)
+        ret = ret->down();
 
     return ret ? ret->m_pTreeItem : nullptr;
 }

@@ -106,7 +106,7 @@ QuickTreeViewPrivate* QuickTreeViewItem::d() const
 bool QuickTreeViewItem::attach()
 {
     if (!view()->delegate()) {
-        //qDebug() << "Cannot attach, there is no delegate";
+        qDebug() << "Cannot attach, there is no delegate";
         return false;
     }
 
@@ -208,9 +208,11 @@ bool QuickTreeViewItem::flush()
 
 bool QuickTreeViewItem::remove()
 {
-    m_pItem->setParent(nullptr);
-    m_pItem->setParentItem(nullptr);
-    m_pItem->setVisible(false);
+    if (m_pItem) {
+        m_pItem->setParent(nullptr);
+        m_pItem->setParentItem(nullptr);
+        m_pItem->setVisible(false);
+    }
 
     auto nextElem = static_cast<QuickTreeViewItem*>(down());
     auto prevElem = static_cast<QuickTreeViewItem*>(up());

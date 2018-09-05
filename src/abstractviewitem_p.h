@@ -109,7 +109,6 @@ public:
 
     virtual QQuickItem* item() const final;
 
-
 private:
     State m_State {State::POOLED};
     TreeTraversalItems* m_pTTI {nullptr};

@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2017 by Emmanuel Lepage Vallee                          *
+ *   Copyright (C) 2018 by Emmanuel Lepage Vallee                          *
  *   Author : Emmanuel Lepage Vallee <emmanuel.lepage@kde.org>             *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
@@ -15,35 +15,36 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#include "plugin.h"
-
-#include <QtCore/QDebug>
-
-#include "pixmapwrapper.h"
-#include "modelscrolladapter.h"
-#include "hierarchyview.h"
-#include "quicklistview.h"
-#include "quicktreeview.h"
-#include "bindedcombobox.h"
-#include "flickablescrollbar.h"
 #include "sizehintproxymodel.h"
 
-void KQuickView::registerTypes(const char *uri)
-{
-    Q_ASSERT(uri == QLatin1String("org.kde.playground.kquickview"));
+#include <QJSValue>
 
-    qmlRegisterType<HierarchyView>(uri, 1, 0, "HierarchyView");
-    qmlRegisterType<QuickTreeView>(uri, 1, 0, "QuickTreeView");
-    qmlRegisterType<QuickListView>(uri, 1, 0, "QuickListView");
-    qmlRegisterType<ModelScrollAdapter>(uri, 1, 0, "ModelScrollAdapter");
-    qmlRegisterType<PixmapWrapper>(uri, 1,0, "PixmapWrapper");
-    qmlRegisterType<BindedComboBox>(uri, 1, 0, "BindedComboBox");
-    qmlRegisterType<FlickableScrollBar>(uri, 1, 0, "FlickableScrollBar");
-    qmlRegisterType<SizeHintProxyModel>(uri, 1, 0, "SizeHintProxyModel");
-    qmlRegisterUncreatableType<QuickListViewSections>(uri, 1, 0, "QuickListViewSections", "");
+class SizeHintProxyModelPrivate
+{
+public:
+    QJSValue m_Callback;
+};
+
+SizeHintProxyModel::SizeHintProxyModel(QObject* parent) : QIdentityProxyModel(parent),
+    d_ptr(new SizeHintProxyModelPrivate())
+{}
+
+SizeHintProxyModel::~SizeHintProxyModel()
+{
+    delete d_ptr;
 }
 
-void KQuickView::initializeEngine(QQmlEngine *engine, const char *uri)
+void SizeHintProxyModel::setSourceModel(QAbstractItemModel *newSourceModel)
 {
-    qDebug() << "\n\n\nCALLED!";
+    QIdentityProxyModel::setSourceModel(newSourceModel);
+}
+
+QJSValue SizeHintProxyModel::callback() const
+{
+    return d_ptr->m_Callback;
+}
+
+void SizeHintProxyModel::setCallback(const QJSValue& value)
+{
+    d_ptr->m_Callback = value;
 }

@@ -69,6 +69,7 @@ SET( kquickview_LIB_SRCS
     src/bindedcombobox.cpp
     src/symboliccolorizer.cpp
     src/flickablescrollbar.cpp
+    src/sizehintproxymodel.cpp
 )
 
 set(AUTOMOC_MOC_OPTIONS -Muri=org.kde.playground.kquickview)
@@ -101,6 +102,7 @@ SET( kquickview_LIB_HDRS
     bindedcombobox.h
     symboliccolorizer.h
     flickablescrollbar.h
+    sizehintproxymodel.h
 )
 
 # Create include file aliases

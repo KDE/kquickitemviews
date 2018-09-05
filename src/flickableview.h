@@ -53,6 +53,14 @@ public:
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged)
     Q_PROPERTY(bool empty READ isEmpty NOTIFY countChanged)
 
+    /**
+     * Specify a model role to use to get the sizeHints.
+     *
+     * If the `SizeHintProxyModel` is used or the `uniformRowHeight` is set,
+     * this isn't necessary.
+     */
+    Q_PROPERTY(QString sizeHintRole READ sizeHintRole WRITE setSizeHintRole)
+
     explicit FlickableView(QQuickItem* parent = nullptr);
     virtual ~FlickableView();
 
@@ -65,8 +73,12 @@ public:
 
     QQmlContext* rootContext() const;
 
-
     bool isEmpty() const;
+
+    Q_INVOKABLE QSize sizeHint(const QModelIndex& index) const;
+
+    QString sizeHintRole() const;
+    void setSizeHintRole(const QString& s);
 
 protected:
     virtual void refresh();

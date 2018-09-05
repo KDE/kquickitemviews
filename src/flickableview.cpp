@@ -21,6 +21,8 @@
 #include <QQmlEngine>
 #include <QtCore/QItemSelectionModel>
 
+#include "sizehintproxymodel.h"
+
 class FlickableViewPrivate : public QObject
 {
     Q_OBJECT
@@ -37,6 +39,10 @@ public:
     mutable QHash<const QAbstractItemModel*, QHash<int, QString>*> m_hhOtherRoleNames;
 
     QHash<int, QString>* reloadRoleNames(const QModelIndex& index) const;
+
+    bool m_ModelHasSizeHints {false};
+    QByteArray m_SizeHintRole;
+    int m_SizeHintRoleIndex {-1};
 
     FlickableView* q_ptr;
 };
@@ -74,6 +80,16 @@ void FlickableView::setModel(QSharedPointer<QAbstractItemModel> model)
         return;
 
     d_ptr->m_pNextModel = model;
+
+    // Check if the proxyModel is used
+    d_ptr->m_ModelHasSizeHints = model->metaObject()->inherits(
+        &SizeHintProxyModel::staticMetaObject
+    );
+
+    if (!d_ptr->m_SizeHintRole.isEmpty() && model)
+        d_ptr->m_SizeHintRoleIndex = model->roleNames().key(
+            d_ptr->m_SizeHintRole
+        );
 
     applyModelChanges(d_ptr->m_pNextModel.data());
 }
@@ -222,6 +238,42 @@ QPair<QQuickItem*, QQmlContext*> FlickableView::loadDelegate(QQuickItem* parentI
 bool FlickableView::isEmpty() const
 {
     return d_ptr->m_pModel ? !d_ptr->m_pModel->rowCount() : true;
+}
+
+QSize FlickableView::sizeHint(const QModelIndex& index) const
+{
+    if (!d_ptr->m_SizeHintRole.isEmpty())
+        return index.data(d_ptr->m_SizeHintRoleIndex).toSize();
+
+    if (d_ptr->m_ModelHasSizeHints) {
+        auto cb = qobject_cast<SizeHintProxyModel*>(model().data())->callback();
+
+        Q_ASSERT(cb.isCallable());
+
+        const auto args = d_ptr->m_pEngine->toScriptValue<QModelIndex>(index);
+        const QJSValueList args2 {
+            args
+        };
+
+        return cb.call(args2).toVariant().toSize();
+    }
+
+    return {};
+}
+
+QString FlickableView::sizeHintRole() const
+{
+    return d_ptr->m_SizeHintRole;
+}
+
+void FlickableView::setSizeHintRole(const QString& s)
+{
+    d_ptr->m_SizeHintRole = s.toLatin1();
+
+    if (!d_ptr->m_SizeHintRole.isEmpty() && model())
+        d_ptr->m_SizeHintRoleIndex = model()->roleNames().key(
+            d_ptr->m_SizeHintRole
+        );
 }
 
 #include <flickableview.moc>

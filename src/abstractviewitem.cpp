@@ -286,3 +286,8 @@ AbstractViewItem::weakReference() const
 
     return {d_ptr->m_pLocker, const_cast<AbstractViewItem*>(this)};
 }
+
+QSize AbstractViewItem::sizeHint() const
+{
+    return view()->sizeHint(index());
+}

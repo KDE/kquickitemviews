@@ -51,3 +51,8 @@ const TreeTraversalRange::Subset TreeTraversalRange::subset(const QModelIndex& i
 {
     return {};
 }
+
+QRectF TreeTraversalRange::currentRect() const
+{
+    return {};
+}

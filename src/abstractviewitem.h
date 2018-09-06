@@ -186,7 +186,7 @@ public:
 
     virtual QQuickItem* item() const = 0;
 
-    virtual QSize sizeHint() const;
+    virtual QSizeF sizeHint() const;
 
 protected:
     virtual bool attach () = 0;

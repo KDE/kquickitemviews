@@ -274,7 +274,6 @@ bool VisualTreeItem::fitsInView() const
         && (geo.y() <= v.y() + v.height());
 }
 
-
 QPair<QWeakPointer<AbstractViewItem::SelectionLocker>, AbstractViewItem*>
 AbstractViewItem::weakReference() const
 {
@@ -287,7 +286,7 @@ AbstractViewItem::weakReference() const
     return {d_ptr->m_pLocker, const_cast<AbstractViewItem*>(this)};
 }
 
-QSize AbstractViewItem::sizeHint() const
+QSizeF AbstractViewItem::sizeHint() const
 {
     return view()->sizeHint(index());
 }

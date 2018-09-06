@@ -19,6 +19,7 @@
 
 #include <QQmlContext>
 #include <QQmlEngine>
+#include <QQmlPropertyMap>
 #include <QtCore/QItemSelectionModel>
 
 #include "sizehintproxymodel.h"
@@ -166,8 +167,6 @@ QHash<int, QString>* FlickableViewPrivate::reloadRoleNames(const QModelIndex& in
     return hash;
 }
 
-#include <QSortFilterProxyModel>
-
 void FlickableView::applyRoles(QQmlContext* ctx, const QModelIndex& self) const
 {
     auto m = self.model();
@@ -240,23 +239,14 @@ bool FlickableView::isEmpty() const
     return d_ptr->m_pModel ? !d_ptr->m_pModel->rowCount() : true;
 }
 
-QSize FlickableView::sizeHint(const QModelIndex& index) const
+QSizeF FlickableView::sizeHint(const QModelIndex& index) const
 {
     if (!d_ptr->m_SizeHintRole.isEmpty())
         return index.data(d_ptr->m_SizeHintRoleIndex).toSize();
 
-    if (d_ptr->m_ModelHasSizeHints) {
-        auto cb = qobject_cast<SizeHintProxyModel*>(model().data())->callback();
-
-        Q_ASSERT(cb.isCallable());
-
-        const auto args = d_ptr->m_pEngine->toScriptValue<QModelIndex>(index);
-        const QJSValueList args2 {
-            args
-        };
-
-        return cb.call(args2).toVariant().toSize();
-    }
+    if (d_ptr->m_ModelHasSizeHints)
+        return qobject_cast<SizeHintProxyModel*>(model().data())
+            ->sizeHintForIndex(d_ptr->m_pEngine, index);
 
     return {};
 }

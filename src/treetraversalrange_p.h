@@ -77,6 +77,12 @@ public:
      */
     const Subset subset(const QModelIndex& idx) const;
 
+    /**
+     * Get the current (cartesian) rectangle represented by this range.
+     */
+    QRectF currentRect() const;
+
+
     //Iterators
     /*Iterator begin();
     Iterator end();*/

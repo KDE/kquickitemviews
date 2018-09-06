@@ -22,7 +22,7 @@
 #include <QtCore/QVariant>
 #include <QJSValue>
 
-
+class QQmlEngine;
 class SizeHintProxyModelPrivate;
 
 /**
@@ -49,15 +49,57 @@ class Q_DECL_EXPORT SizeHintProxyModel : public QIdentityProxyModel
 {
     Q_OBJECT
 public:
-    Q_PROPERTY(QJSValue callback READ callback WRITE setCallback)
+    /**
+     * A function which return a pair of real numbers for with width and height.
+     *
+     * It takes a QModelIndex as the sole parameter, use getRoleValue to get
+     * the value of the QModelIndex roles.
+     */
+    Q_PROPERTY(QJSValue sizeHint READ sizeHint WRITE setSizeHint)
+
+    /**
+     * Add variables to the sizeHint callback context that likely wont change
+     * over time. This is useful to store font metrics and static sizes.
+     *
+     * The function is called when the model changes or invalidateContext is
+     * called.
+     */
+    Q_PROPERTY(QJSValue context READ context WRITE setContext)
+
+    /**
+     * When `dataChanged` on the model is called with a list of invalidated roles
+     * matching the entries in this list, assume the size hint needs to be
+     * recomputed.
+     *
+     * When used with the other KQuickView views, they will be notified.
+     *
+     * Note that the context wont be invalidated.
+     */
+    Q_PROPERTY(QStringList invalidationRoles READ invalidationRoles WRITE setInvalidationRoles)
 
     explicit SizeHintProxyModel(QObject* parent = nullptr);
     virtual ~SizeHintProxyModel();
 
     virtual void setSourceModel(QAbstractItemModel *newSourceModel) override;
 
-    QJSValue callback() const;
-    void setCallback(const QJSValue& value);
+    QJSValue sizeHint() const;
+    void setSizeHint(const QJSValue& value);
+
+    QJSValue context() const;
+    void setContext(const QJSValue& value);
+
+    QStringList invalidationRoles() const;
+    void setInvalidationRoles(const QStringList& l);
+
+    Q_INVOKABLE QSizeF sizeHintForIndex(QQmlEngine *engine, const QModelIndex& idx);
+
+    Q_INVOKABLE QVariant getRoleValue(const QModelIndex& idx, const QString& roleName) const;
+
+public Q_SLOTS:
+    /**
+     * Call this when the values in the context may have changed.
+     */
+    void invalidateContext();
 
 private:
     SizeHintProxyModelPrivate* d_ptr;

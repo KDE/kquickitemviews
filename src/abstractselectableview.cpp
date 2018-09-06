@@ -186,6 +186,11 @@ void AbstractSelectableViewPrivate::slotCurrentIndexChanged(const QModelIndex& i
         m_pSelectedItem->setX(0);
     }
 
+    if (!elem) {
+        qDebug() << "Selected item not found" << idx.model() << m_pView->model();
+        return;
+    }
+
     const auto geo = elem->geometry();
     m_pSelectedItem->setVisible(true);
     m_pSelectedItem->setWidth(geo.width());

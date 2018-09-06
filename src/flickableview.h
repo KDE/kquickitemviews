@@ -47,6 +47,7 @@ class FlickableView : public SimpleFlickable
 {
     Q_OBJECT
 
+    friend class AbstractViewItemPrivate; // Call loadDelegate
 public:
     Q_PROPERTY(QSharedPointer<QAbstractItemModel> model READ model WRITE setModel NOTIFY modelChanged)
     Q_PROPERTY(QAbstractItemModel* rawModel WRITE setRawModel)
@@ -75,7 +76,7 @@ public:
 
     bool isEmpty() const;
 
-    Q_INVOKABLE QSize sizeHint(const QModelIndex& index) const;
+    Q_INVOKABLE QSizeF sizeHint(const QModelIndex& index) const;
 
     QString sizeHintRole() const;
     void setSizeHintRole(const QString& s);

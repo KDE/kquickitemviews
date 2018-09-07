@@ -40,7 +40,7 @@ struct QuickListViewSection final
         QuickListViewItem* owner,
         const QVariant&    value
     );
-    ~QuickListViewSection();
+    virtual ~QuickListViewSection();
 
     QuickListViewItem*    m_pOwner   {nullptr};
     QQuickItem*           m_pItem    {nullptr};
@@ -76,22 +76,17 @@ public:
     virtual bool flush  () override;
     virtual bool remove () override;
 
-    QQuickItem*           m_pItem    {nullptr};
-    QQmlContext*          m_pContent {nullptr};
     QuickListViewSection* m_pSection {nullptr};
 
     // Setters
     virtual void setSelected(bool s) final override;
     QuickListViewSection* setSection(QuickListViewSection* s, const QVariant& val);
 
-    /// Geometry relative to the AbstractViewCompat::view()
-    virtual QRectF geometry() const final override;
-
-    virtual QQuickItem* item() const final override {
-        return qvariant_cast<QQuickItem*>(
-            m_pItem->property("content")
-        );
-    }
+//     virtual QQuickItem* item() const final override {
+//         return qvariant_cast<QQuickItem*>(
+//             m_pItem->property("content")
+//         );
+//     }
 
     QuickListViewPrivate* d() const;
 };
@@ -139,12 +134,6 @@ QuickListViewItem::~QuickListViewItem()
     if (m_pSection && m_pSection->m_pOwner == this) {
         Q_ASSERT(false);
     }
-
-    if (m_pItem)
-        delete m_pItem;
-
-    if (m_pContent)
-        delete m_pContent;
 }
 
 QuickListView::~QuickListView()
@@ -366,33 +355,15 @@ QuickListViewPrivate* QuickListViewItem::d() const
 
 bool QuickListViewItem::attach()
 {
-    auto pair = static_cast<QuickListView*>(view())->loadDelegate(
-        view()->contentItem(),
-        view()->rootContext(),
-        index()
-    );
-
-    if (!pair.first) {
-        qDebug() << "Item failed to load" << index().data();
+    // This will trigger the lazy-loading of the item
+    if (!item())
         return false;
-    }
 
-    if (!pair.first->z())
-        pair.first->setZ(1);
-
-    /*d()->m_DepthChart[depth()] = std::max(
-        d()->m_DepthChart[depth()],
-        pair.first->height()
-    );*/
-
-    m_pContent = pair.second;
-    m_pItem    = pair.first;
-
-    m_pContent->setContextProperty("isCurrentItem", false);
-    m_pContent->setContextProperty("modelIndex", index());
+    context()->setContextProperty("isCurrentItem", false);
+    context()->setContextProperty("modelIndex", index());
 
     // When the item resizes itself
-    QObject::connect(m_pItem, &QQuickItem::heightChanged, m_pItem, [this](){
+    QObject::connect(item(), &QQuickItem::heightChanged, item(), [this](){
         updateGeometry();
     });
 
@@ -401,8 +372,8 @@ bool QuickListViewItem::attach()
 
 bool QuickListViewItem::refresh()
 {
-    if (m_pContent)
-        d()->q_ptr->applyRoles(m_pContent, index());
+    if (context())
+        d()->q_ptr->applyRoles(context(), index());
 
     return true;
 }
@@ -412,32 +383,32 @@ void QuickListViewSection::setOwner(QuickListViewItem* newParent)
     if (m_pOwner == newParent)
         return;
 
-    if (m_pOwner->m_pItem) {
-        auto otherAnchors = qvariant_cast<QObject*>(newParent->m_pItem->property("anchors"));
-        auto anchors = qvariant_cast<QObject*>(m_pOwner->m_pItem->property("anchors"));
+    if (m_pOwner->item()) {
+        auto otherAnchors = qvariant_cast<QObject*>(newParent->item()->property("anchors"));
+        auto anchors = qvariant_cast<QObject*>(m_pOwner->item()->property("anchors"));
 
         const auto newPrevious = static_cast<QuickListViewItem*>(m_pOwner->up());
         Q_ASSERT(newPrevious != m_pOwner);
 
         // Prevent a loop while moving
-        if (otherAnchors && otherAnchors->property("top") == m_pOwner->m_pItem->property("bottom")) {
+        if (otherAnchors && otherAnchors->property("top") == m_pOwner->item()->property("bottom")) {
             anchors->setProperty("top", {});
             otherAnchors->setProperty("top", {});
             otherAnchors->setProperty("y", {});
         }
 
-        anchors->setProperty("top", newParent->m_pItem ?
-            newParent->m_pItem->property("bottom") : QVariant()
+        anchors->setProperty("top", newParent->item() ?
+            newParent->item()->property("bottom") : QVariant()
         );
 
         // Set the old owner new anchors
-        if (newPrevious && newPrevious->m_pItem)
-            anchors->setProperty("top", newPrevious->m_pItem->property("bottom"));
+        if (newPrevious && newPrevious->item())
+            anchors->setProperty("top", newPrevious->item()->property("bottom"));
 
         otherAnchors->setProperty("top", m_pItem->property("bottom"));
     }
     else
-        newParent->m_pItem->setY(0);
+        newParent->item()->setY(0);
 
     m_pOwner = newParent;
 }
@@ -447,9 +418,9 @@ void QuickListViewSection::reparentSection(QuickListViewItem* newParent, Abstrac
     if (!m_pItem)
         return;
 
-    if (newParent && newParent->m_pItem) {
+    if (newParent && newParent->item()) {
         auto anchors = qvariant_cast<QObject*>(m_pItem->property("anchors"));
-        anchors->setProperty("top", newParent->m_pItem->property("bottom"));
+        anchors->setProperty("top", newParent->item()->property("bottom"));
 
         m_pItem->setParentItem(m_pOwner->view()->contentItem());
     }
@@ -525,25 +496,25 @@ bool QuickListViewItem::move()
 
     const qreal y = d()->m_DepthChart.first()*row();
 
-    if (m_pItem->width() != view()->contentItem()->width())
-        m_pItem->setWidth(view()->contentItem()->width());
+    if (item()->width() != view()->contentItem()->width())
+        item()->setWidth(view()->contentItem()->width());
 
-    prevItem = prevItem ? prevItem : prev ? prev->m_pItem : nullptr;
+    prevItem = prevItem ? prevItem : prev ? prev->item() : nullptr;
 
     // So other items can be GCed without always resetting to 0x0, note that it
     // might be a good idea to extend SimpleFlickable to support a virtual
     // origin point.
     if (!prevItem)
-        m_pItem->setY(y);
+        item()->setY(y);
     else {
         // Row can be 0 if there is a section
-        Q_ASSERT(row() || (!prev) || (!prev->m_pItem));
+        Q_ASSERT(row() || (!prev) || (!prev->item()));
 
         // Prevent loops when swapping 2 items
         auto otherAnchors = qvariant_cast<QObject*>(prevItem->property("anchors"));
-        auto anchors = qvariant_cast<QObject*>(m_pItem->property("anchors"));
+        auto anchors = qvariant_cast<QObject*>(item()->property("anchors"));
 
-        if (otherAnchors && otherAnchors->property("top") == m_pItem->property("bottom")) {
+        if (otherAnchors && otherAnchors->property("top") == item()->property("bottom")) {
             anchors->setProperty("top", {});
             otherAnchors->setProperty("top", {});
             otherAnchors->setProperty("y", {});
@@ -712,19 +683,7 @@ void QuickListViewPrivate::slotDataChanged(const QModelIndex& tl, const QModelIn
 
 void QuickListViewItem::setSelected(bool s)
 {
-    m_pContent->setContextProperty("isCurrentItem", s);
-}
-
-
-QRectF QuickListViewItem::geometry() const
-{
-    const QPointF p = m_pItem->mapFromItem(view()->contentItem(), {0,0});
-    return {
-        -p.x(),
-        -p.y(),
-        m_pItem->width(),
-        m_pItem->height()
-    };
+    context()->setContextProperty("isCurrentItem", s);
 }
 
 #include <quicklistview.moc>

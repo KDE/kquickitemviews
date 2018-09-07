@@ -45,18 +45,15 @@ public:
     virtual bool remove () override;
 
     virtual void setSelected(bool s) final override;
-    virtual QRectF geometry() const final override;
 
-    virtual QQuickItem* item() const final override {
-        return qvariant_cast<QQuickItem*>(
-            m_pItem->property("content")
-        );
-    }
+//     virtual QQuickItem* item() const final override {
+//         return qvariant_cast<QQuickItem*>(
+//             item()->property("content")
+//         );
+//     }
 
 private:
-    QQuickItem* m_pItem     {nullptr};
-    QQmlContext* m_pContent {nullptr};
-    bool m_IsHead           { false };
+    bool m_IsHead { false };
 
     QuickTreeViewPrivate* d() const;
 };
@@ -95,7 +92,7 @@ QuickTreeViewItem::QuickTreeViewItem(AbstractViewCompat* p) : AbstractViewItem(p
 
 QuickTreeViewItem::~QuickTreeViewItem()
 {
-    delete m_pItem;
+    delete item();
 }
 
 QuickTreeViewPrivate* QuickTreeViewItem::d() const
@@ -105,44 +102,31 @@ QuickTreeViewPrivate* QuickTreeViewItem::d() const
 
 bool QuickTreeViewItem::attach()
 {
-    if (!view()->delegate()) {
-        qDebug() << "Cannot attach, there is no delegate";
+    // This will trigger the lazy-loading of the item
+    if (!item())
         return false;
-    }
-
-    auto pair = static_cast<QuickTreeView*>(view())->loadDelegate(
-        view()->contentItem(),
-        view()->rootContext(),
-        index()
-    );
-
-    if (!pair.first->z())
-        pair.first->setZ(1);
 
     /*d()->m_DepthChart[depth()] = std::max(
         d()->m_DepthChart[depth()],
         pair.first->height()
     );*/
 
-    m_pContent = pair.second;
-    m_pItem    = pair.first;
-
     Q_ASSERT(index().isValid());
 
     // Add some useful metadata
-    m_pContent->setContextProperty("rowCount", index().model()->rowCount(index()));
-    m_pContent->setContextProperty("index", index().row());
-    m_pContent->setContextProperty("modelIndex", index());
+    context()->setContextProperty("rowCount", index().model()->rowCount(index()));
+    context()->setContextProperty("index", index().row());
+    context()->setContextProperty("modelIndex", index());
 
-    Q_ASSERT(m_pItem && m_pContent);
+    Q_ASSERT(item() && context());
 
     return move();
 }
 
 bool QuickTreeViewItem::refresh()
 {
-    if (m_pContent)
-        d()->q_ptr->applyRoles(m_pContent, index());
+    if (context())
+        d()->q_ptr->applyRoles(context(), index());
 
     return true;
 }
@@ -150,12 +134,12 @@ bool QuickTreeViewItem::refresh()
 bool QuickTreeViewItem::move()
 {
     // Will happen when trying to move a FAILED, but buffered item
-    if (!m_pItem) {
+    if (!item()) {
         qDebug() << "NO ITEM" << index().data();
         return false;
     }
 
-    m_pItem->setWidth(view()->contentItem()->width());
+    item()->setWidth(view()->contentItem()->width());
 
     auto nextElem = static_cast<QuickTreeViewItem*>(down());
     auto prevElem = static_cast<QuickTreeViewItem*>(up());
@@ -177,25 +161,25 @@ bool QuickTreeViewItem::move()
     // might be a good idea to extend SimpleFlickable to support a virtual
     // origin point.
     if ((!prevElem) || (nextElem && nextElem->m_IsHead)) {
-        auto anchors = qvariant_cast<QObject*>(m_pItem->property("anchors"));
+        auto anchors = qvariant_cast<QObject*>(item()->property("anchors"));
         anchors->setProperty("top", {});
-        m_pItem->setY(0);
+        item()->setY(0);
         m_IsHead = true;
     }
     else if (prevElem) {
         Q_ASSERT(!m_IsHead);
-        m_pItem->setProperty("y", {});
-        auto anchors = qvariant_cast<QObject*>(m_pItem->property("anchors"));
-        anchors->setProperty("top", prevElem->m_pItem->property("bottom"));
+        item()->setProperty("y", {});
+        auto anchors = qvariant_cast<QObject*>(item()->property("anchors"));
+        anchors->setProperty("top", prevElem->item()->property("bottom"));
     }
 
     // Now, update the next anchors
     if (nextElem) {
         nextElem->m_IsHead = false;
-        nextElem->m_pItem->setProperty("y", {});
+        nextElem->item()->setProperty("y", {});
 
-        auto anchors = qvariant_cast<QObject*>(nextElem->m_pItem->property("anchors"));
-        anchors->setProperty("top", m_pItem->property("bottom"));
+        auto anchors = qvariant_cast<QObject*>(nextElem->item()->property("anchors"));
+        anchors->setProperty("top", item()->property("bottom"));
     }
 
     updateGeometry();
@@ -210,10 +194,10 @@ bool QuickTreeViewItem::flush()
 
 bool QuickTreeViewItem::remove()
 {
-    if (m_pItem) {
-        m_pItem->setParent(nullptr);
-        m_pItem->setParentItem(nullptr);
-        m_pItem->setVisible(false);
+    if (item()) {
+        item()->setParent(nullptr);
+        item()->setParentItem(nullptr);
+        item()->setVisible(false);
     }
 
     auto nextElem = static_cast<QuickTreeViewItem*>(down());
@@ -221,14 +205,14 @@ bool QuickTreeViewItem::remove()
 
     if (nextElem) {
         if (m_IsHead) {
-            auto anchors = qvariant_cast<QObject*>(nextElem->m_pItem->property("anchors"));
+            auto anchors = qvariant_cast<QObject*>(nextElem->item()->property("anchors"));
             anchors->setProperty("top", {});
-            m_pItem->setY(0);
+            item()->setY(0);
             nextElem->m_IsHead = true;
         }
         else { //TODO maybe eventually use a state machine for this
-            auto anchors = qvariant_cast<QObject*>(nextElem->m_pItem->property("anchors"));
-            anchors->setProperty("top", prevElem->m_pItem->property("bottom"));
+            auto anchors = qvariant_cast<QObject*>(nextElem->item()->property("anchors"));
+            anchors->setProperty("top", prevElem->item()->property("bottom"));
         }
     }
 
@@ -237,19 +221,5 @@ bool QuickTreeViewItem::remove()
 
 void QuickTreeViewItem::setSelected(bool s)
 {
-    m_pContent->setContextProperty("isCurrentItem", s);
-}
-
-QRectF QuickTreeViewItem::geometry() const
-{
-    if (!m_pItem)
-        return {};
-
-    const QPointF p = m_pItem->mapFromItem(view()->contentItem(), {0,0});
-    return {
-        -p.x(),
-        -p.y(),
-        m_pItem->width(),
-        m_pItem->height()
-    };
+    context()->setContextProperty("isCurrentItem", s);
 }

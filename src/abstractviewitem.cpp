@@ -28,6 +28,9 @@ class AbstractViewItemPrivate
 public:
     typedef bool(AbstractViewItemPrivate::*StateF)();
 
+    // Helpers
+    inline void load();
+
     // Actions
     bool attach ();
     bool refresh();
@@ -43,6 +46,9 @@ public:
     static const StateF m_fStateMachine[7][7];
 
     mutable QSharedPointer<AbstractViewItem::SelectionLocker> m_pLocker;
+
+    mutable QQuickItem  *m_pItem    {nullptr};
+    mutable QQmlContext *m_pContext {nullptr};
 
     // Attributes
     AbstractViewItem* q_ptr;
@@ -90,7 +96,15 @@ AbstractViewItem::AbstractViewItem(AbstractQuickView* v) :
 }
 
 AbstractViewItem::~AbstractViewItem()
-{}
+{
+    if (d_ptr->m_pItem)
+        delete d_ptr->m_pItem;
+
+    if (d_ptr->m_pContext)
+        delete d_ptr->m_pContext;
+
+    delete d_ptr;
+}
 
 AbstractQuickView* AbstractViewItem::view() const
 {
@@ -289,4 +303,64 @@ AbstractViewItem::weakReference() const
 QSizeF AbstractViewItem::sizeHint() const
 {
     return view()->sizeHint(index());
+}
+
+void AbstractViewItemPrivate::load()
+{
+    if (m_pContext || m_pItem)
+        return;
+
+    if (!q_ptr->view()->delegate()) {
+        qDebug() << "Cannot attach, there is no delegate";
+        return;
+    }
+
+    auto pair = q_ptr->view()->loadDelegate(
+        q_ptr->view()->contentItem(),
+        q_ptr->view()->rootContext(),
+        q_ptr->index()
+    );
+
+    if (!pair.first) {
+        qDebug() << "Item failed to load" << q_ptr->index().data();
+        return;
+    }
+
+    if (!pair.first->z())
+        pair.first->setZ(1);
+
+    /*d()->m_DepthChart[depth()] = std::max(
+        d()->m_DepthChart[depth()],
+        pair.first->height()
+    );*/
+
+    m_pContext = pair.second;
+    m_pItem    = pair.first;
+}
+
+QQmlContext *AbstractViewItem::context() const
+{
+    d_ptr->load();
+    return d_ptr->m_pContext;
+}
+
+QQuickItem *AbstractViewItem::item() const
+{
+    d_ptr->load();
+    return d_ptr->m_pItem;
+}
+
+
+QRectF AbstractViewItem::geometry() const
+{
+    if (!d_ptr->m_pItem)
+        return {};
+
+    const QPointF p = item()->mapFromItem(view()->contentItem(), {0,0});
+    return {
+        -p.x(),
+        -p.y(),
+        item()->width(),
+        item()->height()
+    };
 }

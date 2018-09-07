@@ -20,6 +20,7 @@
 #include <QtCore/QPersistentModelIndex>
 #include <QtCore/QRectF>
 class QQuickItem;
+class QQmlContext;
 
 class AbstractViewItemPrivate;
 class VisualTreeItem;
@@ -71,6 +72,22 @@ public:
     virtual ~AbstractViewItem();
 
     AbstractQuickView* view() const;
+
+    /**
+     * The QML context for the `item`.
+     *
+     * This is lazy loaded.
+     */
+    virtual QQmlContext *context() const;
+
+    /**
+     * The QQuickItem used for this item.
+     *
+     * By default, it will create a container in which another item will
+     * be placed. This isn't as optimial as placing the item directly, but
+     * allows for a lot of boilerplate code to be handled internally.
+     */
+    virtual QQuickItem* item() const;
 
     /**
      * The external state if the item.
@@ -176,15 +193,15 @@ public:
 
     /**
      * The size and position necessary to draw this item.
+     *
+     * The default implementation uses the item() geometry.
      */
-    virtual QRectF geometry() const = 0;
+    virtual QRectF geometry() const;
 
 
     virtual void setSelected(bool s) = 0;
 
     void updateGeometry();
-
-    virtual QQuickItem* item() const = 0;
 
     virtual QSizeF sizeHint() const;
 

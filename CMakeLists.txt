@@ -41,12 +41,10 @@ SET(CMAKE_CXX_STANDARD 14)
 
 
 FIND_PACKAGE(Qt5 CONFIG REQUIRED
-    Core Gui Quick QuickWidgets QuickControls2
+    Core Gui Quick QuickControls2
 )
 
-INCLUDE_DIRECTORIES(SYSTEM ${Qt5Widgets_INCLUDES} ${Qt5Core_INCLUDES})
-
-ADD_DEFINITIONS(${Qt5Core_DEFINITIONS})
+add_definitions(-isystem ${Qt5Core_PRIVATE_INCLUDE_DIRS})
 
 SET(GENERIC_LIB_VERSION "1.0.0")
 
@@ -70,6 +68,7 @@ SET( kquickview_LIB_SRCS
     src/symboliccolorizer.cpp
     src/flickablescrollbar.cpp
     src/sizehintproxymodel.cpp
+    src/contextmanager.cpp
 )
 
 set(AUTOMOC_MOC_OPTIONS -Muri=org.kde.playground.kquickview)
@@ -80,7 +79,6 @@ target_link_libraries( kquickview
     Qt5::Core
     Qt5::Gui
     Qt5::Quick
-    Qt5::QuickWidgets
     Qt5::QuickControls2
 )
 
@@ -103,6 +101,7 @@ SET( kquickview_LIB_HDRS
     symboliccolorizer.h
     flickablescrollbar.h
     sizehintproxymodel.h
+    contextmanager.h
 )
 
 # Create include file aliases

@@ -17,269 +17,200 @@
  **************************************************************************/
 #include "hierarchyview.h"
 
-// libstdc++
-#include <functional>
+#include "abstractviewitem.h"
 
 // Qt
-#include <QQmlComponent>
-#include <QQmlEngine>
 #include <QQmlContext>
-#include <QtCore/QAbstractItemModel>
-#include <QtCore/QDebug>
 
-struct HierarchyViewEntry final
+/**
+ * Polymorphic tree item for the AbstractViewCompat.
+ *
+ * Classes implementing AbstractViewCompat need to provide an implementation of the pure
+ * virtual functions. It is useful, for example, to manage both a raster and
+ * QQuickItem based version of a view.
+ *
+ * The state is managed by the AbstractViewCompat and it's own protected virtual methods.
+ */
+class HierarchyViewItem : public AbstractViewItem
 {
-    explicit HierarchyViewEntry() {};
-    HierarchyViewEntry(
-        const QModelIndex& idx, QQuickItem* i,
-        HierarchyViewEntry* p, QQmlContext* ctx
-    );
+public:
+    explicit HierarchyViewItem(AbstractViewCompat* v);
+    virtual ~HierarchyViewItem();
 
-    QPersistentModelIndex   m_ModelIndex {       };
-    QQuickItem*             m_pItem      {nullptr};
-    HierarchyViewEntry* m_pParent    {nullptr};
-    QQmlContext*            m_pContext   {nullptr};
-    int                     m_Sum        {   0   };
-    int                     m_Y0         {   0   };
-    int                     m_Index      {   0   };
+    // Actions
+    virtual bool attach () override;
+    virtual bool move   () override;
+    virtual bool flush  () override;
+    virtual bool remove () override;
 
-    QVector<HierarchyViewEntry*> m_lChildren;
+    virtual void setSelected(bool s) final override;
+
+//     virtual QQuickItem* item() const final override {
+//         return qvariant_cast<QQuickItem*>(
+//             item()->property("content")
+//         );
+//     }
+
+private:
+    bool m_IsHead { false };
+
+    HierarchyViewPrivate* d() const;
 };
 
-class HierarchyViewPrivate final : public QObject
+class HierarchyViewPrivate
 {
-    Q_OBJECT
 public:
-    explicit HierarchyViewPrivate(HierarchyView* parent) : QObject(parent), q_ptr(parent){}
 
-    QHash<QPersistentModelIndex, HierarchyViewEntry*> m_hMapping;
-
-    HierarchyViewEntry m_RootNode {};
+    // When all elements are assumed to have the same height, life is easy
+    QVector<qreal> m_DepthChart {0};
 
     HierarchyView* q_ptr;
-
-    void clear();
-    void loadVisible();
-    void loadRecursize( const QModelIndex& parent, const QModelIndex& self );
-
-    void forEach(const QModelIndex& parent, int first, int last, const std::function<void(const QModelIndex&, HierarchyViewEntry* n)>& f) const;
-
-public Q_SLOTS:
-    void slotRowsInserted(const QModelIndex& parent, int first, int last);
-    void slotRowsRemoved (const QModelIndex& parent, int first, int last);
-    //void slotRowsMoved   (const QModelIndex& parent, int first, int last);
-    void slotDataChanged (const QModelIndex& tl, const QModelIndex& br  );
 };
 
-HierarchyView::HierarchyView(QQuickItem* parent) : FlickableView(parent), d_ptr(new HierarchyViewPrivate(this))
-{}
+HierarchyView::HierarchyView(QQuickItem* parent) : AbstractViewCompat(parent),
+    d_ptr(new HierarchyViewPrivate)
+{
+    d_ptr->q_ptr = this;
+}
 
 HierarchyView::~HierarchyView()
 {
     delete d_ptr;
 }
 
-void HierarchyView::applyModelChanges(QAbstractItemModel* m)
-{
-    if (model()) {
-        auto rm = model().data();
-        disconnect(rm, &QAbstractItemModel::rowsInserted , d_ptr, &HierarchyViewPrivate::slotRowsInserted );
-        disconnect(rm, &QAbstractItemModel::rowsRemoved  , d_ptr, &HierarchyViewPrivate::slotRowsRemoved  );
-        //connect(model(), &QAbstractItemModel::rowsMoved    , d_ptr, &HierarchyViewPrivate::slotRowsMoved    );
-        disconnect(rm, &QAbstractItemModel::dataChanged  , d_ptr, &HierarchyViewPrivate::slotDataChanged  );
-    }
-
-    FlickableView::applyModelChanges(m);
-
-    d_ptr->clear();
-
-    d_ptr->loadVisible();
-    setCurrentY(contentHeight());
-
-    if (!m)
-        return;
-
-    connect(m, &QAbstractItemModel::rowsInserted , d_ptr, &HierarchyViewPrivate::slotRowsInserted );
-    connect(m, &QAbstractItemModel::rowsRemoved  , d_ptr, &HierarchyViewPrivate::slotRowsRemoved  );
-    //connect(model(), &QAbstractItemModel::rowsMoved    , d_ptr, &HierarchyViewPrivate::slotRowsMoved    );
-    connect(m, &QAbstractItemModel::dataChanged  , d_ptr, &HierarchyViewPrivate::slotDataChanged  );
-
-}
-
-HierarchyViewEntry::HierarchyViewEntry(const QModelIndex& idx, QQuickItem* i, HierarchyViewEntry* p, QQmlContext* ctx )
- : m_ModelIndex(idx), m_pItem(i), m_pParent(p), m_pContext(ctx)
-{
-    Q_ASSERT(idx.isValid() && p);
-
-    Q_ASSERT(idx.row() <= p->m_lChildren.size());
-
-    // Make room
-    for (int i = idx.row(); i < p->m_lChildren.size(); i++)
-        p->m_lChildren[i]->m_Index++;
-
-    m_Index = idx.row();
-    p->m_lChildren.insert(m_Index, this);
-}
-
-void HierarchyViewPrivate::loadRecursize(const QModelIndex& parent, const QModelIndex& self)
-{
-    auto parentNode = m_hMapping.value(parent);
-
-    parentNode = parentNode ? parentNode : &m_RootNode;
-
-    // Avoid adding already present elements
-    if (parentNode && parentNode->m_lChildren.size() > self.row()
-      && parentNode->m_lChildren[self.row()]->m_ModelIndex == self)
-        return;
-
-    // Everything is lazy loader from the root down
-    if (parent.isValid() && !parentNode)
-        return;
-
-    auto pair = q_ptr->loadDelegate(parentNode->m_pItem, parentNode->m_pContext, self);
-    auto item(pair.first);
-    auto ctx(pair.second);
-
-    auto node = new HierarchyViewEntry (
-        self, item, parentNode, ctx
-    );
-
-    node->m_Y0 = item->height();
-    node->m_Sum += node->m_Y0;
-
-    m_hMapping[self] = node;
-
-    const int toAdd = item->height();
-
-    // Increment every item height
-    do {
-        node->m_pParent->m_Sum += toAdd;
-        node->m_pParent->m_pItem->setHeight(node->m_pParent->m_Sum);
-
-        // The first item is always at 0x0+parent_delegate
-        if (!node->m_Index) {
-            node->m_pItem->setY(node->m_pParent->m_Y0);
-            continue;
-        }
-
-        auto previous = node->m_pParent->m_lChildren[node->m_Index-1];
-        Q_ASSERT(previous != node);
-
-        auto anchors = qvariant_cast<QObject*>(node->m_pItem->property("anchors"));
-
-        anchors->setProperty("top", previous->m_pItem->property("bottom"));
-        //Q_ASSERT(anchors->property("top") == previous->m_pItem->property("bottom"));
-
-    } while ((node = node->m_pParent) && node != &m_RootNode);
-
-    for (int i = 0; i < q_ptr->model()->rowCount(self); i++)
-        loadRecursize(self, q_ptr->model()->index(i, 0, self));
-}
-
-void HierarchyViewPrivate::clear()
-{
-    for (auto n : qAsConst(m_hMapping)) {
-        n->m_pItem->setVisible(false);
-        n->m_pItem->setParentItem(nullptr);
-        delete n->m_pItem;
-        delete n->m_pContext;
-        delete n;
-    }
-    m_hMapping.clear();
-    m_RootNode = HierarchyViewEntry();
-}
-
-void HierarchyView::refresh()
-{
-    d_ptr->loadVisible();
-}
-
-void HierarchyViewPrivate::loadVisible()
-{
-    if (!q_ptr->delegate() || !q_ptr->model())
-        return;
-
-    if (!m_RootNode.m_pItem)
-        m_RootNode.m_pItem = q_ptr->contentItem();
-
-    if (!m_RootNode.m_pContext)
-        m_RootNode.m_pContext = q_ptr->rootContext();
-
-    q_ptr->FlickableView::refresh();
-
-    for (int i = 0; i < q_ptr->model()->rowCount(); i++)
-        loadRecursize({}, q_ptr->model()->index(i, 0));
-}
-
-void HierarchyViewPrivate::forEach(const QModelIndex& parent, int first, int last, const std::function<void(const QModelIndex&, HierarchyViewEntry*)>& f) const
-{
-    auto parentNode = m_hMapping.value(parent);
-
-    if (parent.isValid() && !parentNode)
-        return;
-
-    for (int i = first; i <= last; i++) {
-        auto idx = q_ptr->model()->index(i, 0, parent);
-        if (auto node = m_hMapping.value(idx))
-            f(idx, node);
-    }
-}
-
-void HierarchyViewPrivate::slotRowsInserted(const QModelIndex& parent, int first, int last)
-{
-    Q_UNUSED(last)
-
-    for (int i = first; i <= last; i++) {
-        loadRecursize(parent, q_ptr->model()->index(i, 0, parent));
-    }
-
-    q_ptr->setCurrentY(q_ptr->contentHeight());
-
-    if (!parent.isValid())
-        Q_EMIT q_ptr->countChanged();
-}
-
-void HierarchyViewPrivate::slotRowsRemoved(const QModelIndex& parent, int first, int last)
-{
-    forEach(parent, first, last, [](const QModelIndex& idx, HierarchyViewEntry* n) {
-        Q_UNUSED(idx)
-        Q_UNUSED(n)
-        //TODO
-    });
-
-    if (!parent.isValid())
-        Q_EMIT q_ptr->countChanged();
-}
-
-// void HierarchyViewPrivate::slotRowsMoved(const QModelIndex& parent, int first, int last)
-// {
-//     forEach(parent, first, last, [this](const QModelIndex& idx, HierarchyViewEntry* n) {
-//         Q_UNUSED(idx)
-//         Q_UNUSED(n)
-//         //TODO
-//     });
-// }
-
-void HierarchyViewPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& br)
-{
-    if (tl.parent() != br.parent())
-        return;
-
-    forEach(tl.parent(), tl.row(), br.row(), [this](const QModelIndex& idx, HierarchyViewEntry* n) {
-        q_ptr->applyRoles(n->m_pContext, idx);
-    });
-}
-
 AbstractViewItem* HierarchyView::createItem() const
 {
-    return nullptr;
+    return new HierarchyViewItem(
+        const_cast<HierarchyView*>(this)
+    );
 }
 
-AbstractViewItem* HierarchyView::itemForIndex(const QModelIndex& idx) const
+HierarchyViewItem::HierarchyViewItem(AbstractViewCompat* p) : AbstractViewItem(p)
 {
-    Q_UNUSED(idx)
-    //TODO
-    return nullptr;
 }
 
-#include <hierarchyview.moc>
+HierarchyViewItem::~HierarchyViewItem()
+{
+    delete item();
+}
+
+HierarchyViewPrivate* HierarchyViewItem::d() const
+{
+    return static_cast<HierarchyView*>(view())->HierarchyView::d_ptr;
+}
+
+bool HierarchyViewItem::attach()
+{
+    // This will trigger the lazy-loading of the item
+    if (!item())
+        return false;
+
+    /*d()->m_DepthChart[depth()] = std::max(
+        d()->m_DepthChart[depth()],
+        pair.first->height()
+    );*/
+
+    Q_ASSERT(index().isValid());
+
+    // Add some useful metadata
+    context()->setContextProperty("rowCount", index().model()->rowCount(index()));
+    context()->setContextProperty("index", index().row());
+    context()->setContextProperty("modelIndex", index());
+
+    Q_ASSERT(item() && context());
+
+    return move();
+}
+
+bool HierarchyViewItem::move()
+{
+    // Will happen when trying to move a FAILED, but buffered item
+    if (!item()) {
+        qDebug() << "NO ITEM" << index().data();
+        return false;
+    }
+
+    item()->setWidth(view()->contentItem()->width());
+
+    auto nextElem = static_cast<HierarchyViewItem*>(down());
+    auto prevElem = static_cast<HierarchyViewItem*>(up());
+
+    // The root has been moved in the middle of the tree, find the new root
+    //TODO maybe add a deterministic API instead of O(N) lookup
+    if (prevElem && m_IsHead) {
+        m_IsHead = false;
+
+        auto root = prevElem;
+        while (auto prev = root->up())
+            root = static_cast<HierarchyViewItem*>(prev);
+
+        root->move();
+        Q_ASSERT(root->m_IsHead);
+    }
+
+    // So other items can be GCed without always resetting to 0x0, note that it
+    // might be a good idea to extend SimpleFlickable to support a virtual
+    // origin point.
+    if ((!prevElem) || (nextElem && nextElem->m_IsHead)) {
+        auto anchors = qvariant_cast<QObject*>(item()->property("anchors"));
+        anchors->setProperty("top", {});
+        item()->setY(0);
+        m_IsHead = true;
+    }
+    else if (prevElem) {
+        Q_ASSERT(!m_IsHead);
+        item()->setProperty("y", {});
+        auto anchors = qvariant_cast<QObject*>(item()->property("anchors"));
+        anchors->setProperty("top", prevElem->item()->property("bottom"));
+    }
+
+    // Now, update the next anchors
+    if (nextElem) {
+        nextElem->m_IsHead = false;
+        nextElem->item()->setProperty("y", {});
+
+        auto anchors = qvariant_cast<QObject*>(nextElem->item()->property("anchors"));
+        anchors->setProperty("top", item()->property("bottom"));
+    }
+
+    updateGeometry();
+
+    return true;
+}
+
+bool HierarchyViewItem::flush()
+{
+    return true;
+}
+
+bool HierarchyViewItem::remove()
+{
+    if (item()) {
+        item()->setParent(nullptr);
+        item()->setParentItem(nullptr);
+        item()->setVisible(false);
+    }
+
+    auto nextElem = static_cast<HierarchyViewItem*>(down());
+    auto prevElem = static_cast<HierarchyViewItem*>(up());
+
+    if (nextElem) {
+        if (m_IsHead) {
+            auto anchors = qvariant_cast<QObject*>(nextElem->item()->property("anchors"));
+            anchors->setProperty("top", {});
+            item()->setY(0);
+            nextElem->m_IsHead = true;
+        }
+        else { //TODO maybe eventually use a state machine for this
+            auto anchors = qvariant_cast<QObject*>(nextElem->item()->property("anchors"));
+            anchors->setProperty("top", prevElem->item()->property("bottom"));
+        }
+    }
+
+    return true;
+}
+
+void HierarchyViewItem::setSelected(bool s)
+{
+    context()->setContextProperty("isCurrentItem", s);
+}

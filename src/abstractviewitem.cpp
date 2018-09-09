@@ -19,9 +19,14 @@
 
 // Qt
 #include <QtCore/QTimer>
+#include <QQmlContext>
+#include <QQuickItem>
+#include <QQmlEngine>
 
 #include "abstractviewitem_p.h"
+#include "abstractquickview_p.h"
 #include "abstractquickview.h"
+#include "contextmanager.h"
 
 class AbstractViewItemPrivate
 {
@@ -49,6 +54,9 @@ public:
 
     mutable QQuickItem  *m_pItem    {nullptr};
     mutable QQmlContext *m_pContext {nullptr};
+
+    // Helpers
+    QPair<QQuickItem*, QQmlContext*> loadDelegate(QQuickItem* parentI, QQmlContext* parentCtx, const QModelIndex& self) const;
 
     // Attributes
     AbstractViewItem* q_ptr;
@@ -315,7 +323,7 @@ void AbstractViewItemPrivate::load()
         return;
     }
 
-    auto pair = q_ptr->view()->loadDelegate(
+    auto pair = loadDelegate(
         q_ptr->view()->contentItem(),
         q_ptr->view()->rootContext(),
         q_ptr->index()
@@ -364,3 +372,56 @@ QRectF AbstractViewItem::geometry() const
         item()->height()
     };
 }
+
+bool AbstractViewItem::refresh()
+{
+    if (context())
+        view()->s_ptr->contextManager()->applyRoles(context(), index());
+
+    return true;
+}
+
+
+QPair<QQuickItem*, QQmlContext*> AbstractViewItemPrivate::loadDelegate(QQuickItem* parentI, QQmlContext* parentCtx, const QModelIndex& self) const
+{
+    if (!q_ptr->view()->delegate())
+        return {};
+
+    // Create a context for the container, it's the only way to force anchors
+    // to work
+    auto pctx = new QQmlContext(parentCtx);
+
+    // Create a parent item to hold the delegate and all children
+    auto container = qobject_cast<QQuickItem *>(q_ptr->view()->s_ptr->component()->create(pctx));
+    container->setWidth(q_ptr->view()->width());
+    q_ptr->view()->s_ptr->engine()->setObjectOwnership(container, QQmlEngine::CppOwnership);
+    container->setParentItem(parentI);
+
+    // Create a context with all the tree roles
+    auto ctx = new QQmlContext(pctx);
+
+    q_ptr->view()->s_ptr->contextManager()->applyRoles(pctx, self);
+
+    // Create the delegate
+    auto item = qobject_cast<QQuickItem *>(q_ptr->view()->delegate()->create(ctx));
+
+    // It allows the children to be added anyway
+    if(!item)
+        return {container, pctx};
+
+    item->setWidth(q_ptr->view()->width());
+    item->setParentItem(container);
+
+    // Resize the container
+    container->setHeight(item->height());
+
+    // Make sure it can be resized dynamically
+    QObject::connect(item, &QQuickItem::heightChanged, container, [container, item](){
+        container->setHeight(item->height());
+    });
+
+    container->setProperty("content", QVariant::fromValue(item));
+
+    return {container, pctx};
+}
+

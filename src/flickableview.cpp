@@ -36,11 +36,6 @@ public:
     mutable QQmlContext*                m_pRootContext    {nullptr};
     QSharedPointer<QAbstractItemModel>  m_pNextModel      {nullptr};
 
-    mutable QHash<int, QString> m_hRoleNames;
-    mutable QHash<const QAbstractItemModel*, QHash<int, QString>*> m_hhOtherRoleNames;
-
-    QHash<int, QString>* reloadRoleNames(const QModelIndex& index) const;
-
     bool m_ModelHasSizeHints {false};
     QByteArray m_SizeHintRole;
     int m_SizeHintRoleIndex {-1};
@@ -64,7 +59,6 @@ void FlickableView::applyModelChanges(QAbstractItemModel* m)
     Q_ASSERT(m == d_ptr->m_pNextModel);
 
     d_ptr->m_pModel = d_ptr->m_pNextModel;
-    d_ptr->m_hRoleNames.clear();
 
     emit modelChanged(d_ptr->m_pModel);
     emit countChanged();
@@ -127,111 +121,6 @@ QQmlContext* FlickableView::rootContext() const
         d_ptr->m_pRootContext = QQmlEngine::contextForObject(this);
 
     return d_ptr->m_pRootContext;
-}
-
-void FlickableView::refresh()
-{
-    if (!d_ptr->m_pEngine) {
-        d_ptr->m_pEngine = rootContext()->engine();
-        d_ptr->m_pComponent = new QQmlComponent(d_ptr->m_pEngine);
-        d_ptr->m_pComponent->setData("import QtQuick 2.4; Item {property QtObject content: null;}", {});
-    }
-}
-
-/**
- * This helper method convert the model role names (QByteArray) to QML context
- * properties (QString) only once.
- *
- * If this wasn't done, it would cause millions of QByteArray->QString temporary
- * allocations.
- */
-QHash<int, QString>* FlickableViewPrivate::reloadRoleNames(const QModelIndex& index) const
-{
-    if (!m_pModel)
-        return nullptr;
-
-    const auto m = index.model() ? index.model() : m_pModel.data();
-
-    auto* hash = m == m_pModel ? &m_hRoleNames : m_hhOtherRoleNames.value(m);
-
-    if (!hash)
-        m_hhOtherRoleNames[m] = hash = new QHash<int, QString>;
-
-    hash->clear();
-
-    const auto roleNames = m->roleNames();
-
-    for (auto i = roleNames.constBegin(); i != roleNames.constEnd(); ++i)
-        (*hash)[i.key()] = i.value();
-
-    return hash;
-}
-
-void FlickableView::applyRoles(QQmlContext* ctx, const QModelIndex& self) const
-{
-    auto m = self.model();
-
-    if (Q_UNLIKELY(!m))
-        return;
-
-    auto* hash = m == d_ptr->m_pModel ?
-        &d_ptr->m_hRoleNames : d_ptr->m_hhOtherRoleNames.value(m);
-
-    // Refresh the cache
-    if ((!hash) || model()->roleNames().size() != hash->size())
-        hash = d_ptr->reloadRoleNames(self);
-
-    // Add all roles to the
-    for (auto i = hash->constBegin(); i != hash->constEnd(); ++i)
-        ctx->setContextProperty(i.value() , self.data(i.key()));
-
-    // Set extra index to improve ListView compatibility
-    ctx->setContextProperty(QStringLiteral("index"        ) , self.row()        );
-    ctx->setContextProperty(QStringLiteral("rootIndex"    ) , self              );
-    ctx->setContextProperty(QStringLiteral("rowCount"     ) , m->rowCount(self) );
-}
-
-QPair<QQuickItem*, QQmlContext*> FlickableView::loadDelegate(QQuickItem* parentI, QQmlContext* parentCtx, const QModelIndex& self) const
-{
-    if (!delegate())
-        return {};
-
-    // Create a context for the container, it's the only way to force anchors
-    // to work
-    auto pctx = new QQmlContext(parentCtx);
-
-    // Create a parent item to hold the delegate and all children
-    auto container = qobject_cast<QQuickItem *>(d_ptr->m_pComponent->create(pctx));
-    container->setWidth(width());
-    d_ptr->m_pEngine->setObjectOwnership(container,QQmlEngine::CppOwnership);
-    container->setParentItem(parentI);
-
-    // Create a context with all the tree roles
-    auto ctx = new QQmlContext(pctx);
-
-    applyRoles(pctx, self);
-
-    // Create the delegate
-    auto item = qobject_cast<QQuickItem *>(delegate()->create(ctx));
-
-    // It allows the children to be added anyway
-    if(!item)
-        return {container, pctx};
-
-    item->setWidth(width());
-    item->setParentItem(container);
-
-    // Resize the container
-    container->setHeight(item->height());
-
-    // Make sure it can be resized dynamically
-    connect(item, &QQuickItem::heightChanged, container, [container, item](){
-        container->setHeight(item->height());
-    });
-
-    container->setProperty("content", QVariant::fromValue(item));
-
-    return {container, pctx};
 }
 
 bool FlickableView::isEmpty() const

@@ -62,7 +62,6 @@ public:
     void setSortingEnabled(bool val);
 
 protected:
-    virtual void applyRoles(QQmlContext* ctx, const QModelIndex& self) const override;
     virtual void applyModelChanges(QAbstractItemModel* m) override;
 
 Q_SIGNALS:

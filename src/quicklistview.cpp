@@ -18,6 +18,8 @@
 #include "quicklistview.h"
 
 #include "abstractviewitem.h"
+#include "abstractquickview_p.h"
+#include "contextmanager.h"
 
 // Qt
 #include <QQmlEngine>
@@ -71,7 +73,6 @@ public:
 
     // Actions
     virtual bool attach () override;
-    virtual bool refresh() override;
     virtual bool move   () override;
     virtual bool flush  () override;
     virtual bool remove () override;
@@ -317,7 +318,10 @@ QuickListViewSection* QuickListViewPrivate::getSection(QuickListViewItem* i)
         const auto idx = m_pSectionModel->index(i->m_pSection->m_Index, 0);
         Q_ASSERT((!idx.isValid()) || idx.model() == m_pSectionModel);
 
-        q_ptr->applyRoles( i->m_pSection->m_pContent, idx);
+        //note: If you wish to fork this class, you can create a second context
+        // manager and avoid the private API. Given it is available, this isn't
+        // done here.
+        q_ptr->s_ptr->contextManager()->applyRoles( i->m_pSection->m_pContent, idx);
     }
 
     // Create the item *after* applyRoles to avoid O(N) number of reloads
@@ -368,14 +372,6 @@ bool QuickListViewItem::attach()
     });
 
     return move();
-}
-
-bool QuickListViewItem::refresh()
-{
-    if (context())
-        d()->q_ptr->applyRoles(context(), index());
-
-    return true;
 }
 
 void QuickListViewSection::setOwner(QuickListViewItem* newParent)

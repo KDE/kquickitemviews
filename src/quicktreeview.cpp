@@ -39,7 +39,6 @@ public:
 
     // Actions
     virtual bool attach () override;
-    virtual bool refresh() override;
     virtual bool move   () override;
     virtual bool flush  () override;
     virtual bool remove () override;
@@ -121,14 +120,6 @@ bool QuickTreeViewItem::attach()
     Q_ASSERT(item() && context());
 
     return move();
-}
-
-bool QuickTreeViewItem::refresh()
-{
-    if (context())
-        d()->q_ptr->applyRoles(context(), index());
-
-    return true;
 }
 
 bool QuickTreeViewItem::move()

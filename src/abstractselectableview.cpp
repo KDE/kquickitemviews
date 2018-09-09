@@ -18,6 +18,7 @@
 #include "abstractselectableview.h"
 
 #include "abstractselectableview_p.h"
+#include "abstractquickview_p.h"
 #include "abstractquickview.h"
 #include "abstractviewitem.h"
 
@@ -154,7 +155,7 @@ void AbstractSelectableViewPrivate::slotCurrentIndexChanged(const QModelIndex& i
     if (!m_pHighlight)
         return;
 
-    auto elem = m_pView->itemForIndex(idx);
+    auto elem = m_pView->s_ptr->itemForIndex(idx);
 
     // QItemSelectionModel::setCurrentIndex isn't protected against setting the item many time
     if (m_pSelectedViewItem.first && elem == m_pSelectedViewItem.second) {

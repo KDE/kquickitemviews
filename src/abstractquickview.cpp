@@ -18,18 +18,19 @@
 #include "abstractquickview.h"
 
 #include <QtCore/QTimer>
+#include <QQmlComponent>
+#include <QQmlContext>
 
 #include <functional>
 
 #include "abstractviewitem_p.h"
+#include "abstractquickview_p.h"
 #include "abstractviewitem.h"
 #include "treetraversalreflector_p.h"
 #include "treetraversalrange_p.h"
 #include "abstractselectableview.h"
 #include "abstractselectableview_p.h"
-
-#define V_ITEM(i) i
-
+#include "contextmanager.h"
 
 /*
  * Design:
@@ -83,6 +84,9 @@ public:
     static const State  m_fStateMap    [5][5];
     static const StateF m_fStateMachine[5][5];
 
+    QQmlEngine*    m_pEngine    {nullptr};
+    QQmlComponent* m_pComponent {nullptr};
+
     bool m_UniformRowHeight   {false};
     bool m_UniformColumnWidth {false};
     bool m_Collapsable        {true };
@@ -97,10 +101,9 @@ public:
     State m_State {State::UNFILLED};
 
     TreeTraversalReflector* m_pReflector {nullptr};
-
     TreeTraversalRange* m_pRange {nullptr};
-
     AbstractSelectableView* m_pSelectionManager {new AbstractSelectableView(this)};
+    ContextManager *m_pRoleContextManager {nullptr};
 
     AbstractQuickView* q_ptr;
 
@@ -142,7 +145,7 @@ const AbstractQuickViewPrivate::StateF AbstractQuickViewPrivate::m_fStateMachine
 #undef A
 
 AbstractQuickView::AbstractQuickView(QQuickItem* parent) : FlickableView(parent),
-    d_ptr(new AbstractQuickViewPrivate())
+    d_ptr(new AbstractQuickViewPrivate()), s_ptr(new AbstractQuickViewSync())
 {
     d_ptr->m_pReflector = new TreeTraversalReflector(this);
     selectionManager()->s_ptr->setView(this);
@@ -151,9 +154,12 @@ AbstractQuickView::AbstractQuickView(QQuickItem* parent) : FlickableView(parent)
     d_ptr->m_pReflector->addRange(d_ptr->m_pRange);
 
     d_ptr->q_ptr = this;
+    s_ptr->d_ptr = d_ptr;
 
     d_ptr->m_pReflector->setItemFactory([this]() -> AbstractViewItem* {
-        return V_ITEM(d_ptr->q_ptr->createItem());
+        auto ret = d_ptr->q_ptr->createItem();
+
+        return ret;
     });
 
     connect(this, &AbstractQuickView::currentYChanged,
@@ -168,6 +174,7 @@ AbstractQuickView::AbstractQuickView(QQuickItem* parent) : FlickableView(parent)
 
 AbstractQuickView::~AbstractQuickView()
 {;
+    delete s_ptr;
     delete d_ptr;
 }
 
@@ -175,6 +182,8 @@ void AbstractQuickView::applyModelChanges(QAbstractItemModel* m)
 {
     if (m == model())
         return;
+
+    d_ptr->m_pRoleContextManager->setModel(m);
 
     d_ptr->m_pReflector->setModel(m);
     selectionManager()->s_ptr->setModel(m);
@@ -358,7 +367,7 @@ void AbstractQuickViewPrivate::slotDataChanged(const QModelIndex& tl, const QMod
     //itemForIndex(const QModelIndex& idx) const final override;
     for (int i = tl.row(); i <= br.row(); i++) {
         const auto idx = q_ptr->model()->index(i, tl.column(), tl.parent());
-        if (auto item = V_ITEM(q_ptr->itemForIndex(idx)))
+        if (auto item = q_ptr->itemForIndex(idx))
             item->s_ptr->performAction(VisualTreeItem::ViewAction::UPDATE);
     }
 }
@@ -437,5 +446,60 @@ AbstractSelectableView* AbstractQuickView::selectionManager() const
     return d_ptr->m_pSelectionManager;
 }
 
+ContextManager* AbstractQuickView::contextManager() const
+{
+    if (!d_ptr->m_pRoleContextManager)
+        d_ptr->m_pRoleContextManager = new ContextManager(d_ptr);
+
+    return d_ptr->m_pRoleContextManager;
+}
+
+void AbstractQuickView::setContextManager(ContextManager* cm)
+{
+    // It cannot (yet) be replaced.
+    Q_ASSERT(!d_ptr->m_pRoleContextManager);
+
+    d_ptr->m_pRoleContextManager = cm;
+}
+
+void AbstractQuickView::refresh()
+{
+    if (!d_ptr->m_pEngine) {
+        d_ptr->m_pEngine = rootContext()->engine();
+        d_ptr->m_pComponent = new QQmlComponent(d_ptr->m_pEngine);
+        d_ptr->m_pComponent->setData("import QtQuick 2.4; Item {property QtObject content: null;}", {});
+    }
+}
+
+QQmlEngine *AbstractQuickViewSync::engine() const
+{
+    if (!d_ptr->m_pEngine)
+        d_ptr->q_ptr->refresh();
+
+    return d_ptr->m_pEngine;
+}
+
+QQmlComponent *AbstractQuickViewSync::component() const
+{
+    if (!d_ptr->m_pComponent)
+        d_ptr->q_ptr->refresh();
+
+    return d_ptr->m_pComponent;
+}
+
+ContextManager *AbstractQuickViewSync::contextManager() const
+{
+    return d_ptr->q_ptr->contextManager();
+}
+
+AbstractSelectableView *AbstractQuickViewSync::selectionManager() const
+{
+    return d_ptr->q_ptr->selectionManager();
+}
+
+AbstractViewItem *AbstractQuickViewSync::itemForIndex(const QModelIndex& idx) const
+{
+    return d_ptr->q_ptr->itemForIndex(idx);
+}
+
 #include <abstractquickview.moc>
-#undef V_ITEM

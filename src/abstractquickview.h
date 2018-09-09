@@ -24,9 +24,11 @@
 class QQmlComponent;
 
 class AbstractQuickViewPrivate;
+class AbstractQuickViewSync;
 class AbstractQuickView;
 class AbstractSelectableView;
 class AbstractViewItem;
+class ContextManager;
 
 /**
  * Second generation of QtQuick treeview.
@@ -48,7 +50,8 @@ class AbstractQuickView : public FlickableView
     Q_OBJECT
     friend struct TreeTraversalItems;
     friend class VisualTreeItem;
-    friend class AbstractSelectableViewPrivate; //TODO remove
+    friend class AbstractQuickViewSync; // internal API
+//     friend class AbstractSelectableViewPrivate; //TODO remove
 public:
     /// Assume each hierarchy level have the same height (for performance)
     Q_PROPERTY(bool uniformRowHeight READ hasUniformRowHeight   WRITE setUniformRowHeight)
@@ -132,14 +135,31 @@ protected:
     // are implemented independently.
     void setSelectionManager(AbstractSelectableView* v);
     AbstractSelectableView* selectionManager() const;
+
+    // Rather then scope-creeping this class, all methods and logic related
+    // to keeping the QQmlContext object in sync with the model are delegated
+    // to this class.
+    ContextManager* contextManager() const;
+    void setContextManager(ContextManager* rm);
+
     virtual void applyModelChanges(QAbstractItemModel* m) override;
+
+    /**
+     * Extend this function when tasks need to be taken care of when an
+     * exlicit refresh is needed. Remember to call the parent class
+     * ::refresh() from the extended one.
+     *
+     * It is called, for example, when the model change.
+     */
+    virtual void refresh();
 
 Q_SIGNALS:
     void modelChanged(QSharedPointer<QAbstractItemModel> model);
     virtual void contentChanged() = 0;
 
+public:
+    AbstractQuickViewSync* s_ptr;
 private:
-
     AbstractQuickViewPrivate* d_ptr;
     Q_DECLARE_PRIVATE(AbstractQuickView)
 };

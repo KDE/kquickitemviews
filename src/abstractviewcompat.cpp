@@ -18,17 +18,35 @@
 #include "abstractviewcompat.h"
 
 #include <abstractselectableview.h>
+#include "abstractquickview_p.h"
+#include "contextmanager.h"
+
+// Add the selection metadata to the context
+class SelectableRoleContext : public ContextManager
+{
+public:
+    explicit SelectableRoleContext(QObject* parent) : ContextManager(parent) {}
+    virtual void applyRoles(QQmlContext* ctx, const QModelIndex& self) const override;
+
+    AbstractViewCompatPrivate* d_ptr;
+};
 
 class AbstractViewCompatPrivate
 {
 public:
     Qt::Corner m_Corner {Qt::TopLeftCorner};
     bool m_IsSortingEnabled{ false };
+
+    AbstractViewCompat* q_ptr;
 };
 
 AbstractViewCompat::AbstractViewCompat(QQuickItem* parent) : AbstractQuickView(parent),
     d_ptr(new AbstractViewCompatPrivate())
 {
+    d_ptr->q_ptr = this;
+    setContextManager(new SelectableRoleContext(this));
+    static_cast<SelectableRoleContext*>(contextManager())->d_ptr = d_ptr;
+
     // Ok, connecting signals to signals is not a very good idea, I am lazy
     connect(selectionManager(), &AbstractSelectableView::currentIndexChanged,
         this, &AbstractViewCompat::currentIndexChanged);
@@ -82,10 +100,10 @@ void AbstractViewCompat::applyModelChanges(QAbstractItemModel* m)
     AbstractQuickView::applyModelChanges(m);
 }
 
-void AbstractViewCompat::applyRoles(QQmlContext* ctx, const QModelIndex& self) const
+void SelectableRoleContext::applyRoles(QQmlContext* ctx, const QModelIndex& self) const
 {
-    FlickableView::applyRoles(ctx, self);
-    selectionManager()->applySelectionRoles(ctx, self);
+    ContextManager::applyRoles(ctx, self);
+    d_ptr->q_ptr->s_ptr->selectionManager()->applySelectionRoles(ctx, self);
 }
 
 bool AbstractViewCompat::isSortingEnabled() const

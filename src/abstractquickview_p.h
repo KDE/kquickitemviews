@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2017 by Emmanuel Lepage Vallee                          *
+ *   Copyright (C) 2018 by Emmanuel Lepage Vallee                          *
  *   Author : Emmanuel Lepage Vallee <emmanuel.lepage@kde.org>             *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
@@ -17,48 +17,31 @@
  **************************************************************************/
 #pragma once
 
-#include <abstractviewcompat.h>
+class QQmlEngine;
+class QQmlComponent;
+class ContextManager;
+class AbstractSelectableView;
+class AbstractQuickViewPrivate;
+class AbstractViewItem;
 
-// Qt
-class QQuickItem;
-class QQmlContext;
-
-class HierarchyViewPrivate;
-class TreeViewPage;
-
-/**
- * Second generation of QtQuick treeview.
+/*
+ * This class holds the private interface between the view and the items.
  *
- * The first one was designed for the chat view. It had a limited number of
- * requirements when it came to QtModel. However it required total control of
- * the layout.
+ * A previous implementation used protected methods and `friend` classes, but
+ * left exposed some methods that made little sense for the general users,
+ * including many tuple types.
  *
- * This is the opposite use case. The layout is classic, but the model support
- * has to be complete. Performance and lazy loading is also more important.
+ * Using such private class adds flexibility when it come to future changes.
  *
- * It require less work to write a new treeview than refector the first one to
- * support the additional requirements. In the long run, the first generation
- * could be folded into this widget (if it ever makes sense, otherwise they will
- * keep diverging).
  */
-class HierarchyView : public AbstractViewCompat
+class AbstractQuickViewSync
 {
-    Q_OBJECT
-
-    friend class HierarchyViewItem;
 public:
+    QQmlEngine     *engine        () const;
+    QQmlComponent  *component     () const;
+    ContextManager *contextManager() const;
+    AbstractSelectableView* selectionManager() const;
+    AbstractViewItem* itemForIndex(const QModelIndex& idx) const;
 
-    explicit HierarchyView(QQuickItem* parent = nullptr);
-    virtual ~HierarchyView();
-
-Q_SIGNALS:
-    void contentChanged() final override;
-
-protected:
-    virtual AbstractViewItem* createItem() const override;
-
-private:
-
-    HierarchyViewPrivate* d_ptr;
-    Q_DECLARE_PRIVATE(HierarchyView)
+    AbstractQuickViewPrivate* d_ptr;
 };

@@ -82,9 +82,7 @@ public:
     void setSizeHintRole(const QString& s);
 
 protected:
-    virtual void refresh();
-    virtual void applyRoles(QQmlContext* ctx, const QModelIndex& self) const;
-    QPair<QQuickItem*, QQmlContext*> loadDelegate(QQuickItem* parentI, QQmlContext* parentCtx, const QModelIndex& self) const;
+    virtual void refresh() =0;
 
 
     /**

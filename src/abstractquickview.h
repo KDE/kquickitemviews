@@ -158,6 +158,7 @@ Q_SIGNALS:
     virtual void contentChanged() = 0;
 
 public:
+    // Private API
     AbstractQuickViewSync* s_ptr;
 private:
     AbstractQuickViewPrivate* d_ptr;

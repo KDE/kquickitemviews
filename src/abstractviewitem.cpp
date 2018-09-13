@@ -344,6 +344,8 @@ void AbstractViewItemPrivate::load()
 
     m_pContext = pair.second;
     m_pItem    = pair.first;
+
+    q_ptr->s_ptr->updateContext();
 }
 
 QQmlContext *AbstractViewItem::context() const
@@ -376,7 +378,7 @@ QRectF AbstractViewItem::geometry() const
 bool AbstractViewItem::refresh()
 {
     if (context())
-        view()->s_ptr->contextManager()->applyRoles(context(), index());
+        s_ptr->updateContext();
 
     return true;
 }
@@ -399,8 +401,6 @@ QPair<QQuickItem*, QQmlContext*> AbstractViewItemPrivate::loadDelegate(QQuickIte
 
     // Create a context with all the tree roles
     auto ctx = new QQmlContext(pctx);
-
-    q_ptr->view()->s_ptr->contextManager()->applyRoles(pctx, self);
 
     // Create the delegate
     auto item = qobject_cast<QQuickItem *>(q_ptr->view()->delegate()->create(ctx));

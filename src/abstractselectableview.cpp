@@ -31,6 +31,16 @@
 
 using ItemRef = QPair<QWeakPointer<AbstractViewItem::SelectionLocker>, AbstractViewItem*>;
 
+/// Add the same property as the QtQuick.ListView
+class ItemSelectionGroup final : public ContextManager::PropertyGroup
+{
+public:
+    AbstractSelectableViewPrivate* d_ptr;
+
+    virtual QVector<QByteArray>& propertyNames() const override;
+    virtual QVariant getProperty(AbstractViewItem* item, uint id) const override;
+};
+
 class AbstractSelectableViewPrivate : public QObject
 {
     friend class AbstractSelectableViewSyncInterface;
@@ -43,6 +53,7 @@ public:
     ItemRef m_pSelectedViewItem;
     QQmlComponent* m_pHighlight {nullptr};
     AbstractQuickView* m_pView {nullptr};
+    mutable ItemSelectionGroup* m_pPropertyGroup {nullptr};
 
     AbstractSelectableView* q_ptr;
 public Q_SLOTS:
@@ -246,11 +257,35 @@ void AbstractSelectableView::setHighlight(QQmlComponent* h)
     d_ptr->m_pHighlight = h;
 }
 
-void AbstractSelectableView::applySelectionRoles(QQmlContext* ctx, const QModelIndex& self) const
+QVector<QByteArray>& ItemSelectionGroup::propertyNames() const
 {
-    const bool sel = d_ptr->m_pSelectionModel && d_ptr->m_pSelectionModel->currentIndex() == self;
+    static QVector<QByteArray> ret {
+        "isCurrentItem",
+    };
 
-    ctx->setContextProperty(QStringLiteral("isCurrentItem") , sel );
+    return ret;
+}
+
+QVariant ItemSelectionGroup::getProperty(AbstractViewItem* item, uint id) const
+{
+    switch(id) {
+        case 0 /*isCurrentItem*/:
+            return d_ptr->m_pSelectionModel &&
+                d_ptr->m_pSelectionModel->currentIndex() == item->index();
+    }
+
+    Q_ASSERT(false);
+    return {};
+}
+
+ContextManager::PropertyGroup *AbstractSelectableView::propertyGroup() const
+{
+    if (!d_ptr->m_pPropertyGroup) {
+        d_ptr->m_pPropertyGroup = new ItemSelectionGroup();
+        d_ptr->m_pPropertyGroup->d_ptr = d_ptr;
+    }
+
+    return d_ptr->m_pPropertyGroup;
 }
 
 #include <abstractselectableview.moc>

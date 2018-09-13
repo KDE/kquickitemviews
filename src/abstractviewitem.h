@@ -205,6 +205,25 @@ public:
 
     virtual QSizeF sizeHint() const;
 
+    /**
+     * Clear the cache of role values.
+     *
+     * To improve performance, QAbstractItemModel::data is only called once
+     * unless dataChanged() is called. The value is then stored in the QML
+     * context. Call this to manually invalidate the cache and for roles to be
+     * reloaded.
+     */
+    void flushCache();
+
+    /**
+     * Notify the QML context that the following roles changes.
+     *
+     * This will also clear the various value caches.
+     *
+     * @see flushCache
+     */
+    void updateRoles(const QVector<int> &modified) const;
+
 protected:
     /**
      * This instance is about to be added to the view.

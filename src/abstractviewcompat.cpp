@@ -21,16 +21,6 @@
 #include "abstractquickview_p.h"
 #include "contextmanager.h"
 
-// Add the selection metadata to the context
-class SelectableRoleContext : public ContextManager
-{
-public:
-    explicit SelectableRoleContext(QObject* parent) : ContextManager(parent) {}
-    virtual void applyRoles(QQmlContext* ctx, const QModelIndex& self) const override;
-
-    AbstractViewCompatPrivate* d_ptr;
-};
-
 class AbstractViewCompatPrivate
 {
 public:
@@ -44,8 +34,6 @@ AbstractViewCompat::AbstractViewCompat(QQuickItem* parent) : AbstractQuickView(p
     d_ptr(new AbstractViewCompatPrivate())
 {
     d_ptr->q_ptr = this;
-    setContextManager(new SelectableRoleContext(this));
-    static_cast<SelectableRoleContext*>(contextManager())->d_ptr = d_ptr;
 
     // Ok, connecting signals to signals is not a very good idea, I am lazy
     connect(selectionManager(), &AbstractSelectableView::currentIndexChanged,
@@ -98,12 +86,6 @@ void AbstractViewCompat::applyModelChanges(QAbstractItemModel* m)
     }
 
     AbstractQuickView::applyModelChanges(m);
-}
-
-void SelectableRoleContext::applyRoles(QQmlContext* ctx, const QModelIndex& self) const
-{
-    ContextManager::applyRoles(ctx, self);
-    d_ptr->q_ptr->s_ptr->selectionManager()->applySelectionRoles(ctx, self);
 }
 
 bool AbstractViewCompat::isSortingEnabled() const

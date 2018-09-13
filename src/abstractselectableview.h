@@ -23,6 +23,7 @@ class QItemSelectionModel;
 class QQmlComponent;
 class QQmlContext;
 
+#include <contextmanager.h>
 class AbstractSelectableViewSyncInterface;
 class AbstractSelectableViewPrivate;
 
@@ -46,7 +47,9 @@ public:
 
     QSharedPointer<QItemSelectionModel> selectionModel() const;
     void setSelectionModel(QSharedPointer<QItemSelectionModel> sm);
-    void applySelectionRoles(QQmlContext* ctx, const QModelIndex& self) const;
+//     void applySelectionRoles(QQmlContext* ctx, const QModelIndex& self) const;
+
+    ContextManager::PropertyGroup *propertyGroup() const;
 
 Q_SIGNALS:
     void currentIndexChanged(const QModelIndex& index);

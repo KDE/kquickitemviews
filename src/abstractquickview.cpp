@@ -122,6 +122,14 @@ public Q_SLOTS:
     void slotCountChanged();
 };
 
+/// Add the same property as the QtQuick.ListView
+class ModelIndexGroup final : public ContextManager::PropertyGroup
+{
+public:
+    virtual QVector<QByteArray>& propertyNames() const override;
+    virtual QVariant getProperty(AbstractViewItem* item, uint id) const override;
+};
+
 #define S AbstractQuickViewPrivate::State::
 const AbstractQuickViewPrivate::State AbstractQuickViewPrivate::m_fStateMap[5][5] = {
 /*              INSERTION    REMOVAL       MOVE     RESET_SCROLL    SCROLL  */
@@ -162,6 +170,9 @@ AbstractQuickView::AbstractQuickView(QQuickItem* parent) : FlickableView(parent)
         return ret;
     });
 
+    contextManager()->addPropertyGroup(new ModelIndexGroup());
+    contextManager()->addPropertyGroup(selectionManager()->propertyGroup());
+
     connect(this, &AbstractQuickView::currentYChanged,
         d_ptr, &AbstractQuickViewPrivate::slotViewportChanged);
     connect(this, &AbstractQuickView::delegateChanged,
@@ -174,6 +185,7 @@ AbstractQuickView::AbstractQuickView(QQuickItem* parent) : FlickableView(parent)
 
 AbstractQuickView::~AbstractQuickView()
 {;
+    delete d_ptr->m_pRoleContextManager;
     delete s_ptr;
     delete d_ptr;
 }
@@ -182,8 +194,6 @@ void AbstractQuickView::applyModelChanges(QAbstractItemModel* m)
 {
     if (m == model())
         return;
-
-    d_ptr->m_pRoleContextManager->setModel(m);
 
     d_ptr->m_pReflector->setModel(m);
     selectionManager()->s_ptr->setModel(m);
@@ -449,7 +459,7 @@ AbstractSelectableView* AbstractQuickView::selectionManager() const
 ContextManager* AbstractQuickView::contextManager() const
 {
     if (!d_ptr->m_pRoleContextManager)
-        d_ptr->m_pRoleContextManager = new ContextManager(d_ptr);
+        d_ptr->m_pRoleContextManager = new ContextManager();
 
     return d_ptr->m_pRoleContextManager;
 }
@@ -500,6 +510,32 @@ AbstractSelectableView *AbstractQuickViewSync::selectionManager() const
 AbstractViewItem *AbstractQuickViewSync::itemForIndex(const QModelIndex& idx) const
 {
     return d_ptr->q_ptr->itemForIndex(idx);
+}
+
+QVector<QByteArray>& ModelIndexGroup::propertyNames() const
+{
+    static QVector<QByteArray> ret {
+        "index"     ,
+        "rootIndex" ,
+        "rowCount"  ,
+    };
+
+    return ret;
+}
+
+QVariant ModelIndexGroup::getProperty(AbstractViewItem* item, uint id) const
+{
+    switch(id) {
+        case 0 /*index*/:
+            return item->index().row();
+        case 1 /*rootIndex*/:
+            return item->index();
+        case 2 /*rowCount*/:
+            return item->index().model()->rowCount(item->index());
+    }
+
+    Q_ASSERT(false);
+    return {};
 }
 
 #include <abstractquickview.moc>

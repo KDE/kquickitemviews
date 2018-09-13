@@ -23,6 +23,7 @@ class QQmlContext;
 class QQuickItem;
 
 class ContextManagerPrivate;
+class AbstractViewItem;
 
 /**
  * This class manage the content of the AbstractViewItem::context().
@@ -36,33 +37,82 @@ class ContextManagerPrivate;
  * `applyRoles` can be re-implemented to either add more properties to the
  * context or to convert some roles into a format easier to consume from QML.
  */
-class ContextManager : public QObject
+class ContextManager final
 {
-    Q_OBJECT
+    friend class VisualTreeItem; // Factory
 public:
-    explicit ContextManager(QObject* parent = nullptr);
-    virtual ~ContextManager();
+    /**
+     * Add more properties to the QML context.
+     *
+     * This allows to add a predefined set of extra properties to the QML
+     * context. It does *not* support adding more properties at runtime.
+     *
+     * The memory ownership is not transferred, do not re-use the instance
+     * across many views (it will crash).
+     */
+    class PropertyGroup {
+    public:
 
-    void setModel(QAbstractItemModel* m);
-    QAbstractItemModel* model() const;
+        /**
+         * Return a list of properties.
+         *
+         * This **MUST NEVER CHANGE** and needs to always return the same
+         * vector. Implementations should use a `static` QVector.
+         *
+         * The property index is what's passed to getProperty, setProperty
+         * and is the argument of changeProperty.
+         */
+        virtual QVector<QByteArray>& propertyNames() const;
+
+        /**
+         * The default implementation returns propertyNames().size()
+         *
+         * Implementing this rather than using `propertyNames` makes sense
+         * when the properties contained in an existing data structure or
+         * associated with extra metadata.
+         */
+        virtual uint size() const;
+
+        /**
+         * The default implementation returns propertyNames()[id];
+         *
+         * Implementing this rather than using `propertyNames` makes sense
+         * when the properties contained in an existing data structure or
+         * associated with extra metadata.
+         */
+        virtual QByteArray getPropertyName(uint id);
+
+        /**
+         * The id comes from propertyNames.
+         *
+         * It is recommended to use a switch statement or if/else_if for the
+         * implementation and avoid QHash (or worst).
+         */
+        virtual QVariant getProperty(AbstractViewItem* item, uint id) const = 0;
+
+        /**
+         * Optionally make the property read/write.
+         */
+        virtual void setProperty(AbstractViewItem* item, uint id, const QVariant& value) const;
+
+        /**
+         * Notify that content of this property has changed.
+         */
+        void changeProperty(AbstractViewItem* item, uint id);
+    };
+
+    explicit ContextManager();
+    ~ContextManager();
 
     /**
-     * This will create a new QObject attached
+     * Add more properties to the context.
+     *
+     * This must be called from the view constructor. If called later, it will
+     * Q_ASSERT.
+     *
+     * Implementations must subclass PropertyGroup to use this.
      */
-    void registerQuickItem(QQmlContext* ctx, QQuickItem* i);
-
-    void updateRoles(const QModelIndex& index, QQmlContext* ctx, const QVector<int> &modified) const;
-
-    /**
-     * TODO merge with updateRoles
-     */
-    virtual void applyRoles(QQmlContext* ctx, const QModelIndex& self) const;
-
-Q_SIGNALS:
-    /**
-     * Filtered version of the dataChanged
-     */
-    void dataChanged(const QModelIndex& tl, const QModelIndex& br, const QVector<int> &roles);
+    void addPropertyGroup(PropertyGroup* pg);
 
 private:
     ContextManagerPrivate* d_ptr;

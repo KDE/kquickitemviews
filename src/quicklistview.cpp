@@ -257,6 +257,26 @@ QuickListViewSection* QuickListViewItem::setSection(QuickListViewSection* s, con
     return s;
 }
 
+static void applyRoles(QQmlContext* ctx, const QModelIndex& self)
+{
+    auto m = self.model();
+
+    if (Q_UNLIKELY(!m))
+        return;
+
+    Q_ASSERT(self.model());
+    const auto hash = self.model()->roleNames();
+
+    // Add all roles to the
+    for (auto i = hash.constBegin(); i != hash.constEnd(); ++i)
+        ctx->setContextProperty(i.value() , self.data(i.key()));
+
+    // Set extra index to improve ListView compatibility
+    ctx->setContextProperty(QStringLiteral("index"        ) , self.row()        );
+    ctx->setContextProperty(QStringLiteral("rootIndex"    ) , self              );
+    ctx->setContextProperty(QStringLiteral("rowCount"     ) , m->rowCount(self) );
+}
+
 /**
  * No lookup is performed, it is based on the previous entry and nothing else.
  *
@@ -321,7 +341,7 @@ QuickListViewSection* QuickListViewPrivate::getSection(QuickListViewItem* i)
         //note: If you wish to fork this class, you can create a second context
         // manager and avoid the private API. Given it is available, this isn't
         // done here.
-        q_ptr->s_ptr->contextManager()->applyRoles( i->m_pSection->m_pContent, idx);
+        applyRoles( i->m_pSection->m_pContent, idx);
     }
 
     // Create the item *after* applyRoles to avoid O(N) number of reloads

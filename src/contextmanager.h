@@ -53,6 +53,8 @@ public:
     class PropertyGroup {
     public:
 
+        virtual ~PropertyGroup() {}
+
         /**
          * Return a list of properties.
          *

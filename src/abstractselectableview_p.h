@@ -28,6 +28,8 @@ class AbstractQuickView;
 class AbstractSelectableViewSyncInterface
 {
 public:
+    virtual ~AbstractSelectableViewSyncInterface() {}
+
     virtual void updateSelection(const QModelIndex& idx);
 
     QAbstractItemModel* model() const;

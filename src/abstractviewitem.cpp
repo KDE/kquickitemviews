@@ -56,7 +56,7 @@ public:
     mutable QQmlContext *m_pContext {nullptr};
 
     // Helpers
-    QPair<QQuickItem*, QQmlContext*> loadDelegate(QQuickItem* parentI, QQmlContext* parentCtx, const QModelIndex& self) const;
+    QPair<QQuickItem*, QQmlContext*> loadDelegate(QQuickItem* parentI, QQmlContext* parentCtx) const;
 
     // Attributes
     AbstractViewItem* q_ptr;
@@ -325,8 +325,7 @@ void AbstractViewItemPrivate::load()
 
     auto pair = loadDelegate(
         q_ptr->view()->contentItem(),
-        q_ptr->view()->rootContext(),
-        q_ptr->index()
+        q_ptr->view()->rootContext()
     );
 
     if (!pair.first) {
@@ -384,7 +383,7 @@ bool AbstractViewItem::refresh()
 }
 
 
-QPair<QQuickItem*, QQmlContext*> AbstractViewItemPrivate::loadDelegate(QQuickItem* parentI, QQmlContext* parentCtx, const QModelIndex& self) const
+QPair<QQuickItem*, QQmlContext*> AbstractViewItemPrivate::loadDelegate(QQuickItem* parentI, QQmlContext* parentCtx) const
 {
     if (!q_ptr->view()->delegate())
         return {};

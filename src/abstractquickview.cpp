@@ -126,6 +126,7 @@ public Q_SLOTS:
 class ModelIndexGroup final : public ContextManager::PropertyGroup
 {
 public:
+    virtual ~ModelIndexGroup() {}
     virtual QVector<QByteArray>& propertyNames() const override;
     virtual QVariant getProperty(AbstractViewItem* item, uint id) const override;
 };
@@ -153,7 +154,7 @@ const AbstractQuickViewPrivate::StateF AbstractQuickViewPrivate::m_fStateMachine
 #undef A
 
 AbstractQuickView::AbstractQuickView(QQuickItem* parent) : FlickableView(parent),
-    d_ptr(new AbstractQuickViewPrivate()), s_ptr(new AbstractQuickViewSync())
+    s_ptr(new AbstractQuickViewSync()), d_ptr(new AbstractQuickViewPrivate())
 {
     d_ptr->m_pReflector = new TreeTraversalReflector(this);
     selectionManager()->s_ptr->setView(this);

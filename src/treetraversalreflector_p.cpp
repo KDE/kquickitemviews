@@ -487,6 +487,8 @@ TreeTraversalReflector::~TreeTraversalReflector()
 
 VisualTreeItem* TreeTraversalReflector::getCorner(TreeTraversalRange* r, Qt::Corner c) const
 {
+    Q_UNUSED(r)
+
     switch(c) {
         case Qt::TopLeftCorner:
             return d_ptr->m_tVisibleTTIRange[FIRST]
@@ -1088,6 +1090,9 @@ void TreeTraversalReflector::populate()
 /// Return true if the indices affect the current view
 bool TreeTraversalReflector::isActive(const QModelIndex& parent, int first, int last)
 {
+    Q_UNUSED(parent)
+    Q_UNUSED(first)
+    Q_UNUSED(last)
     return true; //FIXME
 
     /*if (m_State == State::UNFILLED)
@@ -1173,12 +1178,14 @@ AbstractViewItem* TreeTraversalReflector::itemForIndex(const QModelIndex& idx) c
 
 bool TreeTraversalReflector::addRange(TreeTraversalRange* range)
 {
+    Q_UNUSED(range)
     //
     return false;
 }
 
 bool TreeTraversalReflector::removeRange(TreeTraversalRange* range)
 {
+    Q_UNUSED(range)
     //TODO
     return false;
 }

@@ -35,6 +35,8 @@ using ItemRef = QPair<QWeakPointer<AbstractViewItem::SelectionLocker>, AbstractV
 class ItemSelectionGroup final : public ContextManager::PropertyGroup
 {
 public:
+    virtual ~ItemSelectionGroup() {}
+
     AbstractSelectableViewPrivate* d_ptr;
 
     virtual QVector<QByteArray>& propertyNames() const override;
@@ -63,8 +65,8 @@ public Q_SLOTS:
 };
 
 AbstractSelectableView::AbstractSelectableView(QObject* parent) : QObject(parent),
-    d_ptr(new AbstractSelectableViewPrivate()),
-    s_ptr(new AbstractSelectableViewSyncInterface())
+    s_ptr(new AbstractSelectableViewSyncInterface()),
+    d_ptr(new AbstractSelectableViewPrivate())
 {
     s_ptr->q_ptr = this;
     d_ptr->q_ptr = this;

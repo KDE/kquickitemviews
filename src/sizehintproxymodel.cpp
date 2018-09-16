@@ -119,6 +119,9 @@ void SizeHintProxyModel::setInvalidationRoles(const QStringList& l)
 
 void SizeHintProxyModelPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& bl, const QVector<int>& roles)
 {
+    Q_UNUSED(tl)
+    Q_UNUSED(bl)
+    Q_UNUSED(roles)
     //TODO check m_lInvalidationRoles and add a sync interface with the view
 }
 
@@ -148,5 +151,5 @@ QSizeF SizeHintProxyModel::sizeHintForIndex(QQmlEngine *engine, const QModelInde
     const auto list = var.toList();
     Q_ASSERT(list.size() >= 2);
 
-    return QSize {list[0].toReal(), list[1].toReal()};
+    return QSizeF {list[0].toReal(), list[1].toReal()};
 }

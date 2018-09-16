@@ -176,10 +176,16 @@ QByteArray ContextManager::PropertyGroup::getPropertyName(uint id)
 }
 
 void ContextManager::PropertyGroup::setProperty(AbstractViewItem* item, uint id, const QVariant& value) const
-{}
+{
+    Q_UNUSED(item)
+    Q_UNUSED(id)
+    Q_UNUSED(value)
+}
 
 void ContextManager::PropertyGroup::changeProperty(AbstractViewItem* item, uint id)
 {
+    Q_UNUSED(item)
+    Q_UNUSED(id)
     /*auto dx = item->s_ptr->dynamicContext();
     if (!dx)
         return;TODO*/
@@ -330,7 +336,7 @@ void ContextManagerPrivate::initGroup(const QHash<int, QByteArray>& rls)
 
     // Add all object virtual properties
     for (const auto g : qAsConst(m_lGroups)) {
-        for (int j = 0; j < g->size(); j++) {
+        for (uint j = 0; j < g->size(); j++) {
             const auto name = g->getPropertyName(j);
             auto property = builder.addProperty(name, "QVariant");
             property.setWritable(true);
@@ -346,12 +352,12 @@ void ContextManagerPrivate::initGroup(const QHash<int, QByteArray>& rls)
 DynamicContext::DynamicContext(DynamicMetaType* mt, AbstractViewItem* item) :
     m_pMetaType(mt), m_pItem(item)
 {
-    Q_ASSERT(m_pMetaType->roleCount >= 0 && m_pMetaType->roleCount <= m_pMetaType->propertyCount);
+    Q_ASSERT(m_pMetaType->roleCount <= m_pMetaType->propertyCount);
 
     m_lVariants = (QVariant**) malloc(sizeof(QVariant*)*m_pMetaType->propertyCount);
 
     //TODO SIMD this
-    for (int i = 0; i < m_pMetaType->propertyCount; i++)
+    for (uint i = 0; i < m_pMetaType->propertyCount; i++)
         m_lVariants[i] = nullptr;
 }
 

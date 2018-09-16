@@ -45,5 +45,7 @@ void KQuickView::registerTypes(const char *uri)
 
 void KQuickView::initializeEngine(QQmlEngine *engine, const char *uri)
 {
+    Q_UNUSED(engine)
+    Q_UNUSED(uri)
     qDebug() << "\n\n\nCALLED!";
 }

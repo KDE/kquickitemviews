@@ -128,7 +128,7 @@ class ModelIndexGroup final : public ContextManager::PropertyGroup
 public:
     virtual ~ModelIndexGroup() {}
     virtual QVector<QByteArray>& propertyNames() const override;
-    virtual QVariant getProperty(AbstractViewItem* item, uint id) const override;
+    virtual QVariant getProperty(AbstractViewItem* item, uint id, const QModelIndex& index) const override;
 };
 
 #define S AbstractQuickViewPrivate::State::
@@ -524,15 +524,15 @@ QVector<QByteArray>& ModelIndexGroup::propertyNames() const
     return ret;
 }
 
-QVariant ModelIndexGroup::getProperty(AbstractViewItem* item, uint id) const
+QVariant ModelIndexGroup::getProperty(AbstractViewItem* item, uint id, const QModelIndex& index) const
 {
     switch(id) {
         case 0 /*index*/:
-            return item->index().row();
+            return index.row();
         case 1 /*rootIndex*/:
-            return item->index();
+            return item->index(); // That's a QPersistentModelIndex and is a better fit
         case 2 /*rowCount*/:
-            return item->index().model()->rowCount(item->index());
+            return index.model()->rowCount(index);
     }
 
     Q_ASSERT(false);

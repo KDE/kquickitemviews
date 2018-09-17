@@ -21,6 +21,8 @@ class AbstractQuickView;
 class TreeTraversalItems;
 class AbstractViewItem;
 class DynamicContext;
+class ViewItemContextBuilder;
+class ContextBuilder;
 
 // Qt
 class QQuickItem;
@@ -110,15 +112,16 @@ public:
 
     virtual QQuickItem* item() const final;
 
-    DynamicContext* dynamicContext() const;
+    ContextBuilder* contextBuilder() const;
     void updateContext();
+
+    mutable ViewItemContextBuilder* m_pContextBuilder {nullptr};
 
 private:
     State m_State {State::POOLED};
     TreeTraversalItems* m_pTTI {nullptr};
     AbstractQuickView* m_pView {nullptr};
 
-    DynamicContext* m_pDCtx {nullptr};
 
     bool performAction(ViewAction); //FIXME make private, remove #include
 

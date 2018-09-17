@@ -104,7 +104,7 @@ struct DynamicMetaType final
 class DynamicContext final : public QObject
 {
 public:
-    explicit DynamicContext(DynamicMetaType* mt, AbstractViewItem* item);
+    explicit DynamicContext(ContextManager* mt);
     virtual ~DynamicContext();
 
     // Some "secret" QObject methods.
@@ -113,20 +113,28 @@ public:
     virtual const QMetaObject *metaObject() const override;
 
     // Use a C array to prevent the array bound checks
-    QVariant         **m_lVariants {nullptr};
-    DynamicMetaType  *m_pMetaType  {nullptr};
-    AbstractViewItem *m_pItem      {nullptr};
+    QVariant              **m_lVariants {nullptr};
+    DynamicMetaType       * m_pMetaType {nullptr};
+    bool                    m_Cache     { true  };
+    QQmlContext           * m_pCtx      {nullptr};
+    QPersistentModelIndex   m_Index     {       };
+    QQmlContext           * m_pParentCtx{nullptr};
 
     ContextManagerPrivate* d_ptr;
+    ContextBuilder* m_pBuilder;
 };
 
 class ContextManagerPrivate
 {
 public:
-    QList<ContextManager::PropertyGroup*> m_lGroups;
+    // Attributes
+    QList<ContextManager::PropertyGroup*>  m_lGroups   {       };
+    mutable DynamicMetaType               *m_pMetaType {nullptr};
+    QAbstractItemModel                    *m_pModel    {nullptr};
 
+    // Helper
     void initGroup(const QHash<int, QByteArray>& rls);
-    mutable DynamicMetaType *m_pMetaType {nullptr};
+    void finish();
 
     ContextManager* q_ptr;
 };
@@ -142,7 +150,7 @@ public:
     // The implementation isn't necessary in this case given it uses a second
     // layer of vTable instead of a static list. It goes against the
     // documentation, but that's on purpose.
-    virtual QVariant getProperty(AbstractViewItem* item, uint id) const override;
+    virtual QVariant getProperty(AbstractViewItem* item, uint id, const QModelIndex& index) const override;
     virtual uint size() const override;
     virtual QByteArray getPropertyName(uint id) override;
 
@@ -193,7 +201,7 @@ void ContextManager::PropertyGroup::changeProperty(AbstractViewItem* item, uint 
 
 void AbstractViewItem::flushCache()
 {
-    auto dx = s_ptr->dynamicContext();
+    auto dx = s_ptr->contextBuilder()->d_ptr;
     if (!dx)
         return;
 
@@ -205,7 +213,7 @@ void AbstractViewItem::flushCache()
     }
 }
 
-QVariant RoleGroup::getProperty(AbstractViewItem* item, uint id) const
+QVariant RoleGroup::getProperty(AbstractViewItem* item, uint id, const QModelIndex& index) const
 {
     const auto metaRole = &d_ptr->m_pMetaType->roles[id];
 
@@ -217,7 +225,7 @@ QVariant RoleGroup::getProperty(AbstractViewItem* item, uint id) const
 
     metaRole->flags |= MetaRole::Flags::READ;
 
-    return item->index().data(metaRole->roleId);
+    return index.data(metaRole->roleId);
 }
 
 uint RoleGroup::size() const
@@ -253,13 +261,20 @@ int DynamicContext::qt_metacall(QMetaObject::Call call, int id, void **argv)
         const auto group = &m_pMetaType->m_lGroupMapping[realId];
         Q_ASSERT(group->ptr);
 
-        // Use a special function for the role case. It's only known at runtime.
-        const QVariant& value = *(m_lVariants[realId]
-            ? m_lVariants[realId] : m_lVariants[realId] = new QVariant(
-                group->ptr->getProperty(m_pItem, realId - group->offset))
-        );
+        const QModelIndex idx = m_pBuilder->item() ? m_pBuilder->item()->index() : m_Index;
 
-        QMetaType::construct(QMetaType::QVariant, argv[0], value.data());
+        // Use a special function for the role case. It's only known at runtime.
+        QVariant *value = m_lVariants[realId] && m_Cache
+            ? m_lVariants[realId] : new QVariant(
+                group->ptr->getProperty(m_pBuilder->item(), realId - group->offset, idx));
+
+        if (m_Cache && !m_lVariants[realId])
+            m_lVariants[realId] = value;
+
+        QMetaType::construct(QMetaType::QVariant, argv[0], value->data());
+
+//         if (!m_Cache)
+//             delete value;
     }
     else if (call == QMetaObject::WriteProperty) {
         Q_ASSERT(false); //TODO call setData
@@ -286,7 +301,6 @@ void* DynamicContext::qt_metacast(const char *name)
 DynamicMetaType::DynamicMetaType(const QByteArray& className, const QHash<int, QByteArray>& rls) :
 roleCount(rls.size())
 {}
-
 
 /// Populate a vTable with the propertyId -> group object
 void ContextManagerPrivate::initGroup(const QHash<int, QByteArray>& rls)
@@ -338,6 +352,7 @@ void ContextManagerPrivate::initGroup(const QHash<int, QByteArray>& rls)
     for (const auto g : qAsConst(m_lGroups)) {
         for (uint j = 0; j < g->size(); j++) {
             const auto name = g->getPropertyName(j);
+            qDebug() << "P" << name;
             auto property = builder.addProperty(name, "QVariant");
             property.setWritable(true);
 
@@ -349,9 +364,10 @@ void ContextManagerPrivate::initGroup(const QHash<int, QByteArray>& rls)
     m_pMetaType->m_pMetaObject = builder.toMetaObject();
 }
 
-DynamicContext::DynamicContext(DynamicMetaType* mt, AbstractViewItem* item) :
-    m_pMetaType(mt), m_pItem(item)
+DynamicContext::DynamicContext(ContextManager* cm) :
+    m_pMetaType(cm->d_ptr->m_pMetaType)
 {
+    Q_ASSERT(m_pMetaType);
     Q_ASSERT(m_pMetaType->roleCount <= m_pMetaType->propertyCount);
 
     m_lVariants = (QVariant**) malloc(sizeof(QVariant*)*m_pMetaType->propertyCount);
@@ -362,10 +378,7 @@ DynamicContext::DynamicContext(DynamicMetaType* mt, AbstractViewItem* item) :
 }
 
 DynamicContext::~DynamicContext()
-{
-    m_pItem->flushCache();
-    m_pItem->context()->setContextObject(nullptr);
-}
+{}
 
 //FIXME delete the metatype now that it's invalid.
 //     if (m_pMetaType) {
@@ -378,7 +391,7 @@ DynamicContext::~DynamicContext()
 
 void AbstractViewItem::updateRoles(const QVector<int> &modified) const
 {
-    auto dx = s_ptr->dynamicContext();
+    auto dx = s_ptr->contextBuilder()->d_ptr;
     if (dx)
         return;
 
@@ -397,34 +410,106 @@ void AbstractViewItem::updateRoles(const QVector<int> &modified) const
     }
 }
 
-void VisualTreeItem::updateContext()
+QAbstractItemModel *ContextManager::model() const
 {
-    if (m_pDCtx)
+    return d_ptr->m_pModel;
+}
+
+void ContextManager::setModel(QAbstractItemModel *m)
+{
+    d_ptr->m_pModel = m;
+}
+
+void ContextManagerPrivate::finish()
+{
+    Q_ASSERT(m_pModel);
+
+    if (m_pMetaType)
         return;
 
-    ContextManager* cm = d_ptr->view()->contextManager();
-    const QModelIndex self = d_ptr->index();
-    Q_ASSERT(self.model());
+    const auto roles = m_pModel->roleNames();
 
-    const auto roles = self.model()->roleNames();
-
-    if (!cm->d_ptr->m_pMetaType) {
-        cm->d_ptr->m_pMetaType = new DynamicMetaType("DynamicModelContext", roles);
-        cm->d_ptr->initGroup(roles);
-    }
-
-    d_ptr->context()->setContextObject(
-        m_pDCtx = new DynamicContext(cm->d_ptr->m_pMetaType, d_ptr)
-    );
+    m_pMetaType = new DynamicMetaType("DynamicModelContext", roles);
+    initGroup(roles);
 }
 
 void ContextManager::addPropertyGroup(ContextManager::PropertyGroup* pg)
 {
     Q_ASSERT(!d_ptr->m_pMetaType);
+
+    if (d_ptr->m_pMetaType) {
+        qWarning() << "It is not possible to add property group after creating a builder";
+        return;
+    }
+
     d_ptr->m_lGroups << pg;
 }
 
-DynamicContext* VisualTreeItem::dynamicContext() const
+QSet<QByteArray> ContextManager::usedRoles() const
 {
-    return m_pDCtx;
+    if (!d_ptr->m_pMetaType)
+        return {};
+
+    QSet<QByteArray> ret;
+
+    for (const auto mr : qAsConst(d_ptr->m_pMetaType->used)) {
+        if (mr->roleId != -1)
+            ret << *mr->name;
+    }
+
+    return ret;
+}
+
+ContextBuilder::ContextBuilder(ContextManager* manager, QQmlContext *parentContext, QObject* parent)
+{
+    manager->d_ptr->finish();
+    d_ptr = new DynamicContext(manager);
+    d_ptr->setParent(parent);
+    d_ptr->m_pBuilder   = this;
+    d_ptr->m_pParentCtx = parentContext;
+}
+
+ContextBuilder::~ContextBuilder()
+{}
+
+bool ContextBuilder::isCacheEnabled() const
+{
+    return d_ptr->m_Cache;
+}
+
+void ContextBuilder::setCacheEnabled(bool v)
+{
+    d_ptr->m_Cache = v;
+}
+
+QModelIndex ContextBuilder::index() const
+{
+    return d_ptr->m_Index;
+}
+
+void ContextBuilder::setModelIndex(const QModelIndex& index)
+{
+    d_ptr->m_Index = index;
+}
+
+QQmlContext* ContextBuilder::context() const
+{
+    Q_ASSERT(d_ptr);
+
+    if (!d_ptr->m_pCtx) {
+        d_ptr->m_pCtx = new QQmlContext(d_ptr->m_pParentCtx, d_ptr->parent());
+        d_ptr->m_pCtx->setContextObject(d_ptr);
+    }
+
+    return d_ptr->m_pCtx;
+}
+
+QObject *ContextBuilder::contextObject() const
+{
+    return d_ptr;
+}
+
+AbstractViewItem* ContextBuilder::item() const
+{
+    return nullptr;
 }

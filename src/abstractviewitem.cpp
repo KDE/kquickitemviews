@@ -17,6 +17,9 @@
  **************************************************************************/
 #include "abstractviewitem.h"
 
+// libstdc++
+#include <atomic>
+
 // Qt
 #include <QtCore/QTimer>
 #include <QQmlContext>
@@ -62,6 +65,28 @@ public:
     AbstractViewItem* q_ptr;
 };
 
+
+/**
+ * Extend the class for the need of needs of the AbstractViewItem.
+ */
+class ViewItemContextBuilder final : public ContextBuilder
+{
+public:
+    explicit ViewItemContextBuilder(ContextManager* m) : ContextBuilder(m){}
+
+    virtual ~ViewItemContextBuilder() {
+        m_pItem->flushCache();
+        m_pItem->context()->setContextObject(nullptr);
+    }
+
+    virtual QQmlContext      *context() const override;
+    virtual QModelIndex      index   () const override;
+    virtual AbstractViewItem *item   () const override;
+
+    mutable std::atomic_flag m_InitContext = ATOMIC_FLAG_INIT;
+
+    AbstractViewItem* m_pItem;
+};
 
 /*
  * The visual elements state changes.
@@ -424,3 +449,48 @@ QPair<QQuickItem*, QQmlContext*> AbstractViewItemPrivate::loadDelegate(QQuickIte
     return {container, pctx};
 }
 
+ContextBuilder* VisualTreeItem::contextBuilder() const
+{
+    if (!m_pContextBuilder) {
+        m_pContextBuilder = new ViewItemContextBuilder(view()->contextManager());
+        m_pContextBuilder->m_pItem = d_ptr;
+    }
+
+    return m_pContextBuilder;
+}
+
+QModelIndex ViewItemContextBuilder::index() const
+{
+    return m_pItem->index();
+}
+
+QQmlContext* ViewItemContextBuilder::context() const
+{
+    if (!m_InitContext.test_and_set()) {
+        m_pItem->d_ptr->m_pContext->setContextObject(contextObject());
+    }
+
+    return m_pItem->d_ptr->m_pContext;
+}
+
+AbstractViewItem* ViewItemContextBuilder::item() const
+{
+    return m_pItem;
+}
+
+void VisualTreeItem::updateContext()
+{
+    if (m_pContextBuilder)
+        return;
+
+    ContextManager* cm = d_ptr->view()->contextManager();
+    const QModelIndex self = d_ptr->index();
+    Q_ASSERT(self.model());
+    cm->setModel(const_cast<QAbstractItemModel*>(self.model()));
+
+    // This will init the context now. If the method has been re-implemented in
+    // a busclass, it might do important thing and otherwise never be called.
+    contextBuilder()->context();
+
+    Q_ASSERT(m_pContextBuilder);
+}

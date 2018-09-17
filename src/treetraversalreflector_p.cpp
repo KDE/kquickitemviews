@@ -268,6 +268,8 @@ bool TreeTraversalItems::updateVisibility()
     if ((!m_pTreeItem) && !isVisible)
         return false;
 
+//     qDebug() << "SH" << m_pTreeItem->d_ptr->sizeHint();
+
 //     qDebug() << "\n\nUPDATE VIS" << isVisible << m_Index.row() << m_Index.data();
 
     if (auto up = m_pTreeItem->up()) {
@@ -1093,6 +1095,7 @@ bool TreeTraversalReflector::isActive(const QModelIndex& parent, int first, int 
     Q_UNUSED(parent)
     Q_UNUSED(first)
     Q_UNUSED(last)
+
     return true; //FIXME
 
     /*if (m_State == State::UNFILLED)

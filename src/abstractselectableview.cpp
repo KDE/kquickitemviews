@@ -40,7 +40,7 @@ public:
     AbstractSelectableViewPrivate* d_ptr;
 
     virtual QVector<QByteArray>& propertyNames() const override;
-    virtual QVariant getProperty(AbstractViewItem* item, uint id) const override;
+    virtual QVariant getProperty(AbstractViewItem* item, uint id, const QModelIndex& index) const override;
 };
 
 class AbstractSelectableViewPrivate : public QObject
@@ -268,8 +268,9 @@ QVector<QByteArray>& ItemSelectionGroup::propertyNames() const
     return ret;
 }
 
-QVariant ItemSelectionGroup::getProperty(AbstractViewItem* item, uint id) const
+QVariant ItemSelectionGroup::getProperty(AbstractViewItem* item, uint id, const QModelIndex& index) const
 {
+    Q_UNUSED(index)
     switch(id) {
         case 0 /*isCurrentItem*/:
             return d_ptr->m_pSelectionModel &&

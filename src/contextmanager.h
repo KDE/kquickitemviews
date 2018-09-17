@@ -24,6 +24,7 @@ class QQuickItem;
 
 class ContextManagerPrivate;
 class AbstractViewItem;
+class DynamicContext;
 
 /**
  * This class manage the content of the AbstractViewItem::context().
@@ -39,7 +40,8 @@ class AbstractViewItem;
  */
 class ContextManager final
 {
-    friend class VisualTreeItem; // Factory
+    friend class ContextBuilder; // Public API
+    friend class DynamicContext; // call finish()
 public:
     /**
      * Add more properties to the QML context.
@@ -90,7 +92,7 @@ public:
          * It is recommended to use a switch statement or if/else_if for the
          * implementation and avoid QHash (or worst).
          */
-        virtual QVariant getProperty(AbstractViewItem* item, uint id) const = 0;
+        virtual QVariant getProperty(AbstractViewItem* item, uint id, const QModelIndex& index) const = 0;
 
         /**
          * Optionally make the property read/write.
@@ -103,8 +105,12 @@ public:
         void changeProperty(AbstractViewItem* item, uint id);
     };
 
+
     explicit ContextManager();
-    ~ContextManager();
+    virtual ~ContextManager();
+
+    QAbstractItemModel *model() const;
+    void setModel(QAbstractItemModel *m);
 
     /**
      * Add more properties to the context.
@@ -116,7 +122,47 @@ public:
      */
     void addPropertyGroup(PropertyGroup* pg);
 
+    QSet<QByteArray> usedRoles() const;
+
 private:
     ContextManagerPrivate* d_ptr;
     Q_DECLARE_PRIVATE(ContextManager);
+};
+
+/**
+ * Calling `context()` on an instance of this object will create a
+ * QQmlContext reflecting the model roles (and other property groups).
+ *
+ * One instance needs exists per context. It is possible to replace the
+ * QModelIndex later on as needs suit. The two main use cases are to
+ * either track multiple QModelIndex at once and display them or use a
+ * single instance along with some QQmlExpression to add "just-in-time"
+ * properties to objects (like QItemDelegate or
+ * QSortFilterProxyModel::acceptRow)
+ *
+ * These objects MUST BE CREATED AFTER the last call to addPropertyGroup
+ * has been made and the model(index) has been set.
+ */
+class ContextBuilder
+{
+    friend class AbstractViewItem;
+public:
+
+    explicit ContextBuilder(ContextManager* manager, QQmlContext *parentContext = nullptr, QObject* parent = nullptr);
+    virtual ~ContextBuilder();
+
+    bool isCacheEnabled() const;
+    void setCacheEnabled(bool v);
+
+    virtual QModelIndex index() const;
+    void setModelIndex(const QModelIndex& index);
+
+    virtual QQmlContext* context() const;
+    virtual AbstractViewItem* item() const;
+
+protected:
+    QObject *contextObject() const;
+
+private:
+    DynamicContext* d_ptr;
 };

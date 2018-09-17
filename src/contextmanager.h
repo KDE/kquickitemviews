@@ -84,7 +84,18 @@ public:
          * when the properties contained in an existing data structure or
          * associated with extra metadata.
          */
-        virtual QByteArray getPropertyName(uint id);
+        virtual QByteArray getPropertyName(uint id) const;
+
+        /**
+         * Some variants, like QModelIndex ones, cannot be cached and will
+         * most likely point to invalid memory.
+         *
+         * If the group has such properties, implement this function. Note
+         * that the return value cannot change.
+         *
+         * The default implementation always returns true.
+         */
+        virtual bool supportCaching(uint id) const;
 
         /**
          * The id comes from propertyNames.

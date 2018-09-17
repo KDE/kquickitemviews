@@ -89,6 +89,7 @@ struct DynamicMetaType final
     QMetaObject           *m_pMetaObject {nullptr};
     bool                  m_GroupInit    { false };
     QHash<int, MetaRole*> m_hRoleIds     {       };
+    uint8_t               *m_pCacheMap   {nullptr};
 
     /**
      * Assuming the number of role is never *that* high, keep a jump map to
@@ -152,7 +153,7 @@ public:
     // documentation, but that's on purpose.
     virtual QVariant getProperty(AbstractViewItem* item, uint id, const QModelIndex& index) const override;
     virtual uint size() const override;
-    virtual QByteArray getPropertyName(uint id) override;
+    virtual QByteArray getPropertyName(uint id) const override;
 
     ContextManagerPrivate* d_ptr;
 };
@@ -172,13 +173,20 @@ uint ContextManager::PropertyGroup::size() const
 {
     return propertyNames().size();
 }
+
+bool ContextManager::PropertyGroup::supportCaching(uint id) const
+{
+    Q_UNUSED(id)
+    return true;
+}
+
 QVector<QByteArray>& ContextManager::PropertyGroup::propertyNames() const
 {
     static QVector<QByteArray> r;
     return r;
 }
 
-QByteArray ContextManager::PropertyGroup::getPropertyName(uint id)
+QByteArray ContextManager::PropertyGroup::getPropertyName(uint id) const
 {
     return propertyNames()[id];
 }
@@ -233,7 +241,7 @@ uint RoleGroup::size() const
     return d_ptr->m_pMetaType->roleCount;
 }
 
-QByteArray RoleGroup::getPropertyName(uint id)
+QByteArray RoleGroup::getPropertyName(uint id) const
 {
     return *d_ptr->m_pMetaType->roles[id].name;
 }
@@ -263,17 +271,20 @@ int DynamicContext::qt_metacall(QMetaObject::Call call, int id, void **argv)
 
         const QModelIndex idx = m_pBuilder->item() ? m_pBuilder->item()->index() : m_Index;
 
+        const bool supportsCache = m_Cache &&
+            (m_pMetaType->m_pCacheMap[realId/8] & (1 << (realId % 8)));
+
         // Use a special function for the role case. It's only known at runtime.
-        QVariant *value = m_lVariants[realId] && m_Cache
+        QVariant *value = m_lVariants[realId] && supportsCache
             ? m_lVariants[realId] : new QVariant(
                 group->ptr->getProperty(m_pBuilder->item(), realId - group->offset, idx));
 
-        if (m_Cache && !m_lVariants[realId])
+        if (supportsCache && !m_lVariants[realId])
             m_lVariants[realId] = value;
 
         QMetaType::construct(QMetaType::QVariant, argv[0], value->data());
 
-//         if (!m_Cache)
+//         if (!supportsCache)
 //             delete value;
     }
     else if (call == QMetaObject::WriteProperty) {
@@ -326,6 +337,12 @@ void ContextManagerPrivate::initGroup(const QHash<int, QByteArray>& rls)
     }
     Q_ASSERT(offset == m_pMetaType->propertyCount);
 
+    // Add a bitfield to store the properties that need to skip the cache
+    const int fieldSize = m_pMetaType->propertyCount / 8 + (m_pMetaType->propertyCount%8?1:0);
+    m_pMetaType->m_pCacheMap = (uint8_t*) malloc(fieldSize);
+    for (int i = 0; i < fieldSize; i++)
+        m_pMetaType->m_pCacheMap[i] = 0;
+
     m_pMetaType->m_GroupInit = true;
 
     // Create the metaobject
@@ -348,16 +365,23 @@ void ContextManagerPrivate::initGroup(const QHash<int, QByteArray>& rls)
         m_pMetaType->m_hRoleIds[i.key()] = r;
     }
 
+    realId = 0;
+
     // Add all object virtual properties
     for (const auto g : qAsConst(m_lGroups)) {
         for (uint j = 0; j < g->size(); j++) {
+            uint id = realId++;
+
             const auto name = g->getPropertyName(j);
-            qDebug() << "P" << name;
+
             auto property = builder.addProperty(name, "QVariant");
             property.setWritable(true);
 
             auto signal = builder.addSignal(name + "Changed()");
             property.setNotifySignal(signal);
+
+            // Set the cache bit
+            m_pMetaType->m_pCacheMap[id/8] |= (g->supportCaching(j)?1:0) << (id % 8);
         }
     }
 

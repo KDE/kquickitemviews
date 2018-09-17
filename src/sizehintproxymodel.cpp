@@ -17,25 +17,43 @@
  **************************************************************************/
 #include "sizehintproxymodel.h"
 
+#include "contextmanager.h"
+
+// Qt
 #include <QJSValue>
 #include <QDebug>
 #include <QQmlEngine>
+#include <QQmlContext>
+#include <QQmlExpression>
 
 class SizeHintProxyModelPrivate : public QObject
 {
 public:
-    QJSValue m_Callback;
-    QJSValue m_ContextCallback;
-    QJSValue m_Context;
-    bool m_ReloadContext {false};
+
+
     QHash<QByteArray, int> m_hInvertedRoleNames;
-    QStringList m_lInvalidationRoles;
+    QStringList            m_lInvalidationRoles;
+    QJSValue               m_ConstantsCallback;
+    QJSValue               m_Contants;
+    QQmlScriptString       m_WidthScript;
+    QQmlScriptString       m_HeightScript;
+    bool                   m_ReloadContants    { false };
+    QQmlExpression*        m_pWidthExpression  {nullptr};
+    QQmlExpression*        m_pHeightExpression {nullptr};
+    QQmlContext           *m_pQmlContext       {nullptr};
+    ContextManager        *m_pContextManager   {nullptr};
+    ContextBuilder        *m_pContextBuilder   {nullptr};
+    QVariantMap            m_hCache            {       };
 
-    int roleIndex(const QString& name);
 
-    QVariantMap m_hCache;
+    // Helpers
+    int   roleIndex(const QString& name);
+    void  reloadContants();
+    void  reloadContext(QAbstractItemModel *m);
+    qreal evaluateForIndex(QQmlExpression* expr, const QModelIndex& idx);
 
     SizeHintProxyModel* q_ptr;
+
 
 public Q_SLOTS:
     void slotDataChanged(const QModelIndex& tl, const QModelIndex& bl, const QVector<int>& roles);
@@ -54,30 +72,24 @@ SizeHintProxyModel::~SizeHintProxyModel()
 
 void SizeHintProxyModel::setSourceModel(QAbstractItemModel *newSourceModel)
 {
-    d_ptr->m_ReloadContext = true;
+
+    d_ptr->reloadContext(newSourceModel);
+    d_ptr->m_ReloadContants = true;
     d_ptr->m_hInvertedRoleNames.clear();
     QIdentityProxyModel::setSourceModel(newSourceModel);
+    d_ptr->reloadContants();
 }
 
-QJSValue SizeHintProxyModel::sizeHint() const
+QJSValue SizeHintProxyModel::constants() const
 {
-    return d_ptr->m_Callback;
+    return d_ptr->m_ConstantsCallback;
 }
 
-void SizeHintProxyModel::setSizeHint(const QJSValue& value)
+void SizeHintProxyModel::setConstants(const QJSValue& value)
 {
-    d_ptr->m_Callback = value;
-}
-
-QJSValue SizeHintProxyModel::context() const
-{
-    return d_ptr->m_ContextCallback;
-}
-
-void SizeHintProxyModel::setContext(const QJSValue& value)
-{
-    d_ptr->m_ReloadContext   = true;
-    d_ptr->m_ContextCallback = value;
+    d_ptr->m_ReloadContants    = true;
+    d_ptr->m_ConstantsCallback = value;
+    d_ptr->reloadContants();
 }
 
 int SizeHintProxyModelPrivate::roleIndex(const QString& name)
@@ -96,9 +108,9 @@ int SizeHintProxyModelPrivate::roleIndex(const QString& name)
     return m_hInvertedRoleNames[n];
 }
 
-void SizeHintProxyModel::invalidateContext()
+void SizeHintProxyModel::invalidateConstants()
 {
-    d_ptr->m_ReloadContext = true;
+    d_ptr->m_ReloadContants = true;
     d_ptr->m_hCache.clear();
 }
 
@@ -125,31 +137,143 @@ void SizeHintProxyModelPrivate::slotDataChanged(const QModelIndex& tl, const QMo
     //TODO check m_lInvalidationRoles and add a sync interface with the view
 }
 
-QSizeF SizeHintProxyModel::sizeHintForIndex(QQmlEngine *engine, const QModelIndex& idx)
+void SizeHintProxyModelPrivate::reloadContext(QAbstractItemModel *m)
 {
-    if (!sizeHint().isCallable())
-        return {};
+    if (m_pContextBuilder)
+        delete m_pContextBuilder;
 
-    if (d_ptr->m_ReloadContext) {
-        d_ptr->m_Context = context().call();
+    if (m_pQmlContext) {
+        delete m_pQmlContext;
+        m_pQmlContext = nullptr;
     }
 
-    const auto args = engine->toScriptValue<QModelIndex>(idx);
-    const auto ret = sizeHint().callWithInstance(
-        d_ptr->m_Context, QJSValueList { args }
+    if (m_pContextManager)
+        delete m_pContextManager;
+
+    m_pContextManager = new ContextManager();
+    m_pContextManager->setModel(m);
+
+    QQmlContext* qmlCtx = QQmlEngine::contextForObject(q_ptr);
+    Q_ASSERT(qmlCtx && qmlCtx->engine());
+
+    m_pContextBuilder = new ContextBuilder(m_pContextManager, qmlCtx, q_ptr);
+    m_pContextBuilder->setCacheEnabled(false);
+}
+
+void SizeHintProxyModelPrivate::reloadContants()
+{
+    // Properties are initialized in a random order, this cannot be set before
+    // the model.
+    if (!q_ptr->sourceModel())
+        return;
+
+    if (!m_ReloadContants)
+        return;
+
+    // Allow both functions and direct values
+    m_Contants = m_ConstantsCallback.isCallable() ?
+        m_ConstantsCallback.call() : m_ConstantsCallback;
+
+    const auto map = m_Contants.toVariant().toMap();
+
+    // Replace the context because it's not allowed to write to internal
+    // function contexts.
+    if (!m_pQmlContext) {
+        QQmlContext* qmlCtx = QQmlEngine::contextForObject(q_ptr);
+        Q_ASSERT(qmlCtx && qmlCtx->engine());
+        m_pQmlContext = m_pContextBuilder->context();
+        Q_ASSERT(m_pQmlContext);
+        QQmlEngine::setContextForObject(q_ptr, m_pQmlContext);
+    }
+
+    // Set them as context properties directly, no fancy QMetaType here.
+    for (auto i = map.constBegin(); i != map.constEnd(); i++) {
+        m_pQmlContext->setContextProperty(i.key(), i.value());
+        q_ptr->setProperty(i.key().toLatin1(), i.value());
+    }
+
+    m_pHeightExpression = new QQmlExpression(
+        m_HeightScript,
+        m_pQmlContext,
+        this
     );
 
-    if (ret.isError()) {
-        qDebug() << "Size hint failed" << ret.toString();
-        Q_ASSERT(false);
+    m_pWidthExpression = new QQmlExpression(
+        m_WidthScript,
+        m_pQmlContext,
+        this
+    );
+
+    m_ReloadContants = false;
+}
+
+qreal SizeHintProxyModelPrivate::evaluateForIndex(QQmlExpression* expr, const QModelIndex& idx)
+{
+    reloadContants();
+
+    bool valueIsUndefined = false;
+
+    m_pContextBuilder->setModelIndex(idx);
+    const QVariant var = expr->evaluate(&valueIsUndefined);//ret.toVariant();
+
+    // There was an error in the expression
+    if (expr->hasError()) {
+        qWarning() << expr->error();
+        return {};
+    }
+    if (valueIsUndefined && !var.isValid()) {
+        qWarning() << "The sizeHint expression contains an undefined variable" << idx;
+        return {};
+    }
+    else if (!var.isValid()) {
+        qWarning() << "The sizeHint expression had an error" << idx;
+        return {};
     }
 
-    const auto var = ret.toVariant();
+    static QByteArray n("int"), n2("double");
 
-    Q_ASSERT((!var.isValid()) || var.type() == QMetaType::QVariantList);
+    Q_ASSERT(QByteArray(var.typeName()) == n || QByteArray(var.typeName()) == n2);
 
-    const auto list = var.toList();
-    Q_ASSERT(list.size() >= 2);
-
-    return QSizeF {list[0].toReal(), list[1].toReal()};
+    return var.toReal();
 }
+
+QSizeF SizeHintProxyModel::sizeHintForIndex(const QModelIndex& idx)
+{
+    const qreal w = d_ptr->m_pWidthExpression ?
+        d_ptr->evaluateForIndex(d_ptr->m_pWidthExpression , idx) : 0;
+    const qreal h = d_ptr->m_pHeightExpression ?
+        d_ptr->evaluateForIndex(d_ptr->m_pHeightExpression, idx) : 0;
+    return QSizeF {w, h};
+}
+
+QQmlScriptString SizeHintProxyModel::widthHint() const
+{
+    return d_ptr->m_WidthScript;
+}
+
+void SizeHintProxyModel::setWidthHint(const QQmlScriptString& value)
+{
+    if (d_ptr->m_pWidthExpression) {
+        delete d_ptr->m_pWidthExpression;
+        d_ptr->m_pWidthExpression = nullptr;
+    }
+    d_ptr->m_WidthScript = value;
+    d_ptr->m_ReloadContants = true;
+}
+
+QQmlScriptString SizeHintProxyModel::heightHint() const
+{
+    return d_ptr->m_HeightScript;
+}
+
+void SizeHintProxyModel::setHeightHint(const QQmlScriptString& value)
+{
+    if (d_ptr->m_pHeightExpression) {
+        delete d_ptr->m_pHeightExpression;
+        d_ptr->m_pHeightExpression = nullptr;
+    }
+
+    d_ptr->m_HeightScript = value;
+    d_ptr->m_ReloadContants = true;
+}
+

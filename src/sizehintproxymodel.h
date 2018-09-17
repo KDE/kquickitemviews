@@ -21,6 +21,7 @@
 #include <QtCore/QSize>
 #include <QtCore/QVariant>
 #include <QJSValue>
+#include <QQmlScriptString>
 
 class QQmlEngine;
 class SizeHintProxyModelPrivate;
@@ -50,12 +51,20 @@ class Q_DECL_EXPORT SizeHintProxyModel : public QIdentityProxyModel
     Q_OBJECT
 public:
     /**
-     * A function which return a pair of real numbers for with width and height.
+     * Return the width for a QModelIndex.
      *
-     * It takes a QModelIndex as the sole parameter, use getRoleValue to get
-     * the value of the QModelIndex roles.
+     * All roles and all constants constants are exposed as variables in the
+     * expression.
      */
-    Q_PROPERTY(QJSValue sizeHint READ sizeHint WRITE setSizeHint)
+    Q_PROPERTY(QQmlScriptString widthHint READ widthHint WRITE setWidthHint)
+
+    /**
+     * Return the width for a QModelIndex.
+     *
+     * All roles and all constants constants are exposed as variables in the
+     * expression.
+     */
+    Q_PROPERTY(QQmlScriptString heightHint READ heightHint WRITE setHeightHint)
 
     /**
      * Add variables to the sizeHint callback context that likely wont change
@@ -64,7 +73,7 @@ public:
      * The function is called when the model changes or invalidateContext is
      * called.
      */
-    Q_PROPERTY(QJSValue context READ context WRITE setContext)
+    Q_PROPERTY(QJSValue constants READ constants WRITE setConstants)
 
     /**
      * When `dataChanged` on the model is called with a list of invalidated roles
@@ -73,7 +82,7 @@ public:
      *
      * When used with the other KQuickView views, they will be notified.
      *
-     * Note that the context wont be invalidated.
+     * Note that the constants wont be invalidated.
      */
     Q_PROPERTY(QStringList invalidationRoles READ invalidationRoles WRITE setInvalidationRoles)
 
@@ -82,24 +91,27 @@ public:
 
     virtual void setSourceModel(QAbstractItemModel *newSourceModel) override;
 
-    QJSValue sizeHint() const;
-    void setSizeHint(const QJSValue& value);
+    QQmlScriptString widthHint() const;
+    void setWidthHint(const QQmlScriptString& value);
 
-    QJSValue context() const;
-    void setContext(const QJSValue& value);
+    QQmlScriptString heightHint() const;
+    void setHeightHint(const QQmlScriptString& value);
+
+    QJSValue constants() const;
+    void setConstants(const QJSValue& value);
 
     QStringList invalidationRoles() const;
     void setInvalidationRoles(const QStringList& l);
 
-    Q_INVOKABLE QSizeF sizeHintForIndex(QQmlEngine *engine, const QModelIndex& idx);
+    Q_INVOKABLE QSizeF sizeHintForIndex(const QModelIndex& idx);
 
     Q_INVOKABLE QVariant getRoleValue(const QModelIndex& idx, const QString& roleName) const;
 
 public Q_SLOTS:
     /**
-     * Call this when the values in the context may have changed.
+     * Call this when the values in the constants may have changed.
      */
-    void invalidateContext();
+    void invalidateConstants();
 
 private:
     SizeHintProxyModelPrivate* d_ptr;

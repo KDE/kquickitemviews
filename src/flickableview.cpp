@@ -138,7 +138,7 @@ QSizeF FlickableView::sizeHint(const QModelIndex& index) const
 
     if (d_ptr->m_ModelHasSizeHints)
         return qobject_cast<SizeHintProxyModel*>(model().data())
-            ->sizeHintForIndex(d_ptr->m_pEngine, index);
+            ->sizeHintForIndex(index);
 
     return {};
 }

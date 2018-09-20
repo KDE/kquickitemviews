@@ -31,7 +31,6 @@ public:
     QSharedPointer<QAbstractItemModel>  m_pModel          {nullptr};
 //     QSharedPointer<QItemSelectionModel> m_pSelectionModel {nullptr};
     QQmlComponent*                      m_pDelegate       {nullptr};
-    QQmlComponent*                      m_pComponent      {nullptr};
     mutable QQmlContext*                m_pRootContext    {nullptr};
     QSharedPointer<QAbstractItemModel>  m_pNextModel      {nullptr};
 

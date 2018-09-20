@@ -69,6 +69,7 @@ SET( kquickview_LIB_SRCS
     src/flickablescrollbar.cpp
     src/sizehintproxymodel.cpp
     src/contextmanager.cpp
+    src/modeladapter.cpp
 )
 
 set(AUTOMOC_MOC_OPTIONS -Muri=org.kde.playground.kquickview)
@@ -90,6 +91,7 @@ SET( kquickview_LIB_HDRS
     abstractquickview.h
     treetraversalreflector_p.h
     visiblerange.h
+    modeladapter.h
     abstractviewitem.h
     abstractselectableview.h
     abstractviewcompat.h

@@ -34,7 +34,7 @@
 class QuickTreeViewItem : public AbstractViewItem
 {
 public:
-    explicit QuickTreeViewItem(AbstractViewCompat* v);
+    explicit QuickTreeViewItem(AbstractViewCompat* v, VisibleRange* r);
     virtual ~QuickTreeViewItem();
 
     // Actions
@@ -78,14 +78,14 @@ QuickTreeView::~QuickTreeView()
     delete d_ptr;
 }
 
-AbstractViewItem* QuickTreeView::createItem() const
+AbstractViewItem* QuickTreeView::createItem(VisibleRange* r) const
 {
     return new QuickTreeViewItem(
-        const_cast<QuickTreeView*>(this)
+        const_cast<QuickTreeView*>(this), r
     );
 }
 
-QuickTreeViewItem::QuickTreeViewItem(AbstractViewCompat* p) : AbstractViewItem(p)
+QuickTreeViewItem::QuickTreeViewItem(AbstractViewCompat* p, VisibleRange* r) : AbstractViewItem(p, r)
 {
 }
 

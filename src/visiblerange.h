@@ -20,6 +20,9 @@
 #include <flickableview.h>
 
 class AbstractViewItem;
+class AbstractQuickView;
+
+class VisibleRangePrivate;
 
 /**
 * This class exposes a way to track and iterate a subset of the model.
@@ -30,9 +33,22 @@ class AbstractViewItem;
 * This class is for internal use and should not be used by views. Please use
 * `AbstractQuickView` for all relevant use cases.
 */
-class TreeTraversalRange
+class VisibleRange
 {
+    friend class AbstractViewItem; // for the getters defined in visiblerange.cpp
 public:
+
+    /// Some strategies to get the item size with or without loading them.
+    enum class SizeHintStrategy {
+        AOT    , /*!< Load everything ahead of time, doesn't scale but very reliable */
+        JIT    , /*!< Do not try to compute the total size, scrollbars wont work     */
+        UNIFORM, /*!< Assume all elements have the same size, scales well when true  */
+        PROXY  , /*!< Use a QSizeHintProxyModel, require work by all developers      */
+        ROLE   , /*!< Use one of the QAbstractItemModel role as size                 */
+    };
+
+    explicit VisibleRange(AbstractQuickView* v);
+
     /**
      * A generic iterator for the ModelIndexItem interface.
      *
@@ -82,8 +98,18 @@ public:
      */
     QRectF currentRect() const;
 
+    QString sizeHintRole() const;
+    void setSizeHintRole(const QString& s);
+
+    SizeHintStrategy sizeHintStrategy() const;
+    void setSizeHintStrategy(SizeHintStrategy s);
+
+    virtual void applyModelChanges(QAbstractItemModel* m);
 
     //Iterators
     /*Iterator begin();
     Iterator end();*/
+
+private:
+    VisibleRangePrivate* d_ptr;
 };

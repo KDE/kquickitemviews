@@ -68,7 +68,7 @@ struct QuickListViewSection final
 class QuickListViewItem : public AbstractViewItem
 {
 public:
-    explicit QuickListViewItem(AbstractViewCompat* v);
+    explicit QuickListViewItem(AbstractViewCompat* v, VisibleRange* r);
     virtual ~QuickListViewItem();
 
     // Actions
@@ -196,10 +196,10 @@ QuickListViewSections* QuickListView::section() const
     return d_ptr->m_pSections;
 }
 
-AbstractViewItem* QuickListView::createItem() const
+AbstractViewItem* QuickListView::createItem(VisibleRange* r) const
 {
     return new QuickListViewItem(
-        const_cast<QuickListView*>(this)
+        const_cast<QuickListView*>(this), r
     );
 }
 
@@ -368,7 +368,7 @@ void QuickListViewPrivate::reloadSectionIndices() const
     m_IndexLoaded = m_pFirstSection != nullptr;
 }
 
-QuickListViewItem::QuickListViewItem(AbstractViewCompat* p) : AbstractViewItem(p)
+QuickListViewItem::QuickListViewItem(AbstractViewCompat* p, VisibleRange* r) : AbstractViewItem(p, r)
 {
 }
 

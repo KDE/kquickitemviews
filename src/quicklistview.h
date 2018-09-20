@@ -113,7 +113,7 @@ Q_SIGNALS:
     void indexChanged(int index);
 
 protected:
-    virtual AbstractViewItem* createItem() const override;
+    virtual AbstractViewItem* createItem(VisibleRange* r) const override;
     virtual void applyModelChanges(QAbstractItemModel* m) override;
 
 private:

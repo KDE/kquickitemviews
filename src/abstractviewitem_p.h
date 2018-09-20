@@ -23,6 +23,8 @@ class AbstractViewItem;
 class DynamicContext;
 class ViewItemContextBuilder;
 class ContextBuilder;
+class VisibleRange;
+class BlockMetadata;
 
 // Qt
 class QQuickItem;
@@ -48,7 +50,9 @@ class VisualTreeItem
     friend class AbstractViewItem;
 public:
 
-    explicit VisualTreeItem(AbstractQuickView* p) : m_pView(p) {}
+    explicit VisualTreeItem(AbstractQuickView* p, VisibleRange* r) :
+        m_pView(p), m_pRange(r) {}
+
     virtual ~VisualTreeItem() {}
 
     enum class State {
@@ -117,10 +121,13 @@ public:
 
     mutable ViewItemContextBuilder* m_pContextBuilder {nullptr};
 
+    VisibleRange* m_pRange {nullptr};
+    BlockMetadata* m_pPos {nullptr};
+
 private:
     State m_State {State::POOLED};
-    TreeTraversalItems* m_pTTI {nullptr};
-    AbstractQuickView* m_pView {nullptr};
+    TreeTraversalItems* m_pTTI   {nullptr};
+    AbstractQuickView * m_pView  {nullptr};
 
 
     bool performAction(ViewAction); //FIXME make private, remove #include

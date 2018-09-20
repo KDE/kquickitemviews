@@ -28,6 +28,7 @@ class QQmlContext;
 class QItemSelectionModel;
 
 class FlickableViewPrivate;
+class VisibleRange;
 
 class AbstractViewItem;//FIXME remove
 
@@ -53,14 +54,6 @@ public:
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged)
     Q_PROPERTY(bool empty READ isEmpty NOTIFY countChanged)
 
-    /**
-     * Specify a model role to use to get the sizeHints.
-     *
-     * If the `SizeHintProxyModel` is used or the `uniformRowHeight` is set,
-     * this isn't necessary.
-     */
-    Q_PROPERTY(QString sizeHintRole READ sizeHintRole WRITE setSizeHintRole)
-
     explicit FlickableView(QQuickItem* parent = nullptr);
     virtual ~FlickableView();
 
@@ -75,11 +68,6 @@ public:
 
     bool isEmpty() const;
 
-    Q_INVOKABLE QSizeF sizeHint(const QModelIndex& index) const;
-
-    QString sizeHintRole() const;
-    void setSizeHintRole(const QString& s);
-
 protected:
     virtual void refresh() =0;
 
@@ -87,7 +75,7 @@ protected:
     /**
      * To be implemented by the final class.
      */
-    virtual AbstractViewItem* createItem() const = 0;
+    virtual AbstractViewItem* createItem(VisibleRange* r) const = 0;
 
     /**
      * Get the VolatileTreeItem associated with a model index.

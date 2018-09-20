@@ -27,7 +27,7 @@
 struct TreeTraversalItems;
 class VisualTreeItem;
 class TreeTraversalReflectorPrivate;
-class TreeTraversalRange;
+class VisibleRange;
 
 
 /**
@@ -63,7 +63,7 @@ public:
     void populate();
 
     //TODO move this to the range once it works
-    VisualTreeItem* getCorner(TreeTraversalRange* r, Qt::Corner c) const;
+    VisualTreeItem* getCorner(VisibleRange* r, Qt::Corner c) const;
 
     // Getter
     VisualTreeItem* parentTreeItem(const QModelIndex& idx) const;
@@ -76,9 +76,9 @@ public:
     void moveEverything();
 
     // Mutator
-    bool addRange(TreeTraversalRange* range);
-    bool removeRange(TreeTraversalRange* range);
-    QList<TreeTraversalRange*> ranges() const;
+    bool addRange(VisibleRange* range);
+    bool removeRange(VisibleRange* range);
+    QList<VisibleRange*> ranges() const;
 
     // Setters
     void setItemFactory(std::function<AbstractViewItem*()> factory);

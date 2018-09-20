@@ -27,7 +27,7 @@
 #include "abstractquickview_p.h"
 #include "abstractviewitem.h"
 #include "treetraversalreflector_p.h"
-#include "treetraversalrange_p.h"
+#include "visiblerange.h"
 #include "abstractselectableview.h"
 #include "abstractselectableview_p.h"
 #include "contextmanager.h"
@@ -101,7 +101,7 @@ public:
     State m_State {State::UNFILLED};
 
     TreeTraversalReflector* m_pReflector {nullptr};
-    TreeTraversalRange* m_pRange {nullptr};
+    VisibleRange* m_pRange {nullptr};
     AbstractSelectableView* m_pSelectionManager {new AbstractSelectableView(this)};
     ContextManager *m_pRoleContextManager {nullptr};
 
@@ -159,14 +159,14 @@ AbstractQuickView::AbstractQuickView(QQuickItem* parent) : FlickableView(parent)
     d_ptr->m_pReflector = new TreeTraversalReflector(this);
     selectionManager()->s_ptr->setView(this);
 
-    d_ptr->m_pRange = new TreeTraversalRange();
+    d_ptr->m_pRange = new VisibleRange(this);
     d_ptr->m_pReflector->addRange(d_ptr->m_pRange);
 
     d_ptr->q_ptr = this;
     s_ptr->d_ptr = d_ptr;
 
     d_ptr->m_pReflector->setItemFactory([this]() -> AbstractViewItem* {
-        auto ret = d_ptr->q_ptr->createItem();
+        auto ret = d_ptr->q_ptr->createItem(d_ptr->m_pRange);
 
         return ret;
     });

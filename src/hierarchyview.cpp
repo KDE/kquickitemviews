@@ -34,7 +34,7 @@
 class HierarchyViewItem : public AbstractViewItem
 {
 public:
-    explicit HierarchyViewItem(AbstractViewCompat* v);
+    explicit HierarchyViewItem(AbstractViewCompat* v, VisibleRange* r);
     virtual ~HierarchyViewItem();
 
     // Actions
@@ -78,14 +78,14 @@ HierarchyView::~HierarchyView()
     delete d_ptr;
 }
 
-AbstractViewItem* HierarchyView::createItem() const
+AbstractViewItem* HierarchyView::createItem(VisibleRange* r) const
 {
     return new HierarchyViewItem(
-        const_cast<HierarchyView*>(this)
+        const_cast<HierarchyView*>(this), r
     );
 }
 
-HierarchyViewItem::HierarchyViewItem(AbstractViewCompat* p) : AbstractViewItem(p)
+HierarchyViewItem::HierarchyViewItem(AbstractViewCompat* p, VisibleRange* r) : AbstractViewItem(p, r)
 {
 }
 

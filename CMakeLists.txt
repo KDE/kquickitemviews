@@ -56,7 +56,7 @@ SET( kquickview_LIB_SRCS
     src/hierarchyview.cpp
     src/abstractquickview.cpp
     src/treetraversalreflector_p.cpp
-    src/treetraversalrange_p.cpp
+    src/visiblerange.cpp
     src/abstractviewitem.cpp
     src/abstractselectableview.cpp
     src/abstractviewcompat.cpp
@@ -89,7 +89,7 @@ SET( kquickview_LIB_HDRS
     hierarchyview.h
     abstractquickview.h
     treetraversalreflector_p.h
-    treetraversalrange_p.h
+    visiblerange.h
     abstractviewitem.h
     abstractselectableview.h
     abstractviewcompat.h

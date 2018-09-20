@@ -101,6 +101,8 @@ struct TreeTraversalItems
 
     QPersistentModelIndex m_Index;
     VisualTreeItem* m_pTreeItem {nullptr};
+    mutable QSizeF m_SizeHints;
+    mutable QPointF m_Position;
 
     TreeTraversalReflectorPrivate* d_ptr;
 };
@@ -258,9 +260,13 @@ bool TreeTraversalItems::error()
 }
 #pragma GCC diagnostic pop
 
+
 bool TreeTraversalItems::updateVisibility()
 {
     //TODO support horizontal visibility
+
+//     const auto sh = sizeHint();
+
     const bool isVisible = m_pTreeItem && m_pTreeItem->fitsInView();
 
     //TODO this is a cheap workaround, it leaves the m_tVisibleTTIRange in a
@@ -268,7 +274,6 @@ bool TreeTraversalItems::updateVisibility()
     if ((!m_pTreeItem) && !isVisible)
         return false;
 
-//     qDebug() << "SH" << m_pTreeItem->d_ptr->sizeHint();
 
 //     qDebug() << "\n\nUPDATE VIS" << isVisible << m_Index.row() << m_Index.data();
 
@@ -325,10 +330,14 @@ bool TreeTraversalItems::hide()
 
 bool TreeTraversalItems::attach()
 {
+//     if (!updateVisibility())
+//         return true;
+
     if (m_pTreeItem)
         m_pTreeItem->performAction(VisualTreeItem::ViewAction::ATTACH);
 
-//     qDebug() << "ATTACH" << (int)m_State;
+
+    //     qDebug() << "ATTACH" << (int)m_State;
     performAction(Action::MOVE); //FIXME don't
     return performAction(Action::SHOW); //FIXME don't
 }
@@ -487,7 +496,7 @@ TreeTraversalReflector::~TreeTraversalReflector()
     delete d_ptr->m_pRoot;
 }
 
-VisualTreeItem* TreeTraversalReflector::getCorner(TreeTraversalRange* r, Qt::Corner c) const
+VisualTreeItem* TreeTraversalReflector::getCorner(VisibleRange* r, Qt::Corner c) const
 {
     Q_UNUSED(r)
 
@@ -1179,21 +1188,21 @@ AbstractViewItem* TreeTraversalReflector::itemForIndex(const QModelIndex& idx) c
     return tti && tti->m_pTreeItem ? tti->m_pTreeItem->d_ptr : nullptr;
 }
 
-bool TreeTraversalReflector::addRange(TreeTraversalRange* range)
+bool TreeTraversalReflector::addRange(VisibleRange* range)
 {
     Q_UNUSED(range)
     //
     return false;
 }
 
-bool TreeTraversalReflector::removeRange(TreeTraversalRange* range)
+bool TreeTraversalReflector::removeRange(VisibleRange* range)
 {
     Q_UNUSED(range)
     //TODO
     return false;
 }
 
-QList<TreeTraversalRange*> TreeTraversalReflector::ranges() const
+QList<VisibleRange*> TreeTraversalReflector::ranges() const
 {
     return {}; //TODO
 }

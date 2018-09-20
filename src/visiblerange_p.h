@@ -15,44 +15,28 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#include "treetraversalrange_p.h"
 
-bool TreeTraversalRange::incrementUpward()
-{
-    return false;
-}
 
-bool TreeTraversalRange::incrementDownward()
+/**
+ * For size modes like UniformRowHeight, it's pointless to keep track of
+ * every single elements (potentially without a TreeTraversalItem).
+ *
+ * Even in the case of individual item, it may not be worth the extra memory
+ * and recomputing them on demand may make sense.
+ */
+struct BlockMetadata
 {
-    return false;
-}
+    QPointF m_Position;
+    QSizeF  m_Size;
+};
 
-bool TreeTraversalRange::decrementUpward()
+/**
+ * In order to keep the separation of concerns design goal intact, this
+ * interface between the TreeTraversalReflector and VisibleRange internal
+ * metadata without exposing them.
+ */
+class VisibleRangeSync final
 {
-    return false;
-}
-
-bool TreeTraversalRange::decrementDownward()
-{
-    return false;
-}
-
-/*TreeTraversalRange::Iterator TreeTraversalRange::begin()
-{
-    return {};
-}
-
-TreeTraversalRange::Iterator TreeTraversalRange::end()
-{
-    return {};
-}*/
-
-const TreeTraversalRange::Subset TreeTraversalRange::subset(const QModelIndex& idx) const
-{
-    return {};
-}
-
-QRectF TreeTraversalRange::currentRect() const
-{
-    return {};
-}
+public:
+    inline void updateSingleItem(const QModelIndex& index, BlockMetadata* b);
+};

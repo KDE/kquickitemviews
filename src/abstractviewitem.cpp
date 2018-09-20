@@ -120,9 +120,9 @@ const AbstractViewItemPrivate::StateF AbstractViewItemPrivate::m_fStateMachine[7
 };
 #undef A
 
-AbstractViewItem::AbstractViewItem(AbstractQuickView* v) :
+AbstractViewItem::AbstractViewItem(AbstractQuickView* v, VisibleRange* r) :
     d_ptr(new AbstractViewItemPrivate),
-    s_ptr(new VisualTreeItem(v))
+    s_ptr(new VisualTreeItem(v, r))
 {
     d_ptr->q_ptr = this;
     s_ptr->d_ptr = this;
@@ -199,7 +199,6 @@ void AbstractViewItem::updateGeometry()
 {
     s_ptr->updateGeometry();
 }
-
 
 void VisualTreeItem::setSelected(bool v)
 {
@@ -314,7 +313,7 @@ int VisualTreeItem::depth() const
 bool VisualTreeItem::fitsInView() const
 {
     const auto geo  = geometry();
-    const auto v = view()->visibleRect();
+    const auto v    = view()->visibleRect();
 
     //TODO support horizontal visibility
     return geo.y() >= v.y()
@@ -331,11 +330,6 @@ AbstractViewItem::weakReference() const
 
 
     return {d_ptr->m_pLocker, const_cast<AbstractViewItem*>(this)};
-}
-
-QSizeF AbstractViewItem::sizeHint() const
-{
-    return view()->sizeHint(index());
 }
 
 void AbstractViewItemPrivate::load()
@@ -384,6 +378,10 @@ QQuickItem *AbstractViewItem::item() const
     return d_ptr->m_pItem;
 }
 
+VisibleRange *AbstractViewItem::visibleRange() const
+{
+    return s_ptr->m_pRange;
+}
 
 QRectF AbstractViewItem::geometry() const
 {

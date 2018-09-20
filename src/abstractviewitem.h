@@ -25,6 +25,7 @@ class QQmlContext;
 class AbstractViewItemPrivate;
 class VisualTreeItem;
 class AbstractQuickView;
+class VisibleRange;
 
 /**
  * This class must be extended by the views to bind QModelIndex with a GUI element.
@@ -42,7 +43,7 @@ class AbstractQuickView;
  *
  * These objects are created if and only if those 2 conditions are met:
  *
- *  * The QModelIndex is currently part of a tracked range (see TreeTraversalRange).
+ *  * The QModelIndex is currently part of a tracked range (see VisibleRange).
  *  * It didn't fail to load.
  *
  * If the overloaded functions returns false, then the consumer of this
@@ -67,9 +68,10 @@ class AbstractViewItem
     friend class AbstractQuickViewPrivate; //notify when the view is resized
     friend class AbstractViewItemPrivate; // d_ptr (Q_DECLARE_PRIVATE)
     friend class ViewItemContextBuilder;
+    friend class VisibleRangePrivate; // Manage the geometry and size hints
 
 public:
-    explicit AbstractViewItem(AbstractQuickView* v);
+    explicit AbstractViewItem(AbstractQuickView* v, VisibleRange* r);
     virtual ~AbstractViewItem();
 
     AbstractQuickView* view() const;
@@ -89,6 +91,8 @@ public:
      * allows for a lot of boilerplate code to be handled internally.
      */
     virtual QQuickItem* item() const;
+
+    VisibleRange *visibleRange() const;
 
     /**
      * The external state if the item.

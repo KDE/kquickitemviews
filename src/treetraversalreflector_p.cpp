@@ -101,8 +101,6 @@ struct TreeTraversalItems
 
     QPersistentModelIndex m_Index;
     VisualTreeItem* m_pTreeItem {nullptr};
-    mutable QSizeF m_SizeHints;
-    mutable QPointF m_Position;
 
     TreeTraversalReflectorPrivate* d_ptr;
 };
@@ -125,14 +123,12 @@ public:
 
     TreeTraversalItems* m_pRoot {new TreeTraversalItems(nullptr, this)};
 
-    //TODO this is vertical only, make this a 2D vector for H
-    TreeTraversalItems* m_tVisibleTTIRange[2] = {nullptr, nullptr};
-
     /// All elements with loaded children
     QHash<QPersistentModelIndex, TreeTraversalItems*> m_hMapper;
     QAbstractItemModel* m_pModel {nullptr};
     std::function<AbstractViewItem*()> m_fFactory;
     TreeTraversalReflector* q_ptr;
+    QVector<VisibleRange*> m_lRanges;
 
     // Tests
     void _test_validateTree(TreeTraversalItems* p);
@@ -274,25 +270,6 @@ bool TreeTraversalItems::updateVisibility()
     if ((!m_pTreeItem) && !isVisible)
         return false;
 
-
-//     qDebug() << "\n\nUPDATE VIS" << isVisible << m_Index.row() << m_Index.data();
-
-    if (auto up = m_pTreeItem->up()) {
-        if (isVisible && !up->isVisible()) {
-            d_ptr->m_tVisibleTTIRange[FIRST] = this;
-        }
-    }
-    else if (isVisible)
-        d_ptr->m_tVisibleTTIRange[FIRST] = this;
-
-    if (auto down = m_pTreeItem->up()) {
-        if (isVisible && !down->isVisible()) {
-            d_ptr->m_tVisibleTTIRange[LAST] = this;
-        }
-    }
-    else if (isVisible)
-        d_ptr->m_tVisibleTTIRange[LAST] = this;
-
     return isVisible;
 }
 
@@ -301,7 +278,8 @@ bool TreeTraversalItems::show()
 //     qDebug() << "SHOW";
 
     if (!m_pTreeItem) {
-        m_pTreeItem = d_ptr->q_ptr->createItem()->s_ptr;
+        Q_ASSERT(d_ptr->q_ptr->d_ptr->m_fFactory);
+        m_pTreeItem = d_ptr->q_ptr->d_ptr->m_fFactory()->s_ptr;
         Q_ASSERT(m_pTreeItem);
         m_pTreeItem->m_pTTI = this;
 
@@ -496,37 +474,10 @@ TreeTraversalReflector::~TreeTraversalReflector()
     delete d_ptr->m_pRoot;
 }
 
-VisualTreeItem* TreeTraversalReflector::getCorner(VisibleRange* r, Qt::Corner c) const
-{
-    Q_UNUSED(r)
-
-    switch(c) {
-        case Qt::TopLeftCorner:
-            return d_ptr->m_tVisibleTTIRange[FIRST]
-                ? d_ptr->m_tVisibleTTIRange[FIRST]->m_pTreeItem : nullptr;
-        case Qt::BottomLeftCorner:
-            return d_ptr->m_tVisibleTTIRange[LAST]
-                ? d_ptr->m_tVisibleTTIRange[LAST]->m_pTreeItem : nullptr;
-        case Qt::TopRightCorner:
-        case Qt::BottomRightCorner:
-            break;
-    }
-
-    Q_ASSERT(false);
-    return {};
-}
-
 // Setters
 void TreeTraversalReflector::setItemFactory(std::function<AbstractViewItem*()> factory)
 {
     d_ptr->m_fFactory = factory;
-}
-
-// factory
-AbstractViewItem* TreeTraversalReflector::createItem() const
-{
-    Q_ASSERT(d_ptr->m_fFactory);
-    return d_ptr->m_fFactory();
 }
 
 void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, int first, int last)
@@ -1172,16 +1123,6 @@ TreeTraversalItems* TreeTraversalReflectorPrivate::ttiForIndex(const QModelIndex
     return nullptr;
 }
 
-VisualTreeItem* TreeTraversalReflector::parentTreeItem(const QModelIndex& index) const
-{
-    if (auto i = d_ptr->ttiForIndex(index)) {
-        if (i->m_pParent && i->m_pParent->m_pTreeItem)
-            return i->m_pParent->m_pTreeItem;
-    }
-
-    return nullptr;
-}
-
 AbstractViewItem* TreeTraversalReflector::itemForIndex(const QModelIndex& idx) const
 {
     const auto tti = d_ptr->ttiForIndex(idx);
@@ -1190,21 +1131,20 @@ AbstractViewItem* TreeTraversalReflector::itemForIndex(const QModelIndex& idx) c
 
 bool TreeTraversalReflector::addRange(VisibleRange* range)
 {
-    Q_UNUSED(range)
-    //
+    d_ptr->m_lRanges << range;
     return false;
 }
 
 bool TreeTraversalReflector::removeRange(VisibleRange* range)
 {
     Q_UNUSED(range)
-    //TODO
+    Q_ASSERT(false); //TODO
     return false;
 }
 
-QList<VisibleRange*> TreeTraversalReflector::ranges() const
+QVector<VisibleRange*> TreeTraversalReflector::ranges() const
 {
-    return {}; //TODO
+    return d_ptr->m_lRanges;
 }
 
 bool VisualTreeItem::isVisible() const

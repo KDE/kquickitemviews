@@ -322,12 +322,6 @@ void AbstractQuickView::reloadChildren(const QModelIndex& index) const
     }*/
 }
 
-QQuickItem* AbstractQuickView::parentTreeItem(const QModelIndex& index) const
-{
-    const auto i = d_ptr->m_pReflector->parentTreeItem(index);
-
-    return i ? i->item() : nullptr;
-}
 
 AbstractViewItem* AbstractQuickView::itemForIndex(const QModelIndex& idx) const
 {

@@ -18,13 +18,13 @@
 #pragma once
 
 class AbstractQuickView;
-class TreeTraversalItems;
+struct TreeTraversalItems;
 class AbstractViewItem;
 class DynamicContext;
 class ViewItemContextBuilder;
 class ContextBuilder;
 class VisibleRange;
-class BlockMetadata;
+struct BlockMetadata;
 
 // Qt
 class QQuickItem;
@@ -51,7 +51,7 @@ class VisualTreeItem
 public:
 
     explicit VisualTreeItem(AbstractQuickView* p, VisibleRange* r) :
-        m_pView(p), m_pRange(r) {}
+        m_pRange(r), m_pView(p) {}
 
     virtual ~VisualTreeItem() {}
 

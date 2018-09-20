@@ -16,6 +16,7 @@
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
 
+struct TreeTraversalItems;
 
 /**
  * For size modes like UniformRowHeight, it's pointless to keep track of
@@ -26,8 +27,15 @@
  */
 struct BlockMetadata
 {
+    enum class Mode {
+        SINGLE,
+        BLOCK
+    };
+
+    Mode    m_Mode    {Mode::SINGLE};
     QPointF m_Position;
     QSizeF  m_Size;
+    TreeTraversalItems* m_pTTI {nullptr};
 };
 
 /**

@@ -48,6 +48,7 @@ public:
     };
 
     explicit VisibleRange(AbstractQuickView* v);
+    virtual ~VisibleRange() {}
 
     /**
      * A generic iterator for the ModelIndexItem interface.

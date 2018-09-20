@@ -112,11 +112,6 @@ public:
      */
     Q_INVOKABLE void reloadChildren(const QModelIndex& index) const;
 
-    /**
-     * Get the parent tree QQuickItem for a given index
-     */
-    Q_INVOKABLE QQuickItem* parentTreeItem(const QModelIndex& index) const;
-
 protected:
     virtual void geometryChanged(const QRectF &newGeometry, const QRectF &oldGeometry) override;
 
@@ -151,7 +146,7 @@ protected:
      *
      * It is called, for example, when the model change.
      */
-    virtual void refresh();
+    virtual void refresh() override;
 
 Q_SIGNALS:
     void modelChanged(QSharedPointer<QAbstractItemModel> model);

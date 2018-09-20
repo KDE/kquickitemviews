@@ -53,7 +53,7 @@ class VisibleRange;
 class TreeTraversalReflector final : public QObject
 {
     Q_OBJECT
-    friend class TreeTraversalItems; // Internal representation
+    friend struct TreeTraversalItems; // Internal representation
 public:
     explicit TreeTraversalReflector(QObject* parent = nullptr);
     virtual ~TreeTraversalReflector();
@@ -62,13 +62,9 @@ public:
     void setModel(QAbstractItemModel* m);
     void populate();
 
-    //TODO move this to the range once it works
-    VisualTreeItem* getCorner(VisibleRange* r, Qt::Corner c) const;
-
     // Getter
-    VisualTreeItem* parentTreeItem(const QModelIndex& idx) const;
-    AbstractViewItem* itemForIndex(const QModelIndex& idx) const;
-    bool isActive(const QModelIndex& parent, int first, int last);
+    AbstractViewItem* itemForIndex(const QModelIndex& idx) const; //TODO remove
+    bool isActive(const QModelIndex& parent, int first, int last); //TODO move to range
 
     //TODO remove those temporary helpers once its encapsulated
     void refreshEverything();
@@ -78,13 +74,10 @@ public:
     // Mutator
     bool addRange(VisibleRange* range);
     bool removeRange(VisibleRange* range);
-    QList<VisibleRange*> ranges() const;
+    QVector<VisibleRange*> ranges() const;
 
     // Setters
     void setItemFactory(std::function<AbstractViewItem*()> factory);
-
-    // factory
-    AbstractViewItem* createItem() const;
 
 public Q_SLOTS:
     void resetEverything();

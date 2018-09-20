@@ -1176,7 +1176,7 @@ VisualTreeItem* TreeTraversalReflector::parentTreeItem(const QModelIndex& index)
 AbstractViewItem* TreeTraversalReflector::itemForIndex(const QModelIndex& idx) const
 {
     const auto tti = d_ptr->ttiForIndex(idx);
-    return tti ? tti->m_pTreeItem->d_ptr : nullptr;
+    return tti && tti->m_pTreeItem ? tti->m_pTreeItem->d_ptr : nullptr;
 }
 
 bool TreeTraversalReflector::addRange(TreeTraversalRange* range)

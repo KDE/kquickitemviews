@@ -84,6 +84,8 @@ public:
     qreal maximumFlickVelocity() const;
     void setMaximumFlickVelocity(qreal v);
 
+    QQmlContext* rootContext() const;
+
 Q_SIGNALS:
     void contentHeightChanged(qreal height);
     void currentYChanged(qreal y);

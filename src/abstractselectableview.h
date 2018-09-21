@@ -35,7 +35,8 @@ class AbstractSelectableViewPrivate;
 class AbstractSelectableView : public QObject
 {
     Q_OBJECT
-    friend class AbstractQuickView; // Notify of all relevant events
+    friend class ModelAdapter; // Notify of all relevant events
+    friend class ModelAdapterPrivate; // Notify of all relevant events
     friend class VisualTreeItem; // Notify of all relevant events
     friend class AbstractSelectableViewSyncInterface; // Its own internals
 public:

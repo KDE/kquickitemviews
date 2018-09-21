@@ -124,14 +124,12 @@ public:
     VisibleRange* m_pRange {nullptr};
     BlockMetadata* m_pPos {nullptr};
 
+    bool performAction(ViewAction); //FIXME make private, remove #include
+
 private:
     State m_State {State::POOLED};
     TreeTraversalItems* m_pTTI   {nullptr};
     AbstractQuickView * m_pView  {nullptr};
-
-
-    bool performAction(ViewAction); //FIXME make private, remove #include
-
 
     AbstractViewItem* d_ptr;
 };

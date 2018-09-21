@@ -27,6 +27,8 @@
 #include <QQmlEngine>
 
 #include "abstractviewitem_p.h"
+#include "visiblerange.h"
+#include "modeladapter.h"
 #include "abstractquickview_p.h"
 #include "abstractquickview.h"
 #include "contextmanager.h"
@@ -337,7 +339,7 @@ void AbstractViewItemPrivate::load()
     if (m_pContext || m_pItem)
         return;
 
-    if (!q_ptr->view()->delegate()) {
+    if (!q_ptr->s_ptr->m_pRange->modelAdapter()->delegate()) {
         qDebug() << "Cannot attach, there is no delegate";
         return;
     }
@@ -405,10 +407,9 @@ bool AbstractViewItem::refresh()
     return true;
 }
 
-
 QPair<QQuickItem*, QQmlContext*> AbstractViewItemPrivate::loadDelegate(QQuickItem* parentI, QQmlContext* parentCtx) const
 {
-    if (!q_ptr->view()->delegate())
+    if (!q_ptr->s_ptr->m_pRange->modelAdapter()->delegate())
         return {};
 
     // Create a context for the container, it's the only way to force anchors
@@ -425,7 +426,9 @@ QPair<QQuickItem*, QQmlContext*> AbstractViewItemPrivate::loadDelegate(QQuickIte
     auto ctx = new QQmlContext(pctx);
 
     // Create the delegate
-    auto item = qobject_cast<QQuickItem *>(q_ptr->view()->delegate()->create(ctx));
+    auto item = qobject_cast<QQuickItem *>(
+        q_ptr->s_ptr->m_pRange->modelAdapter()->delegate()->create(ctx)
+    );
 
     // It allows the children to be added anyway
     if(!item)
@@ -450,7 +453,9 @@ QPair<QQuickItem*, QQmlContext*> AbstractViewItemPrivate::loadDelegate(QQuickIte
 ContextBuilder* VisualTreeItem::contextBuilder() const
 {
     if (!m_pContextBuilder) {
-        m_pContextBuilder = new ViewItemContextBuilder(view()->contextManager());
+        m_pContextBuilder = new ViewItemContextBuilder(
+            m_pRange->modelAdapter()->contextManager()
+        );
         m_pContextBuilder->m_pItem = d_ptr;
     }
 
@@ -481,7 +486,7 @@ void VisualTreeItem::updateContext()
     if (m_pContextBuilder)
         return;
 
-    ContextManager* cm = d_ptr->view()->contextManager();
+    ContextManager* cm = m_pRange->modelAdapter()->contextManager();
     const QModelIndex self = d_ptr->index();
     Q_ASSERT(self.model());
     cm->setModel(const_cast<QAbstractItemModel*>(self.model()));

@@ -79,6 +79,8 @@ public:
     qreal       m_DecelRate  {  0.9  };
     bool        m_Interactive{ true  };
 
+    mutable QQmlContext *m_pRootContext {nullptr};
+
     qreal m_MaxVelocity {std::numeric_limits<qreal>::max()};
 
     DragState m_State {DragState::IDLE};
@@ -504,6 +506,14 @@ qreal SimpleFlickable::maximumFlickVelocity() const
 void SimpleFlickable::setMaximumFlickVelocity(qreal v)
 {
     d_ptr->m_MaxVelocity = v;
+}
+
+QQmlContext* SimpleFlickable::rootContext() const
+{
+    if (!d_ptr->m_pRootContext)
+        d_ptr->m_pRootContext = QQmlEngine::contextForObject(this);
+
+    return d_ptr->m_pRootContext;
 }
 
 #include <simpleflickable.moc>

@@ -19,6 +19,14 @@
 
 #include <QtCore/QObject>
 
+//
+class AbstractSelectableView;
+class ContextManager;
+class VisibleRange;
+class AbstractQuickView;
+class AbstractViewItem; //FIXME remove
+
+// Qt
 class QQmlComponent;
 class QAbstractItemModel;
 
@@ -40,7 +48,27 @@ public:
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged)
     Q_PROPERTY(bool empty READ isEmpty NOTIFY countChanged)
 
-    explicit ModelAdapter(QObject* parent = nullptr);
+    /// The view can be collapsed
+    Q_PROPERTY(bool collapsable READ isCollapsable WRITE setCollapsable)
+    /// Expand all elements by default
+    Q_PROPERTY(bool autoExpand READ isAutoExpand WRITE setAutoExpand)
+    /// The maximum depth of a tree (for performance)
+    Q_PROPERTY(int maxDepth READ maxDepth WRITE setMaxDepth)
+    /// Recycle existing QQuickItem delegates for new QModelIndex (for performance)
+    Q_PROPERTY(RecyclingMode recyclingMode READ recyclingMode WRITE setRecyclingMode)
+    /// The number of elements to be preloaded outside of the visible area (for latency)
+    Q_PROPERTY(int cacheBuffer READ cacheBuffer WRITE setCacheBuffer)
+    /// The number of delegates to be kept in a recycling pool (for performance)
+    Q_PROPERTY(int poolSize READ poolSize WRITE setPoolSize)
+
+    enum RecyclingMode {
+        NoRecycling    , /*!< Destroy and create new QQuickItems all the time         */
+        RecyclePerDepth, /*!< Keep different pools buffer for each levels of children */
+        AlwaysRecycle  , /*!< Assume all depth level use the same delegate            */
+    };
+    Q_ENUM(RecyclingMode)
+
+    explicit ModelAdapter(AbstractQuickView* parent = nullptr);
     virtual ~ModelAdapter();
 
     QVariant model() const;
@@ -49,13 +77,51 @@ public:
     virtual void setDelegate(QQmlComponent* delegate);
     QQmlComponent* delegate() const;
 
+    bool isCollapsable() const;
+    void setCollapsable(bool value);
+
+    bool isAutoExpand() const;
+    void setAutoExpand(bool value);
+
+    int maxDepth() const;
+    void setMaxDepth(int depth);
+
+    int cacheBuffer() const;
+    void setCacheBuffer(int value);
+
+    int poolSize() const;
+    void setPoolSize(int value);
+
+    RecyclingMode recyclingMode() const;
+    void setRecyclingMode(RecyclingMode mode);
+
     bool isEmpty() const;
+
+    AbstractSelectableView* selectionManager() const;
+    ContextManager* contextManager() const;
+
+    QVector<VisibleRange*> visibleRanges() const;
+
+    QAbstractItemModel *rawModel() const;
+
+    AbstractViewItem* itemForIndex(const QModelIndex& idx) const; //FIXME remove
+
+protected:
+    // Rather then scope-creeping this class, all selection related elements
+    // are implemented independently.
+    void setSelectionManager(AbstractSelectableView* v);
+
+    // Rather then scope-creeping this class, all methods and logic related
+    // to keeping the QQmlContext object in sync with the model are delegated
+    // to this class.
+    void setContextManager(ContextManager* rm);
 
 Q_SIGNALS:
     void modelAboutToChange(QAbstractItemModel* m);
     void modelChanged(QAbstractItemModel* m);
     void countChanged();
     void delegateChanged(QQmlComponent* delegate);
+    void contentChanged();
 
 private:
     ModelAdapterPrivate *d_ptr;

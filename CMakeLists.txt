@@ -62,7 +62,6 @@ SET( kquickview_LIB_SRCS
     src/abstractviewcompat.cpp
     src/quicktreeview.cpp
     src/quicklistview.cpp
-    src/flickableview.cpp
     src/modelscrolladapter.cpp
     src/bindedcombobox.cpp
     src/symboliccolorizer.cpp
@@ -97,7 +96,6 @@ SET( kquickview_LIB_HDRS
     abstractviewcompat.h
     quicktreeview.h
     quicklistview.h
-    flickableview.h
     modelscrolladapter.h
     bindedcombobox.h
     symboliccolorizer.h

@@ -20,12 +20,15 @@
 #include <abstractselectableview.h>
 #include "abstractquickview_p.h"
 #include "contextmanager.h"
+#include "modeladapter.h"
+#include "visiblerange.h"
 
 class AbstractViewCompatPrivate
 {
 public:
     Qt::Corner m_Corner {Qt::TopLeftCorner};
     bool m_IsSortingEnabled{ false };
+    ModelAdapter *m_pModelAdapter;
 
     AbstractViewCompat* q_ptr;
 };
@@ -35,11 +38,20 @@ AbstractViewCompat::AbstractViewCompat(QQuickItem* parent) : AbstractQuickView(p
 {
     d_ptr->q_ptr = this;
 
+    d_ptr->m_pModelAdapter = new ModelAdapter(this);
+    addModelAdapter(d_ptr->m_pModelAdapter);
+
+    auto sm = d_ptr->m_pModelAdapter->selectionManager();
+
     // Ok, connecting signals to signals is not a very good idea, I am lazy
-    connect(selectionManager(), &AbstractSelectableView::currentIndexChanged,
+    connect(sm, &AbstractSelectableView::currentIndexChanged,
         this, &AbstractViewCompat::currentIndexChanged);
-    connect(selectionManager(), &AbstractSelectableView::selectionModelChanged,
+    connect(sm, &AbstractSelectableView::selectionModelChanged,
         this, &AbstractViewCompat::selectionModelChanged);
+    connect(d_ptr->m_pModelAdapter, &ModelAdapter::countChanged,
+        this, &AbstractViewCompat::countChanged);
+    connect(d_ptr->m_pModelAdapter, &ModelAdapter::modelAboutToChange,
+        this, &AbstractViewCompat::applyModelChanges);
 }
 
 AbstractViewCompat::~AbstractViewCompat()
@@ -61,22 +73,49 @@ void AbstractViewCompat::setGravity(Qt::Corner g)
 
 QQmlComponent* AbstractViewCompat::highlight() const
 {
-    return selectionManager()->highlight();
+    return d_ptr->m_pModelAdapter->selectionManager()->highlight();
 }
 
 void AbstractViewCompat::setHighlight(QQmlComponent* h)
 {
-    selectionManager()->setHighlight(h);
+    d_ptr->m_pModelAdapter->selectionManager()->setHighlight(h);
+}
+
+void AbstractViewCompat::setDelegate(QQmlComponent* delegate)
+{
+    d_ptr->m_pModelAdapter->setDelegate(delegate);
+    emit delegateChanged(delegate);
+    refresh();
+}
+
+QQmlComponent* AbstractViewCompat::delegate() const
+{
+    return d_ptr->m_pModelAdapter->delegate();
 }
 
 QSharedPointer<QItemSelectionModel> AbstractViewCompat::selectionModel() const
 {
-    return selectionManager()->selectionModel();
+    return d_ptr->m_pModelAdapter->selectionManager()->selectionModel();
+}
+
+QVariant AbstractViewCompat::model() const
+{
+    return d_ptr->m_pModelAdapter->model();
+}
+
+void AbstractViewCompat::setModel(const QVariant& m)
+{
+    d_ptr->m_pModelAdapter->setModel(m);
 }
 
 void AbstractViewCompat::setSelectionModel(QSharedPointer<QItemSelectionModel> m)
 {
-    selectionManager()->setSelectionModel(m);
+    d_ptr->m_pModelAdapter->selectionManager()->setSelectionModel(m);
+}
+
+QAbstractItemModel *AbstractViewCompat::rawModel() const
+{
+    return d_ptr->m_pModelAdapter->rawModel();
 }
 
 void AbstractViewCompat::applyModelChanges(QAbstractItemModel* m)
@@ -84,8 +123,6 @@ void AbstractViewCompat::applyModelChanges(QAbstractItemModel* m)
     if (d_ptr->m_IsSortingEnabled && m) {
         m->sort(0);
     }
-
-    AbstractQuickView::applyModelChanges(m);
 }
 
 bool AbstractViewCompat::isSortingEnabled() const
@@ -97,8 +134,8 @@ void AbstractViewCompat::setSortingEnabled(bool val)
 {
     d_ptr->m_IsSortingEnabled = val;
 
-    if (d_ptr->m_IsSortingEnabled && model()) {
-        model()->sort(0);
+    if (d_ptr->m_IsSortingEnabled && rawModel()) {
+        rawModel()->sort(0);
     }
 }
 
@@ -110,4 +147,31 @@ QModelIndex AbstractViewCompat::currentIndex() const
 void AbstractViewCompat::setCurrentIndex(const QModelIndex& index, QItemSelectionModel::SelectionFlags f)
 {
     selectionModel()->setCurrentIndex(index, f);
+}
+
+bool AbstractViewCompat::hasUniformRowHeight() const
+{
+    return d_ptr->m_pModelAdapter->visibleRanges().constFirst()->
+        sizeHintStrategy() == VisibleRange::SizeHintStrategy::UNIFORM;
+}
+
+void AbstractViewCompat::setUniformRowHeight(bool value)
+{
+    //d_ptr->m_pModelAdapter->setUniformRowHeight(value);
+}
+
+bool AbstractViewCompat::hasUniformColumnWidth() const
+{
+    return d_ptr->m_pModelAdapter->visibleRanges().constFirst()->
+        sizeHintStrategy() == VisibleRange::SizeHintStrategy::UNIFORM;
+}
+
+void AbstractViewCompat::setUniformColumnColumnWidth(bool value)
+{
+    //d_ptr->m_pModelAdapter->setUniformColumnColumnWidth(value);
+}
+
+bool AbstractViewCompat::isEmpty() const
+{
+    return d_ptr->m_pModelAdapter->isEmpty();
 }

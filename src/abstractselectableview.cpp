@@ -168,7 +168,7 @@ void AbstractSelectableViewPrivate::slotCurrentIndexChanged(const QModelIndex& i
     if (!m_pHighlight)
         return;
 
-    auto elem = m_pView->s_ptr->itemForIndex(idx);
+    auto elem = m_pView->itemForIndex(idx);
 
     // QItemSelectionModel::setCurrentIndex isn't protected against setting the item many time
     if (m_pSelectedViewItem.first && elem == m_pSelectedViewItem.second) {
@@ -201,7 +201,7 @@ void AbstractSelectableViewPrivate::slotCurrentIndexChanged(const QModelIndex& i
     }
 
     if (!elem) {
-        qDebug() << "Selected item not found" << idx.model() << m_pView->model();
+        qDebug() << "Selected item not found" << idx.model();
         return;
     }
 

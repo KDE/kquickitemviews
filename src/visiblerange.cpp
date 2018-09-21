@@ -20,6 +20,7 @@
 #include "visiblerange_p.h"
 #include "abstractquickview.h"
 #include "sizehintproxymodel.h"
+#include "treetraversalreflector_p.h"
 
 #include "abstractviewitem_p.h"
 #include "abstractviewitem.h"
@@ -28,7 +29,7 @@ class VisibleRangePrivate
 {
 public:
     QQmlEngine* m_pEngine {nullptr};
-    AbstractQuickView* m_pView;
+    ModelAdapter* m_pModelAdapter;
 
     VisibleRange::SizeHintStrategy m_SizeStrategy { VisibleRange::SizeHintStrategy::PROXY };
 
@@ -37,13 +38,17 @@ public:
     int m_SizeHintRoleIndex {-1};
     QAbstractItemModel* m_pModel {nullptr};
 
+    // The viewport rectangle
+    QPointF m_Position;
+    QSizeF m_Size;
+
     QSizeF sizeHint(AbstractViewItem* item) const;
 };
 
-VisibleRange::VisibleRange(AbstractQuickView* v) :
-    d_ptr(new VisibleRangePrivate())
+VisibleRange::VisibleRange(ModelAdapter* ma) :
+    d_ptr(new VisibleRangePrivate()), s_ptr(new VisibleRangeSync())
 {
-    d_ptr->m_pView = v;
+    d_ptr->m_pModelAdapter = ma;
 }
 
 
@@ -182,4 +187,43 @@ void VisibleRange::applyModelChanges(QAbstractItemModel* m)
         d_ptr->m_SizeHintRoleIndex = m->roleNames().key(
             d_ptr->m_SizeHintRole
         );
+}
+
+ModelAdapter *VisibleRange::modelAdapter() const
+{
+    return d_ptr->m_pModelAdapter;
+}
+
+QSizeF VisibleRange::size() const
+{
+    return d_ptr->m_Size;
+}
+
+void VisibleRange::setSize(const QSizeF &size)
+{
+    d_ptr->m_Size = size;
+    Q_ASSERT(s_ptr->m_pReflector);
+    s_ptr->m_pReflector->moveEverything();
+}
+
+QPointF VisibleRange::position() const
+{
+    return d_ptr->m_Position;
+}
+
+void VisibleRange::setPosition(const QPointF& point)
+{
+    Q_ASSERT(false); //FIXME so I don't forget
+    d_ptr->m_Position = point;
+}
+
+VisibleRange::SizeHintStrategy VisibleRange::sizeHintStrategy() const
+{
+    return d_ptr->m_SizeStrategy;
+}
+
+void VisibleRange::setSizeHintStrategy(VisibleRange::SizeHintStrategy s)
+{
+    Q_ASSERT(false); //TODO invalidate the cache
+    d_ptr->m_SizeStrategy = s;
 }

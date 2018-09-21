@@ -25,11 +25,12 @@ class AbstractViewCompatPrivate;
  * Random code to get close to drop-in compatibility with both QML and QtWidgets
  * views.
  *
- * This is in own class to keep the lower level classes codebase smaller. It
- * also bind many components into a single "flat" class API. This library
+ * This library
  * tries to enforce smaller components with well defined scope. But that makes
  * its API larger and more complex. This class helps to collapse all the
- * concepts into a single thing.
+ * concepts into a single thing. This removes some flexibility, but allows
+ * the widgets to be (almost) drop-in replacements for the ones provided
+ * by QtQuick2.
  */
 class AbstractViewCompat : public AbstractQuickView
 {
@@ -40,6 +41,14 @@ public:
     Q_PROPERTY(QSharedPointer<QItemSelectionModel> selectionModel READ selectionModel WRITE setSelectionModel NOTIFY selectionModelChanged)
     Q_PROPERTY(bool sortingEnabled READ isSortingEnabled WRITE setSortingEnabled)
     Q_PROPERTY(QModelIndex currentIndex READ currentIndex WRITE setCurrentIndex)
+    Q_PROPERTY(QVariant model READ model WRITE setModel NOTIFY modelChanged)
+    Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged)
+    Q_PROPERTY(bool empty READ isEmpty NOTIFY countChanged)
+
+    /// Assume each hierarchy level have the same height (for performance)
+    Q_PROPERTY(bool uniformRowHeight READ hasUniformRowHeight   WRITE setUniformRowHeight)
+    /// Assume each column has the same width (for performance)
+    Q_PROPERTY(bool uniformColumnWidth READ hasUniformColumnWidth WRITE setUniformColumnColumnWidth)
 
     explicit AbstractViewCompat(QQuickItem* parent = nullptr);
     virtual ~AbstractViewCompat();
@@ -49,6 +58,12 @@ public:
 
     QQmlComponent* highlight() const;
     void setHighlight(QQmlComponent* h);
+
+    QVariant model() const;
+    void setModel(const QVariant& m);
+
+    void setDelegate(QQmlComponent* delegate);
+    QQmlComponent* delegate() const;
 
     QSharedPointer<QItemSelectionModel> selectionModel() const;
     void setSelectionModel(QSharedPointer<QItemSelectionModel> m);
@@ -61,12 +76,38 @@ public:
     bool isSortingEnabled() const;
     void setSortingEnabled(bool val);
 
+    bool hasUniformRowHeight() const;
+    void setUniformRowHeight(bool value);
+
+    bool hasUniformColumnWidth() const;
+    void setUniformColumnColumnWidth(bool value);
+
+    bool isEmpty() const;
+
+protected Q_SLOTS:
+
+    /**
+     * Calling `setModel` doesn't do anything that takes effect immediately.
+     *
+     * Rather, it will either wait to the next event loop iteration to make
+     * sure other properties have been applied. If no delegate is set, it will
+     * also avoid loading the model internal representation because that would
+     * be useless anyway.
+     *
+     * Override this method if extra steps are to be taken when replacing the
+     * model. Do not forget to call the superclass method.
+     */
+    virtual void applyModelChanges(QAbstractItemModel* m);
+
 protected:
-    virtual void applyModelChanges(QAbstractItemModel* m) override;
+    QAbstractItemModel *rawModel() const;
 
 Q_SIGNALS:
     void currentIndexChanged(const QModelIndex& index);
     void selectionModelChanged() const;
+    void modelChanged();
+    void delegateChanged(QQmlComponent* delegate);
+    virtual void countChanged() override final;
 
 private:
     AbstractViewCompatPrivate* d_ptr;

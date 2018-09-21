@@ -19,6 +19,8 @@
 
 #include "abstractviewitem_p.h"
 #include "abstractviewitem.h"
+#include "visiblerange.h"
+#include "visiblerange_p.h"
 
 #include <QQmlComponent>
 
@@ -1131,6 +1133,9 @@ AbstractViewItem* TreeTraversalReflector::itemForIndex(const QModelIndex& idx) c
 
 bool TreeTraversalReflector::addRange(VisibleRange* range)
 {
+    Q_ASSERT(!range->s_ptr->m_pReflector);
+
+    range->s_ptr->m_pReflector = this;
     d_ptr->m_lRanges << range;
     return false;
 }

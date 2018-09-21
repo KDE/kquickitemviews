@@ -69,6 +69,7 @@ class AbstractViewItem
     friend class AbstractViewItemPrivate; // d_ptr (Q_DECLARE_PRIVATE)
     friend class ViewItemContextBuilder;
     friend class VisibleRangePrivate; // Manage the geometry and size hints
+    friend class ModelAdapterPrivate; //TODO remove
 
 public:
     explicit AbstractViewItem(AbstractQuickView* v, VisibleRange* r);

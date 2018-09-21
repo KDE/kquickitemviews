@@ -17,12 +17,15 @@
  **************************************************************************/
 #pragma once
 
-#include <flickableview.h>
+#include <QtCore/QAbstractItemModel>
+#include <QtCore/QRectF>
 
 class AbstractViewItem;
 class AbstractQuickView;
+class ModelAdapter;
 
 class VisibleRangePrivate;
+class VisibleRangeSync;
 
 /**
 * This class exposes a way to track and iterate a subset of the model.
@@ -36,6 +39,7 @@ class VisibleRangePrivate;
 class VisibleRange
 {
     friend class AbstractViewItem; // for the getters defined in visiblerange.cpp
+    friend class TreeTraversalReflector; // notify of model changes
 public:
 
     /// Some strategies to get the item size with or without loading them.
@@ -47,7 +51,7 @@ public:
         ROLE   , /*!< Use one of the QAbstractItemModel role as size                 */
     };
 
-    explicit VisibleRange(AbstractQuickView* v);
+    explicit VisibleRange(ModelAdapter* ma);
     virtual ~VisibleRange() {}
 
     /**
@@ -107,10 +111,19 @@ public:
 
     virtual void applyModelChanges(QAbstractItemModel* m);
 
+    ModelAdapter *modelAdapter() const;
+
+    QSizeF size() const;
+    void setSize(const QSizeF &size);
+
+    QPointF position() const;
+    void setPosition(const QPointF& point);
+
     //Iterators
     /*Iterator begin();
     Iterator end();*/
 
 private:
-    VisibleRangePrivate* d_ptr;
+    VisibleRangePrivate *d_ptr;
+    VisibleRangeSync    *s_ptr;
 };

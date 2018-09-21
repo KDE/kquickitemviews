@@ -149,7 +149,7 @@ QuickListView::~QuickListView()
 
 int QuickListView::count() const
 {
-    return model() ? model()->rowCount() : 0;
+    return rawModel() ? rawModel()->rowCount() : 0;
 }
 
 int QuickListView::currentIndex() const
@@ -159,19 +159,19 @@ int QuickListView::currentIndex() const
 
 void QuickListView::setCurrentIndex(int index)
 {
-    if (!model())
+    if (!rawModel())
         return;
 
     AbstractViewCompat::setCurrentIndex(
-        model()->index(index, 0),
+        rawModel()->index(index, 0),
         QItemSelectionModel::ClearAndSelect
     );
 }
 
 void QuickListView::applyModelChanges(QAbstractItemModel* m)
 {
-    if (auto oldM = model())
-        disconnect(oldM.data(), &QAbstractItemModel::dataChanged, d_ptr,
+    if (auto oldM = rawModel())
+        disconnect(oldM, &QAbstractItemModel::dataChanged, d_ptr,
             &QuickListViewPrivate::slotDataChanged);
 
     AbstractViewCompat::applyModelChanges(m);
@@ -288,7 +288,7 @@ QuickListViewSection* QuickListViewPrivate::getSection(QuickListViewItem* i)
     if (m_pSections->property().isEmpty() || !m_pDelegate)
         return nullptr;
 
-    const auto val = q_ptr->model()->data(i->index(), m_pSections->role());
+    const auto val = q_ptr->rawModel()->data(i->index(), m_pSections->role());
 
     if (i->m_pSection && i->m_pSection->m_Value == val)
         return i->m_pSection;
@@ -628,13 +628,13 @@ QString QuickListViewSections::property() const
 
 int QuickListViewSections::role() const
 {
-    if (d_ptr->m_Property.isEmpty() || !d_ptr->q_ptr->model())
+    if (d_ptr->m_Property.isEmpty() || !d_ptr->q_ptr->rawModel())
         return Qt::DisplayRole;
 
     if (d_ptr->m_CachedRole)
         return d_ptr->m_CachedRole;
 
-    const auto roles = d_ptr->q_ptr->model()->roleNames();
+    const auto roles = d_ptr->q_ptr->rawModel()->roleNames();
 
     if (!(d_ptr->m_CachedRole = roles.key(d_ptr->m_Property.toLatin1()))) {
         qWarning() << d_ptr->m_Property << "is not a model property";
@@ -680,6 +680,7 @@ void QuickListViewPrivate::slotDataChanged(const QModelIndex& tl, const QModelIn
     if ((!m_pSections) || (!tl.isValid()) || (!br.isValid()))
         return;
 
+    //FIXME remove this call to itemForIndex and delete the function
     auto tli = static_cast<QuickListViewItem*>(q_ptr->itemForIndex(tl));
     auto bri = static_cast<QuickListViewItem*>(q_ptr->itemForIndex(br));
 

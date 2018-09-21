@@ -26,7 +26,6 @@ INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR})
 SET(modelviewtester_SRC
 modelviewtester.cpp
 testmain.cpp
-qmlwidgets/flickableview.cpp
 qmlwidgets/hierarchyview.cpp
 qmlwidgets/qmlaction.cpp
 qmlwidgets/quicklistview.cpp

@@ -22,12 +22,11 @@
 #include <QtCore/QAbstractItemModel>
 
 // KQuickViews
-#include <flickableview.h>
-
 struct TreeTraversalItems;
 class VisualTreeItem;
 class TreeTraversalReflectorPrivate;
 class VisibleRange;
+class AbstractViewItem;
 
 
 /**

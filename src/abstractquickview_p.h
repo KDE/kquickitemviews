@@ -37,11 +37,8 @@ class AbstractViewItem;
 class AbstractQuickViewSync
 {
 public:
-    QQmlEngine     *engine        () const;
-    QQmlComponent  *component     () const;
-    ContextManager *contextManager() const;
-    AbstractSelectableView* selectionManager() const;
-    AbstractViewItem* itemForIndex(const QModelIndex& idx) const;
+    QQmlEngine    *engine   () const;
+    QQmlComponent *component() const;
 
     AbstractQuickViewPrivate* d_ptr;
 };

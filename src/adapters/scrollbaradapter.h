@@ -15,36 +15,40 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#include "plugin.h"
+#pragma once
 
-#include <QtCore/QDebug>
+// Qt
+#include <QtCore/QObject>
+#include <QtCore/QSharedPointer>
+class QQuickItem;
+class QAbstractItemModel;
 
-#include "adapters/decorationadapter.h"
-#include "adapters/scrollbaradapter.h"
-#include "views/hierarchyview.h"
-#include "views/listview.h"
-#include "views/treeview.h"
-#include "views/comboboxview.h"
-#include "flickablescrollbar.h"
-#include "proxies/sizehintproxymodel.h"
+class ScrollBarAdapterPrivate;
 
-void KQuickView::registerTypes(const char *uri)
+class ScrollBarAdapter : public QObject
 {
-    Q_ASSERT(uri == QLatin1String("org.kde.playground.kquickview"));
+    Q_OBJECT
 
-    qmlRegisterType<HierarchyView>(uri, 1, 0, "HierarchyView");
-    qmlRegisterType<TreeView>(uri, 1, 0, "TreeView");
-    qmlRegisterType<ListView>(uri, 1, 0, "ListView");
-    qmlRegisterType<ScrollBarAdapter>(uri, 1, 0, "ScrollBarAdapter");
-    qmlRegisterType<DecorationAdapter>(uri, 1,0, "DecorationAdapter");
-    qmlRegisterType<ComboBoxView>(uri, 1, 0, "ComboBoxView");
-    qmlRegisterType<FlickableScrollBar>(uri, 1, 0, "FlickableScrollBar");
-    qmlRegisterType<SizeHintProxyModel>(uri, 1, 0, "SizeHintProxyModel");
-    qmlRegisterUncreatableType<ListViewSections>(uri, 1, 0, "ListViewSections", "");
-}
+public:
+    explicit ScrollBarAdapter(QObject* parent = nullptr);
+    virtual ~ScrollBarAdapter();
 
-void KQuickView::initializeEngine(QQmlEngine *engine, const char *uri)
-{
-    Q_UNUSED(engine)
-    Q_UNUSED(uri)
-}
+    Q_PROPERTY(QSharedPointer<QAbstractItemModel> model READ model WRITE setModel)
+    Q_PROPERTY(QQuickItem* target READ target WRITE setTarget)
+
+    QSharedPointer<QAbstractItemModel> model() const;
+    void setModel(QSharedPointer<QAbstractItemModel> m);
+
+    QQuickItem* target() const;
+    void setTarget(QQuickItem* item);
+
+private Q_SLOTS:
+    void rowsInserted();
+
+private:
+    ScrollBarAdapterPrivate* d_ptr;
+    Q_DECLARE_PRIVATE(ScrollBarAdapter)
+};
+
+Q_DECLARE_METATYPE(ScrollBarAdapter*)
+Q_DECLARE_METATYPE(QSharedPointer<QAbstractItemModel>)

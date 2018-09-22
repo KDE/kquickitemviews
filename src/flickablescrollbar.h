@@ -17,9 +17,10 @@
  **************************************************************************/
 #pragma once
 
+// Qt
 #include <QQuickItem>
 
-class SimpleFlickable;
+// KQuickItemViews
 class FlickableScrollBarPrivate;
 
 /**

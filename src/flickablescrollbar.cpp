@@ -17,19 +17,19 @@
  **************************************************************************/
 #include "flickablescrollbar.h"
 
-#include "simpleflickable.h"
+// KQuickItemViews
+#include "views/flickable.h"
 
 class FlickableScrollBarPrivate : public QObject
 {
     Q_OBJECT
 public:
-    SimpleFlickable* m_pView        {nullptr};
-    qreal            m_HandleHeight {   0   };
-    qreal            m_Position     {   0   };
-    bool             m_Visible      { false };
+    Flickable *m_pView        {nullptr};
+    qreal      m_HandleHeight {   0   };
+    qreal      m_Position     {   0   };
+    bool       m_Visible      { false };
 
     FlickableScrollBar* q_ptr;
-
 
 public Q_SLOTS:
     void recomputeGeometry();
@@ -54,23 +54,23 @@ QObject* FlickableScrollBar::view() const
 void FlickableScrollBar::setView(QObject* v)
 {
     if (d_ptr->m_pView) {
-        disconnect(d_ptr->m_pView, &SimpleFlickable::contentHeightChanged,
+        disconnect(d_ptr->m_pView, &Flickable::contentHeightChanged,
             d_ptr, &FlickableScrollBarPrivate::recomputeGeometry);
-        disconnect(d_ptr->m_pView, &SimpleFlickable::currentYChanged,
+        disconnect(d_ptr->m_pView, &Flickable::currentYChanged,
             d_ptr, &FlickableScrollBarPrivate::recomputeGeometry);
-        disconnect(d_ptr->m_pView, &SimpleFlickable::heightChanged,
+        disconnect(d_ptr->m_pView, &Flickable::heightChanged,
             d_ptr, &FlickableScrollBarPrivate::recomputeGeometry);
     }
 
-    d_ptr->m_pView = qobject_cast<SimpleFlickable*>(v);
+    d_ptr->m_pView = qobject_cast<Flickable*>(v);
 
     Q_ASSERT((!v) || d_ptr->m_pView);
 
-    connect(d_ptr->m_pView, &SimpleFlickable::contentHeightChanged,
+    connect(d_ptr->m_pView, &Flickable::contentHeightChanged,
         d_ptr, &FlickableScrollBarPrivate::recomputeGeometry);
-    connect(d_ptr->m_pView, &SimpleFlickable::currentYChanged,
+    connect(d_ptr->m_pView, &Flickable::currentYChanged,
         d_ptr, &FlickableScrollBarPrivate::recomputeGeometry);
-    connect(d_ptr->m_pView, &SimpleFlickable::heightChanged,
+    connect(d_ptr->m_pView, &Flickable::heightChanged,
         d_ptr, &FlickableScrollBarPrivate::recomputeGeometry);
 
     d_ptr->recomputeGeometry();

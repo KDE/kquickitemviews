@@ -15,36 +15,28 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#include "plugin.h"
 
-#include <QtCore/QDebug>
+// Qt
+class QAbstractItemModel;
 
-#include "adapters/decorationadapter.h"
-#include "adapters/scrollbaradapter.h"
-#include "views/hierarchyview.h"
-#include "views/listview.h"
-#include "views/treeview.h"
-#include "views/comboboxview.h"
-#include "flickablescrollbar.h"
-#include "proxies/sizehintproxymodel.h"
+class ViewBase;
 
-void KQuickView::registerTypes(const char *uri)
+// This class exists for the AbstractItemView to be able to internally
+// notify the SelectionAdapter about some events. In theory the public
+// interface of both of these class should be extended to handle such events
+// but for now a private interface allows more flexibility.
+class SelectionAdapterSyncInterface
 {
-    Q_ASSERT(uri == QLatin1String("org.kde.playground.kquickview"));
+public:
+    virtual ~SelectionAdapterSyncInterface() {}
 
-    qmlRegisterType<HierarchyView>(uri, 1, 0, "HierarchyView");
-    qmlRegisterType<TreeView>(uri, 1, 0, "TreeView");
-    qmlRegisterType<ListView>(uri, 1, 0, "ListView");
-    qmlRegisterType<ScrollBarAdapter>(uri, 1, 0, "ScrollBarAdapter");
-    qmlRegisterType<DecorationAdapter>(uri, 1,0, "DecorationAdapter");
-    qmlRegisterType<ComboBoxView>(uri, 1, 0, "ComboBoxView");
-    qmlRegisterType<FlickableScrollBar>(uri, 1, 0, "FlickableScrollBar");
-    qmlRegisterType<SizeHintProxyModel>(uri, 1, 0, "SizeHintProxyModel");
-    qmlRegisterUncreatableType<ListViewSections>(uri, 1, 0, "ListViewSections", "");
-}
+    virtual void updateSelection(const QModelIndex& idx);
 
-void KQuickView::initializeEngine(QQmlEngine *engine, const char *uri)
-{
-    Q_UNUSED(engine)
-    Q_UNUSED(uri)
-}
+    QAbstractItemModel* model() const;
+    void setModel(QAbstractItemModel* m);
+
+    ViewBase* view() const;
+    void setView(ViewBase* v);
+
+    SelectionAdapter* q_ptr;
+};

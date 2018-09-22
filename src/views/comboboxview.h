@@ -15,36 +15,31 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#include "plugin.h"
+#pragma once
 
-#include <QtCore/QDebug>
+// Qt
+#include <QQuickItem>
+#include <QtCore/QItemSelectionModel>
 
-#include "adapters/decorationadapter.h"
-#include "adapters/scrollbaradapter.h"
-#include "views/hierarchyview.h"
-#include "views/listview.h"
-#include "views/treeview.h"
-#include "views/comboboxview.h"
-#include "flickablescrollbar.h"
-#include "proxies/sizehintproxymodel.h"
+class ComboBoxViewPrivate;
 
-void KQuickView::registerTypes(const char *uri)
+/**
+ * Extended QtQuickControls2 ComboBox with proper selection model support.
+ */
+class ComboBoxView : public QQuickItem
 {
-    Q_ASSERT(uri == QLatin1String("org.kde.playground.kquickview"));
+    Q_OBJECT
+public:
+    Q_PROPERTY(QItemSelectionModel* selectionModel READ selectionModel WRITE setSelectionModel)
 
-    qmlRegisterType<HierarchyView>(uri, 1, 0, "HierarchyView");
-    qmlRegisterType<TreeView>(uri, 1, 0, "TreeView");
-    qmlRegisterType<ListView>(uri, 1, 0, "ListView");
-    qmlRegisterType<ScrollBarAdapter>(uri, 1, 0, "ScrollBarAdapter");
-    qmlRegisterType<DecorationAdapter>(uri, 1,0, "DecorationAdapter");
-    qmlRegisterType<ComboBoxView>(uri, 1, 0, "ComboBoxView");
-    qmlRegisterType<FlickableScrollBar>(uri, 1, 0, "FlickableScrollBar");
-    qmlRegisterType<SizeHintProxyModel>(uri, 1, 0, "SizeHintProxyModel");
-    qmlRegisterUncreatableType<ListViewSections>(uri, 1, 0, "ListViewSections", "");
-}
+    explicit ComboBoxView(QQuickItem* parent = nullptr);
+    virtual ~ComboBoxView();
 
-void KQuickView::initializeEngine(QQmlEngine *engine, const char *uri)
-{
-    Q_UNUSED(engine)
-    Q_UNUSED(uri)
-}
+    QItemSelectionModel* selectionModel() const;
+    void setSelectionModel(QItemSelectionModel* s);
+
+private:
+    ComboBoxViewPrivate* d_ptr;
+    Q_DECLARE_PRIVATE(ComboBoxView)
+};
+// Q_DECLARE_METATYPE(ComboBoxView*)

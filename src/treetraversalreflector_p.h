@@ -26,7 +26,7 @@ struct TreeTraversalItems;
 class VisualTreeItem;
 class TreeTraversalReflectorPrivate;
 class VisibleRange;
-class AbstractViewItem;
+class AbstractItemAdapter;
 
 
 /**
@@ -46,7 +46,7 @@ class AbstractViewItem;
  * extensive and non-reusable private APIs.
  *
  * Note that you should only use this class directly when implementing low level
- * views such as charts or graphs. The `AbstractQuickView` is a better base
+ * views such as charts or graphs. The `ViewBase` is a better base
  * for most traditional views.
  */
 class TreeTraversalReflector final : public QObject
@@ -62,7 +62,7 @@ public:
     void populate();
 
     // Getter
-    AbstractViewItem* itemForIndex(const QModelIndex& idx) const; //TODO remove
+    AbstractItemAdapter* itemForIndex(const QModelIndex& idx) const; //TODO remove
     bool isActive(const QModelIndex& parent, int first, int last); //TODO move to range
 
     //TODO remove those temporary helpers once its encapsulated
@@ -76,7 +76,7 @@ public:
     QVector<VisibleRange*> ranges() const;
 
     // Setters
-    void setItemFactory(std::function<AbstractViewItem*()> factory);
+    void setItemFactory(std::function<AbstractItemAdapter*()> factory);
 
 public Q_SLOTS:
     void resetEverything();

@@ -15,36 +15,48 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#include "plugin.h"
+#pragma once
 
-#include <QtCore/QDebug>
+#include <singlemodelviewbase.h>
 
-#include "adapters/decorationadapter.h"
-#include "adapters/scrollbaradapter.h"
-#include "views/hierarchyview.h"
-#include "views/listview.h"
-#include "views/treeview.h"
-#include "views/comboboxview.h"
-#include "flickablescrollbar.h"
-#include "proxies/sizehintproxymodel.h"
+// Qt
+class QQuickItem;
 
-void KQuickView::registerTypes(const char *uri)
+// KQuickItemViews
+class TreeViewPrivate;
+
+/**
+ * Second generation of QtQuick treeview.
+ *
+ * The first one was designed for the chat view. It had a limited number of
+ * requirements when it came to QtModel. However it required total control of
+ * the layout.
+ *
+ * This is the opposite use case. The layout is classic, but the model support
+ * has to be complete. Performance and lazy loading is also more important.
+ *
+ * It require less work to write a new treeview than refector the first one to
+ * support the additional requirements. In the long run, the first generation
+ * could be folded into this widget (if it ever makes sense, otherwise they will
+ * keep diverging).
+ */
+class TreeView : public SingleModelViewBase
 {
-    Q_ASSERT(uri == QLatin1String("org.kde.playground.kquickview"));
+    Q_OBJECT
 
-    qmlRegisterType<HierarchyView>(uri, 1, 0, "HierarchyView");
-    qmlRegisterType<TreeView>(uri, 1, 0, "TreeView");
-    qmlRegisterType<ListView>(uri, 1, 0, "ListView");
-    qmlRegisterType<ScrollBarAdapter>(uri, 1, 0, "ScrollBarAdapter");
-    qmlRegisterType<DecorationAdapter>(uri, 1,0, "DecorationAdapter");
-    qmlRegisterType<ComboBoxView>(uri, 1, 0, "ComboBoxView");
-    qmlRegisterType<FlickableScrollBar>(uri, 1, 0, "FlickableScrollBar");
-    qmlRegisterType<SizeHintProxyModel>(uri, 1, 0, "SizeHintProxyModel");
-    qmlRegisterUncreatableType<ListViewSections>(uri, 1, 0, "ListViewSections", "");
-}
+    friend class TreeViewItem;
+public:
+    explicit TreeView(QQuickItem* parent = nullptr);
+    virtual ~TreeView();
 
-void KQuickView::initializeEngine(QQmlEngine *engine, const char *uri)
-{
-    Q_UNUSED(engine)
-    Q_UNUSED(uri)
-}
+Q_SIGNALS:
+    void contentChanged() final override;
+
+protected:
+    virtual AbstractItemAdapter* createItem(VisibleRange* r) const override;
+
+private:
+
+    TreeViewPrivate* d_ptr;
+    Q_DECLARE_PRIVATE(TreeView)
+};

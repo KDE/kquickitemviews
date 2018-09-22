@@ -17,13 +17,12 @@
  **************************************************************************/
 #pragma once
 
+// Qt
 #include <QtCore/QAbstractItemModel>
 #include <QtCore/QRectF>
 
-class AbstractViewItem;
-class AbstractQuickView;
+// KQuickItemViews
 class ModelAdapter;
-
 class VisibleRangePrivate;
 class VisibleRangeSync;
 
@@ -34,11 +33,11 @@ class VisibleRangeSync;
 * and offers a simpler API to access the loaded sections.
 *
 * This class is for internal use and should not be used by views. Please use
-* `AbstractQuickView` for all relevant use cases.
+* `ViewBase` for all relevant use cases.
 */
 class VisibleRange
 {
-    friend class AbstractViewItem; // for the getters defined in visiblerange.cpp
+    friend class AbstractItemAdapter; // for the getters defined in visiblerange.cpp
     friend class TreeTraversalReflector; // notify of model changes
 public:
 
@@ -53,50 +52,6 @@ public:
 
     explicit VisibleRange(ModelAdapter* ma);
     virtual ~VisibleRange() {}
-
-    /**
-     * A generic iterator for the ModelIndexItem interface.
-     *
-     * The user of this class should not have to care about the model indices
-     * themselves but rather the subset they "really" display.
-     */
-    class Iterator {
-    public:
-        explicit Iterator ();
-        bool operator!= (const Iterator& other) const;
-        AbstractViewItem* operator* () const;
-        const Iterator& operator++ ();
-
-    private:
-        const Iterator *p_vec_;
-    };
-
-    /**
-     * Iterate a range subset from a (relative) root index.
-     */
-    class Subset {
-    public:
-        Iterator constBegin() const;
-        Iterator constEnd() const;
-    };
-
-    //Iterator();
-
-    //Murator
-
-    /// Track an additional QModelIndex toward to model root.
-    bool incrementUpward();
-    /// Track an additional QModelIndex toward to model tail.
-    bool incrementDownward();
-    /// Untrack an additional QModelIndex from the model root.
-    bool decrementUpward();
-    /// Untrack an additional QModelIndex from the model tail.
-    bool decrementDownward();
-
-    /**
-     * Get an iterator for an index and all its children indices.
-     */
-    const Subset subset(const QModelIndex& idx) const;
 
     /**
      * Get the current (cartesian) rectangle represented by this range.
@@ -118,10 +73,6 @@ public:
 
     QPointF position() const;
     void setPosition(const QPointF& point);
-
-    //Iterators
-    /*Iterator begin();
-    Iterator end();*/
 
 private:
     VisibleRangePrivate *d_ptr;

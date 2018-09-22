@@ -15,36 +15,40 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#include "plugin.h"
+#pragma once
 
-#include <QtCore/QDebug>
+// Qt
+#include <QQuickPaintedItem>
+#include <QtGui/QPixmap>
+#include <QtGui/QIcon>
 
-#include "adapters/decorationadapter.h"
-#include "adapters/scrollbaradapter.h"
-#include "views/hierarchyview.h"
-#include "views/listview.h"
-#include "views/treeview.h"
-#include "views/comboboxview.h"
-#include "flickablescrollbar.h"
-#include "proxies/sizehintproxymodel.h"
+class DecorationAdapterPrivate;
 
-void KQuickView::registerTypes(const char *uri)
+class DecorationAdapter : public QQuickPaintedItem
 {
-    Q_ASSERT(uri == QLatin1String("org.kde.playground.kquickview"));
+   Q_OBJECT
+   Q_PROPERTY(QVariant pixmap READ pixmap WRITE setPixmap NOTIFY changed)
+   Q_PROPERTY(QString themeFallback READ themeFallback WRITE setThemeFallback NOTIFY changed)
+   Q_PROPERTY(bool hasPixmap READ hasPixmap NOTIFY changed)
 
-    qmlRegisterType<HierarchyView>(uri, 1, 0, "HierarchyView");
-    qmlRegisterType<TreeView>(uri, 1, 0, "TreeView");
-    qmlRegisterType<ListView>(uri, 1, 0, "ListView");
-    qmlRegisterType<ScrollBarAdapter>(uri, 1, 0, "ScrollBarAdapter");
-    qmlRegisterType<DecorationAdapter>(uri, 1,0, "DecorationAdapter");
-    qmlRegisterType<ComboBoxView>(uri, 1, 0, "ComboBoxView");
-    qmlRegisterType<FlickableScrollBar>(uri, 1, 0, "FlickableScrollBar");
-    qmlRegisterType<SizeHintProxyModel>(uri, 1, 0, "SizeHintProxyModel");
-    qmlRegisterUncreatableType<ListViewSections>(uri, 1, 0, "ListViewSections", "");
-}
+public:
+    explicit DecorationAdapter(QQuickItem* parent = nullptr);
+    virtual ~DecorationAdapter();
 
-void KQuickView::initializeEngine(QQmlEngine *engine, const char *uri)
-{
-    Q_UNUSED(engine)
-    Q_UNUSED(uri)
-}
+    QPixmap pixmap() const;
+    void setPixmap(const QVariant& var);
+
+    QString themeFallback() const;
+    void setThemeFallback(const QString& s);
+
+    bool hasPixmap() const;
+
+    virtual void paint(QPainter *painter) override;
+
+Q_SIGNALS:
+    void changed();
+
+private:
+    DecorationAdapterPrivate *d_ptr;
+    Q_DECLARE_PRIVATE(DecorationAdapter)
+};

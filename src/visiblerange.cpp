@@ -17,13 +17,16 @@
  **************************************************************************/
 #include "visiblerange.h"
 
-#include "visiblerange_p.h"
-#include "abstractquickview.h"
-#include "sizehintproxymodel.h"
-#include "treetraversalreflector_p.h"
+// Qt
+#include <QtCore/QDebug>
+#include <QQmlEngine>
 
-#include "abstractviewitem_p.h"
-#include "abstractviewitem.h"
+// KQuickItemViews
+#include "visiblerange_p.h"
+#include "proxies/sizehintproxymodel.h"
+#include "treetraversalreflector_p.h"
+#include "adapters/abstractitemadapter_p.h"
+#include "adapters/abstractitemadapter.h"
 
 class VisibleRangePrivate
 {
@@ -42,7 +45,7 @@ public:
     QPointF m_Position;
     QSizeF m_Size;
 
-    QSizeF sizeHint(AbstractViewItem* item) const;
+    QSizeF sizeHint(AbstractItemAdapter* item) const;
 };
 
 VisibleRange::VisibleRange(ModelAdapter* ma) :
@@ -51,55 +54,18 @@ VisibleRange::VisibleRange(ModelAdapter* ma) :
     d_ptr->m_pModelAdapter = ma;
 }
 
-
-bool VisibleRange::incrementUpward()
-{
-    return false;
-}
-
-bool VisibleRange::incrementDownward()
-{
-    return false;
-}
-
-bool VisibleRange::decrementUpward()
-{
-    return false;
-}
-
-bool VisibleRange::decrementDownward()
-{
-    return false;
-}
-
-/*VisibleRange::Iterator VisibleRange::begin()
-{
-    return {};
-}
-
-VisibleRange::Iterator VisibleRange::end()
-{
-    return {};
-}*/
-
-const VisibleRange::Subset VisibleRange::subset(const QModelIndex& idx) const
-{
-    return {};
-}
-
 QRectF VisibleRange::currentRect() const
 {
     return {};
 }
 
 
-QSizeF AbstractViewItem::sizeHint() const
+QSizeF AbstractItemAdapter::sizeHint() const
 {
     return s_ptr->m_pRange->d_ptr->sizeHint(
-        const_cast<AbstractViewItem*>(this)
+        const_cast<AbstractItemAdapter*>(this)
     );
 }
-
 
 // QSizeF VisibleRange::sizeHint(const QModelIndex& index) const
 // {
@@ -116,7 +82,7 @@ QSizeF AbstractViewItem::sizeHint() const
 //     return {};
 // }
 
-QSizeF VisibleRangePrivate::sizeHint(AbstractViewItem* item) const
+QSizeF VisibleRangePrivate::sizeHint(AbstractItemAdapter* item) const
 {
     QSizeF ret;
 

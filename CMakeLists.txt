@@ -50,25 +50,24 @@ SET(GENERIC_LIB_VERSION "1.0.0")
 
 #File to compile
 SET( kquickview_LIB_SRCS
-    src/plugin.cpp
-    src/pixmapwrapper.cpp
-    src/simpleflickable.cpp
-    src/hierarchyview.cpp
-    src/abstractquickview.cpp
-    src/treetraversalreflector_p.cpp
-    src/visiblerange.cpp
-    src/abstractviewitem.cpp
-    src/abstractselectableview.cpp
-    src/abstractviewcompat.cpp
-    src/quicktreeview.cpp
-    src/quicklistview.cpp
-    src/modelscrolladapter.cpp
-    src/bindedcombobox.cpp
-    src/symboliccolorizer.cpp
+    src/adapters/abstractitemadapter.cpp
+    src/adapters/decorationadapter.cpp
+    src/adapters/modeladapter.cpp
+    src/adapters/scrollbaradapter.cpp
+    src/adapters/selectionadapter.cpp
     src/flickablescrollbar.cpp
-    src/sizehintproxymodel.cpp
-    src/contextmanager.cpp
-    src/modeladapter.cpp
+    src/plugin.cpp
+    src/proxies/sizehintproxymodel.cpp
+    src/singlemodelviewbase.cpp
+    src/treetraversalreflector_p.cpp
+    src/viewbase.cpp
+    src/views/comboboxview.cpp
+    src/views/flickable.cpp
+    src/views/hierarchyview.cpp
+    src/views/listview.cpp
+    src/views/treeview.cpp
+    src/visiblerange.cpp
+    src/contextadapterfactory.cpp
 )
 
 set(AUTOMOC_MOC_OPTIONS -Muri=org.kde.playground.kquickview)
@@ -83,25 +82,26 @@ target_link_libraries( kquickview
 )
 
 SET( kquickview_LIB_HDRS
-    plugin.h
-    pixmapwrapper.h
-    simpleflickable.h
-    hierarchyview.h
-    abstractquickview.h
-    treetraversalreflector_p.h
-    visiblerange.h
-    modeladapter.h
-    abstractviewitem.h
-    abstractselectableview.h
-    abstractviewcompat.h
-    quicktreeview.h
-    quicklistview.h
-    modelscrolladapter.h
-    bindedcombobox.h
-    symboliccolorizer.h
+    adapters/abstractitemadapter.h
+    adapters/contextadapter.h
+    adapters/decorationadapter.h
+    adapters/modeladapter.h
+    adapters/scrollbaradapter.h
+    adapters/selectionadapter.h
+    extensions/contextextension.h
     flickablescrollbar.h
-    sizehintproxymodel.h
-    contextmanager.h
+    plugin.h
+    proxies/sizehintproxymodel.h
+    singlemodelviewbase.h
+    contextadapterfactory.h
+    treetraversalreflector_debug.h
+    viewbase.h
+    views/comboboxview.h
+    views/flickable.h
+    views/hierarchyview.h
+    views/listview.h
+    views/treeview.h
+    visiblerange.h
 )
 
 # Create include file aliases

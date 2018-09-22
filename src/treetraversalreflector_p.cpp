@@ -17,11 +17,13 @@
  **************************************************************************/
 #include "treetraversalreflector_p.h"
 
-#include "abstractviewitem_p.h"
-#include "abstractviewitem.h"
+// KQuickItemViews
+#include "adapters/abstractitemadapter_p.h"
+#include "adapters/abstractitemadapter.h"
 #include "visiblerange.h"
 #include "visiblerange_p.h"
 
+// Qt
 #include <QQmlComponent>
 
 // Use some constant for readability
@@ -128,7 +130,7 @@ public:
     /// All elements with loaded children
     QHash<QPersistentModelIndex, TreeTraversalItems*> m_hMapper;
     QAbstractItemModel* m_pModel {nullptr};
-    std::function<AbstractViewItem*()> m_fFactory;
+    std::function<AbstractItemAdapter*()> m_fFactory;
     TreeTraversalReflector* q_ptr;
     QVector<VisibleRange*> m_lRanges;
 
@@ -477,7 +479,7 @@ TreeTraversalReflector::~TreeTraversalReflector()
 }
 
 // Setters
-void TreeTraversalReflector::setItemFactory(std::function<AbstractViewItem*()> factory)
+void TreeTraversalReflector::setItemFactory(std::function<AbstractItemAdapter*()> factory)
 {
     d_ptr->m_fFactory = factory;
 }
@@ -1125,7 +1127,7 @@ TreeTraversalItems* TreeTraversalReflectorPrivate::ttiForIndex(const QModelIndex
     return nullptr;
 }
 
-AbstractViewItem* TreeTraversalReflector::itemForIndex(const QModelIndex& idx) const
+AbstractItemAdapter* TreeTraversalReflector::itemForIndex(const QModelIndex& idx) const
 {
     const auto tti = d_ptr->ttiForIndex(idx);
     return tti && tti->m_pTreeItem ? tti->m_pTreeItem->d_ptr : nullptr;

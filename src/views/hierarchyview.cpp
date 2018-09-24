@@ -32,24 +32,18 @@
  *
  * The state is managed by the SingleModelViewBase and it's own protected virtual methods.
  */
-class HierarchyViewItem : public AbstractItemAdapter
+class HierarchyViewItem final : public AbstractItemAdapter
 {
 public:
     explicit HierarchyViewItem(VisibleRange* r);
     virtual ~HierarchyViewItem();
 
     // Actions
-    virtual bool attach () override;
     virtual bool move   () override;
-    virtual bool flush  () override;
     virtual bool remove () override;
-
-    virtual void setSelected(bool s) final override;
 
 private:
     bool m_IsHead { false };
-
-    HierarchyViewPrivate* d() const;
 };
 
 class HierarchyViewPrivate
@@ -80,24 +74,6 @@ HierarchyViewItem::HierarchyViewItem(VisibleRange* r) : AbstractItemAdapter(r)
 HierarchyViewItem::~HierarchyViewItem()
 {
     delete item();
-}
-
-HierarchyViewPrivate* HierarchyViewItem::d() const
-{
-    return static_cast<HierarchyView*>(view())->HierarchyView::d_ptr;
-}
-
-bool HierarchyViewItem::attach()
-{
-    // This will trigger the lazy-loading of the item
-    if (!item())
-        return false;
-
-    Q_ASSERT(index().isValid());
-
-    Q_ASSERT(item() && context());
-
-    return move();
 }
 
 bool HierarchyViewItem::move()
@@ -156,11 +132,6 @@ bool HierarchyViewItem::move()
     return true;
 }
 
-bool HierarchyViewItem::flush()
-{
-    return true;
-}
-
 bool HierarchyViewItem::remove()
 {
     if (item()) {
@@ -186,9 +157,4 @@ bool HierarchyViewItem::remove()
     }
 
     return true;
-}
-
-void HierarchyViewItem::setSelected(bool s)
-{
-    context()->setContextProperty("isCurrentItem", s);
 }

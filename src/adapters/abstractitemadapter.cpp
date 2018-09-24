@@ -408,6 +408,20 @@ bool AbstractItemAdapter::refresh()
     return true;
 }
 
+bool AbstractItemAdapter::attach()
+{
+    Q_ASSERT(index().isValid());
+    return item() && move();
+}
+
+bool AbstractItemAdapter::flush()
+{
+    return true;
+}
+
+void AbstractItemAdapter::setSelected(bool /*s*/)
+{}
+
 QPair<QQuickItem*, QQmlContext*> AbstractItemAdapterPrivate::loadDelegate(QQuickItem* parentI, QQmlContext* parentCtx) const
 {
     if (!q_ptr->s_ptr->m_pRange->modelAdapter()->delegate())

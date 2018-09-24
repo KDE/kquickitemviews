@@ -71,13 +71,11 @@ public:
     // Actions
     virtual bool attach () override;
     virtual bool move   () override;
-    virtual bool flush  () override;
     virtual bool remove () override;
 
     ListViewSection* m_pSection {nullptr};
 
     // Setters
-    virtual void setSelected(bool s) final override;
     ListViewSection* setSection(ListViewSection* s, const QVariant& val);
 
     ListViewPrivate* d() const;
@@ -529,11 +527,6 @@ bool ListViewItem::move()
     return true;
 }
 
-bool ListViewItem::flush()
-{
-    return true;
-}
-
 bool ListViewItem::remove()
 {
     if (m_pSection && --m_pSection->m_RefCount <= 0) {
@@ -678,11 +671,6 @@ void ListViewPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& 
             tli->move();
 
     } while(tli != bri && (tli = static_cast<ListViewItem*>(tli->down())));
-}
-
-void ListViewItem::setSelected(bool s)
-{
-    context()->setContextProperty("isCurrentItem", s);
 }
 
 #include <listview.moc>

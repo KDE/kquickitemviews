@@ -205,7 +205,13 @@ public:
     virtual QRectF geometry() const;
 
 
-    virtual void setSelected(bool s) = 0;
+    /**
+     * Implement this function when selecting an item require extra operations
+     * to be executed.
+     *
+     * The default implementation does nothing.
+     */
+    virtual void setSelected(bool s);
 
     void updateGeometry();
 
@@ -233,8 +239,11 @@ public:
 protected:
     /**
      * This instance is about to be added to the view.
+     *
+     * The default implementation calls move, but some views might need to
+     * perform extra operations only when the item is added to the viewport.
      */
-    virtual bool attach () = 0;
+    virtual bool attach ();
 
     /**
      * Update the delegate instance when the model index changes.
@@ -250,8 +259,10 @@ protected:
 
     /**
      * This instance is about to be recycled, if it holds a state, remove it.
+     *
+     * The default implementation does nothing.
      */
-    virtual bool flush  () = 0;
+    virtual bool flush  ();
 
     /**
      * This instance is going to be removed from the view.

@@ -32,39 +32,28 @@
  *
  * The state is managed by the SingleModelViewBase and it's own protected virtual methods.
  */
-class TreeViewItem : public AbstractItemAdapter
+class TreeViewItem final : public AbstractItemAdapter
 {
 public:
     explicit TreeViewItem(VisibleRange* r);
     virtual ~TreeViewItem();
 
     // Actions
-    virtual bool attach () override;
     virtual bool move   () override;
-    virtual bool flush  () override;
     virtual bool remove () override;
-
-    virtual void setSelected(bool s) final override;
 
 private:
     bool m_IsHead { false };
-
-    TreeViewPrivate* d() const;
 };
 
 class TreeViewPrivate
 {
 public:
-    // When all elements are assumed to have the same height, life is easy
-    QVector<qreal> m_DepthChart {0};
-
-    TreeView* q_ptr;
 };
 
 TreeView::TreeView(QQuickItem* parent) : SingleModelViewBase(new ItemFactory<TreeViewItem>(), parent),
     d_ptr(new TreeViewPrivate)
 {
-    d_ptr->q_ptr = this;
 }
 
 TreeView::~TreeView()
@@ -79,24 +68,6 @@ TreeViewItem::TreeViewItem(VisibleRange* r) : AbstractItemAdapter(r)
 TreeViewItem::~TreeViewItem()
 {
     delete item();
-}
-
-TreeViewPrivate* TreeViewItem::d() const
-{
-    return static_cast<TreeView*>(view())->TreeView::d_ptr;
-}
-
-bool TreeViewItem::attach()
-{
-    // This will trigger the lazy-loading of the item
-    if (!item())
-        return false;
-
-    Q_ASSERT(index().isValid());
-
-    Q_ASSERT(item() && context());
-
-    return move();
 }
 
 bool TreeViewItem::move()
@@ -155,11 +126,6 @@ bool TreeViewItem::move()
     return true;
 }
 
-bool TreeViewItem::flush()
-{
-    return true;
-}
-
 bool TreeViewItem::remove()
 {
     if (item()) {
@@ -185,9 +151,4 @@ bool TreeViewItem::remove()
     }
 
     return true;
-}
-
-void TreeViewItem::setSelected(bool s)
-{
-    context()->setContextProperty("isCurrentItem", s);
 }

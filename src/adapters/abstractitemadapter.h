@@ -72,7 +72,7 @@ class AbstractItemAdapter
     friend class ModelAdapterPrivate; //TODO remove
 
 public:
-    explicit AbstractItemAdapter(ViewBase* v, VisibleRange* r);
+    explicit AbstractItemAdapter(VisibleRange* r);
     virtual ~AbstractItemAdapter();
 
     ViewBase* view() const;

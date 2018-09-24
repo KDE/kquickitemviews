@@ -33,13 +33,15 @@ public:
     SingleModelViewBase* q_ptr;
 };
 
-SingleModelViewBase::SingleModelViewBase(QQuickItem* parent) : ViewBase(parent),
+SingleModelViewBase::SingleModelViewBase(ItemFactoryBase *factory, QQuickItem* parent) : ViewBase(parent),
     d_ptr(new SingleModelViewBasePrivate())
 {
     d_ptr->q_ptr = this;
 
     d_ptr->m_pModelAdapter = new ModelAdapter(this);
     addModelAdapter(d_ptr->m_pModelAdapter);
+
+    d_ptr->m_pModelAdapter->visibleRanges().first()->setItemFactory(factory);
 
     auto sm = d_ptr->m_pModelAdapter->selectionAdapter();
 
@@ -48,8 +50,8 @@ SingleModelViewBase::SingleModelViewBase(QQuickItem* parent) : ViewBase(parent),
         this, &SingleModelViewBase::currentIndexChanged);
     connect(sm, &SelectionAdapter::selectionModelChanged,
         this, &SingleModelViewBase::selectionModelChanged);
-    connect(d_ptr->m_pModelAdapter, &ModelAdapter::countChanged,
-        this, &SingleModelViewBase::countChanged);
+//     connect(d_ptr->m_pModelAdapter, &ModelAdapter::countChanged,
+//         this, &SingleModelViewBase::countChanged);
     connect(d_ptr->m_pModelAdapter, &ModelAdapter::modelAboutToChange,
         this, &SingleModelViewBase::applyModelChanges);
 }

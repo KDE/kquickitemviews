@@ -290,7 +290,6 @@ bool TreeTraversalItems::show()
 //     qDebug() << "SHOW";
 
     if (!m_pTreeItem) {
-        Q_ASSERT(d_ptr->q_ptr->d_ptr->m_fFactory);
         m_pTreeItem = d_ptr->q_ptr->d_ptr->m_fFactory()->s_ptr;
         Q_ASSERT(m_pTreeItem);
         m_pTreeItem->m_pTTI = this;

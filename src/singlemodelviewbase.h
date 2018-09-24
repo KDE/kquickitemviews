@@ -43,14 +43,23 @@ public:
     Q_PROPERTY(QModelIndex currentIndex READ currentIndex WRITE setCurrentIndex)
     Q_PROPERTY(QVariant model READ model WRITE setModel NOTIFY modelChanged)
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged)
-    Q_PROPERTY(bool empty READ isEmpty NOTIFY countChanged)
+    Q_PROPERTY(bool empty READ isEmpty/* NOTIFY countChanged*/)
 
     /// Assume each hierarchy level have the same height (for performance)
     Q_PROPERTY(bool uniformRowHeight READ hasUniformRowHeight   WRITE setUniformRowHeight)
     /// Assume each column has the same width (for performance)
     Q_PROPERTY(bool uniformColumnWidth READ hasUniformColumnWidth WRITE setUniformColumnColumnWidth)
 
-    explicit SingleModelViewBase(QQuickItem* parent = nullptr);
+    /**
+     * It is usually recommanded to use the template constructor unless there is
+     * extra logic to be executed when an item is created.
+     */
+    explicit SingleModelViewBase(ItemFactoryBase *factory, QQuickItem* parent = nullptr);
+
+    template<typename T>
+    SingleModelViewBase(ItemFactory<T> *b, QQuickItem* parent = nullptr) :
+        SingleModelViewBase((ItemFactoryBase*) b, parent) {}
+
     virtual ~SingleModelViewBase();
 
     Qt::Corner gravity() const;
@@ -107,7 +116,7 @@ Q_SIGNALS:
     void selectionModelChanged() const;
     void modelChanged();
     void delegateChanged(QQmlComponent* delegate);
-    virtual void countChanged() override final;
+//     virtual void countChanged() override final;
 
 private:
     SingleModelViewBasePrivate* d_ptr;

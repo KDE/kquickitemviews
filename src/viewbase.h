@@ -56,11 +56,25 @@ class ViewBase : public Flickable
     friend class ViewBaseSync; // internal API
     friend class ModelAdapter; // call createItem
 public:
+    struct ItemFactoryBase {
+        virtual AbstractItemAdapter* create(VisibleRange* r) const = 0;
+    };
+
+    template<typename T> struct ItemFactory final : public ItemFactoryBase {
+        virtual AbstractItemAdapter* create(VisibleRange* r) const override {
+            return new T(r);
+        }
+    };
+
+    Q_PROPERTY(bool empty READ isEmpty NOTIFY contentChanged)
+
     explicit ViewBase(QQuickItem* parent = nullptr);
 
     virtual ~ViewBase();
 
     QVector<ModelAdapter*> modelAdapters() const;
+
+    bool isEmpty() const;
 
     /**
      * Get the AbstractItemAdapter associated with a model index.
@@ -89,14 +103,8 @@ protected:
     void addModelAdapter(ModelAdapter* a);
     void removeModelAdapter(ModelAdapter* a);
 
-    /**
-     * To be implemented by the final class.
-     */
-    virtual AbstractItemAdapter* createItem(VisibleRange* r) const = 0;
-
 Q_SIGNALS:
-    virtual void contentChanged() = 0;
-    virtual void countChanged() = 0;
+    void contentChanged();
 
 public:
     // Private API

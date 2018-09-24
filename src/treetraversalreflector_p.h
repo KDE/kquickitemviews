@@ -26,6 +26,7 @@ struct TreeTraversalItems;
 class VisualTreeItem;
 class TreeTraversalReflectorPrivate;
 class AbstractItemAdapter;
+class VisibleRange;
 
 
 /**

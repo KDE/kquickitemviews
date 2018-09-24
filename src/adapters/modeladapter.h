@@ -24,7 +24,7 @@ class SelectionAdapter;
 class ContextAdapterFactory;
 class VisibleRange;
 class ViewBase;
-class AbstractItemAdapter; //FIXME remove
+class AbstractItemAdapter;
 class ModelAdapterPrivate;
 
 // Qt
@@ -45,7 +45,7 @@ class ModelAdapter : public QObject
 public:
     Q_PROPERTY(QVariant model READ model WRITE setModel NOTIFY modelChanged)
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged)
-    Q_PROPERTY(bool empty READ isEmpty NOTIFY countChanged)
+    Q_PROPERTY(bool empty READ isEmpty /*NOTIFY countChanged*/)
 
     /// The view can be collapsed
     Q_PROPERTY(bool collapsable READ isCollapsable WRITE setCollapsable)
@@ -118,9 +118,9 @@ protected:
     void setContextAdapterFactory(ContextAdapterFactory* rm);
 
 Q_SIGNALS:
-    void modelAboutToChange(QAbstractItemModel* m);
+    void modelAboutToChange(QAbstractItemModel* m, QAbstractItemModel* old);
     void modelChanged(QAbstractItemModel* m);
-    void countChanged();
+//     void countChanged();
     void delegateChanged(QQmlComponent* delegate);
     void contentChanged();
 

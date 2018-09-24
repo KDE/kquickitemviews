@@ -29,7 +29,6 @@
 #include "selectionadapter.h"
 #include "contextadapterfactory.h"
 #include "selectionadapter_p.h"
-#include "treetraversalreflector_p.h"
 #include "abstractitemadapter_p.h"
 #include "abstractitemadapter.h"
 
@@ -48,7 +47,6 @@ public:
     QSharedItemModel        m_pModelPtr           {       };
     QAbstractItemModel     *m_pRawModel           {nullptr};
     QQmlComponent          *m_pDelegate           {nullptr};
-    TreeTraversalReflector *m_pReflector          {nullptr};
     VisibleRange           *m_pRange              {nullptr};
     SelectionAdapter       *m_pSelectionManager   {nullptr};
     ViewBase               *m_pView               {nullptr};
@@ -72,7 +70,6 @@ public:
 public Q_SLOTS:
     void slotContentChanged();
     void slotCountChanged();
-    void slotDataChanged(const QModelIndex& tl, const QModelIndex& br); //TODO move to the range
 };
 
 ModelAdapter::ModelAdapter(ViewBase* parent) : QObject(parent),
@@ -83,24 +80,15 @@ ModelAdapter::ModelAdapter(ViewBase* parent) : QObject(parent),
     d_ptr->m_pView = parent;
     d_ptr->m_pSelectionManager = new SelectionAdapter(this);
 
-    d_ptr->m_pReflector = new TreeTraversalReflector(parent);
     selectionAdapter()->s_ptr->setView(parent);
     contextAdapterFactory()->addContextExtension(selectionAdapter()->contextExtension());
 
     d_ptr->m_pRange = new VisibleRange(this);
 
-    d_ptr->m_pReflector->setItemFactory([this, parent]() -> AbstractItemAdapter* {
-        auto ret = parent->createItem(d_ptr->m_pRange);
-
-        return ret;
-    });
-
-    connect(this, &ModelAdapter::delegateChanged,
-        d_ptr->m_pReflector, &TreeTraversalReflector::resetEverything);
-    connect(d_ptr->m_pReflector, &TreeTraversalReflector::contentChanged,
+    connect(d_ptr->m_pRange, &VisibleRange::contentChanged,
         d_ptr, &ModelAdapterPrivate::slotContentChanged);
-    connect(d_ptr->m_pReflector, &TreeTraversalReflector::countChanged,
-        d_ptr, &ModelAdapterPrivate::slotCountChanged);
+//     connect(d_ptr->m_pReflector, &TreeTraversalReflector::countChanged,
+//         d_ptr, &ModelAdapterPrivate::slotCountChanged);
 }
 
 ModelAdapter::~ModelAdapter()
@@ -123,23 +111,13 @@ QVariant ModelAdapter::model() const
 
 void ModelAdapterPrivate::setModelCommon(QAbstractItemModel* m, QAbstractItemModel* old)
 {
-    if (old)
-        disconnect(old, &QAbstractItemModel::dataChanged, this,
-            &ModelAdapterPrivate::slotDataChanged);
-
-    m_pReflector->setModel(m);
     q_ptr->selectionAdapter()->s_ptr->setModel(m);
-    m_pReflector->populate();
-
-    if (m)
-        connect(m, &QAbstractItemModel::dataChanged, this,
-            &ModelAdapterPrivate::slotDataChanged);
 }
 
 void ModelAdapter::setModel(const QVariant& var)
 {
     QSharedItemModel oldPtr;
-    QAbstractItemModel* oldM = d_ptr->m_pRawModel;
+    QAbstractItemModel* oldM = oldPtr ? oldPtr.data() : d_ptr->m_pRawModel;
 
     if (d_ptr->m_pModelPtr)
         oldPtr = d_ptr->m_pModelPtr;
@@ -148,11 +126,11 @@ void ModelAdapter::setModel(const QVariant& var)
         if ((!d_ptr->m_pRawModel) && (!d_ptr->m_pModelPtr))
             return;
 
-        emit modelAboutToChange(nullptr);
+        emit modelAboutToChange(nullptr, oldM);
         d_ptr->m_Mode = ModelAdapterPrivate::Mode::NONE;
         d_ptr->m_pRawModel = nullptr;
         d_ptr->m_pModelPtr = nullptr;
-        d_ptr->setModelCommon(nullptr, oldPtr ? oldPtr.data() : oldM);
+        d_ptr->setModelCommon(nullptr, oldM);
         emit modelChanged(nullptr);
     }
     else if (auto m = var.value<QSharedItemModel >()) {
@@ -163,11 +141,11 @@ void ModelAdapter::setModel(const QVariant& var)
         // users should "not" store it. Obviously they all will, but at least
         // they have to watch the signal and replace it in time. If they don't,
         // then it may crash but the bug is on the consumer side.
-        emit modelAboutToChange(m.data());
+        emit modelAboutToChange(m.data(), oldM);
         d_ptr->m_Mode = ModelAdapterPrivate::Mode::SMART_POINTER;
         d_ptr->m_pRawModel = nullptr;
         d_ptr->m_pModelPtr = m;
-        d_ptr->setModelCommon(m.data(), oldPtr ? oldPtr.data() : oldM);
+        d_ptr->setModelCommon(m.data(), oldM);
         emit modelChanged(m.data());
 
     }
@@ -175,7 +153,7 @@ void ModelAdapter::setModel(const QVariant& var)
         if (m == d_ptr->m_pRawModel)
             return;
 
-        emit modelAboutToChange(m);
+        emit modelAboutToChange(m, oldM);
         d_ptr->m_Mode = ModelAdapterPrivate::Mode::RAW;
         d_ptr->m_pRawModel = m;
         d_ptr->m_pModelPtr = nullptr;
@@ -314,7 +292,7 @@ void ModelAdapterPrivate::slotContentChanged()
 
 void ModelAdapterPrivate::slotCountChanged()
 {
-    emit q_ptr->countChanged();
+//     emit q_ptr->countChanged();
 }
 
 QAbstractItemModel *ModelAdapter::rawModel() const
@@ -330,43 +308,9 @@ QAbstractItemModel *ModelAdapter::rawModel() const
     }
 }
 
-//TODO remove this content and check each range
-void ModelAdapterPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& br)
-{
-    if (tl.model() && tl.model() != q_ptr->rawModel()) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    if (br.model() && br.model() != q_ptr->rawModel()) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    if ((!tl.isValid()) || (!br.isValid()))
-        return;
-
-    if (!m_pReflector->isActive(tl.parent(), tl.row(), br.row()))
-        return;
-
-    //FIXME tolerate other cases
-    Q_ASSERT(q_ptr->rawModel());
-    Q_ASSERT(tl.model() == q_ptr->rawModel() && br.model() == q_ptr->rawModel());
-    Q_ASSERT(tl.parent() == br.parent());
-
-    //TODO Use a smaller range when possible
-
-    //itemForIndex(const QModelIndex& idx) const final override;
-    for (int i = tl.row(); i <= br.row(); i++) {
-        const auto idx = q_ptr->rawModel()->index(i, tl.column(), tl.parent());
-        if (auto item = m_pReflector->itemForIndex(idx))
-            item->s_ptr->performAction(VisualTreeItem::ViewAction::UPDATE);
-    }
-}
-
 AbstractItemAdapter* ModelAdapter::itemForIndex(const QModelIndex& idx) const
 {
-    return d_ptr->m_pReflector->itemForIndex(idx);
+    return d_ptr->m_pRange->itemForIndex(idx);
 }
 
 ViewBase *ModelAdapter::view() const

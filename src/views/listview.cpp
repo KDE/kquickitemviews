@@ -65,7 +65,7 @@ struct ListViewSection final
 class ListViewItem : public AbstractItemAdapter
 {
 public:
-    explicit ListViewItem(SingleModelViewBase* v, VisibleRange* r);
+    explicit ListViewItem(VisibleRange* r);
     virtual ~ListViewItem();
 
     // Actions
@@ -113,7 +113,7 @@ public Q_SLOTS:
     void slotDataChanged(const QModelIndex& tl, const QModelIndex& br);
 };
 
-ListView::ListView(QQuickItem* parent) : SingleModelViewBase(parent),
+ListView::ListView(QQuickItem* parent) : SingleModelViewBase(new ItemFactory<ListViewItem>(), parent),
     d_ptr(new ListViewPrivate(this))
 {
     connect(this, &SingleModelViewBase::currentIndexChanged,
@@ -183,13 +183,6 @@ ListViewSections* ListView::section() const
     }
 
     return d_ptr->m_pSections;
-}
-
-AbstractItemAdapter* ListView::createItem(VisibleRange* r) const
-{
-    return new ListViewItem(
-        const_cast<ListView*>(this), r
-    );
 }
 
 ListViewSection::ListViewSection(
@@ -357,7 +350,7 @@ void ListViewPrivate::reloadSectionIndices() const
     m_IndexLoaded = m_pFirstSection != nullptr;
 }
 
-ListViewItem::ListViewItem(SingleModelViewBase* p, VisibleRange* r) : AbstractItemAdapter(p, r)
+ListViewItem::ListViewItem(VisibleRange* r) : AbstractItemAdapter(r)
 {
 }
 

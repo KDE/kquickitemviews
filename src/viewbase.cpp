@@ -152,7 +152,7 @@ void ViewBasePrivate::slotContentChanged()
 
 void ViewBasePrivate::slotCountChanged()
 {
-    emit q_ptr->countChanged();
+//     emit q_ptr->countChanged();
 }
 
 bool ViewBasePrivate::nothing()
@@ -247,8 +247,9 @@ void ViewBase::addModelAdapter(ModelAdapter* a)
 {
     connect(a, &ModelAdapter::contentChanged,
         d_ptr, &ViewBasePrivate::slotContentChanged);
-    connect(a, &ModelAdapter::countChanged,
-        d_ptr, &ViewBasePrivate::slotCountChanged);
+//FIXME it was wrong and broken anyway
+//     connect(a, &ModelAdapter::countChanged,
+//         d_ptr, &ViewBasePrivate::slotCountChanged);
 
     a->contextAdapterFactory()->addContextExtension(new ModelIndexGroup());
 
@@ -264,6 +265,16 @@ void ViewBase::removeModelAdapter(ModelAdapter* a)
 QVector<ModelAdapter*> ViewBase::modelAdapters() const
 {
     return d_ptr->m_lAdapters;
+}
+
+bool ViewBase::isEmpty() const
+{
+    for (auto a : qAsConst(d_ptr->m_lAdapters)) {
+        if (a->isEmpty())
+            return false;
+    }
+
+    return true;
 }
 
 #include <viewbase.moc>

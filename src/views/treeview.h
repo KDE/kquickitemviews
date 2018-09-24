@@ -49,14 +49,7 @@ public:
     explicit TreeView(QQuickItem* parent = nullptr);
     virtual ~TreeView();
 
-Q_SIGNALS:
-    void contentChanged() final override;
-
-protected:
-    virtual AbstractItemAdapter* createItem(VisibleRange* r) const override;
-
 private:
-
     TreeViewPrivate* d_ptr;
     Q_DECLARE_PRIVATE(TreeView)
 };

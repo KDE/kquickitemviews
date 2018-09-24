@@ -49,14 +49,7 @@ public:
     explicit HierarchyView(QQuickItem* parent = nullptr);
     virtual ~HierarchyView();
 
-Q_SIGNALS:
-    void contentChanged() final override;
-
-protected:
-    virtual AbstractItemAdapter* createItem(VisibleRange* r) const override;
-
 private:
-
     HierarchyViewPrivate* d_ptr;
     Q_DECLARE_PRIVATE(HierarchyView)
 };

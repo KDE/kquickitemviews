@@ -22,9 +22,10 @@
 #include <QtCore/QRectF>
 
 // KQuickItemViews
-class ModelAdapter;
+#include <viewbase.h>
 class VisibleRangePrivate;
 class VisibleRangeSync;
+class AbstractItemAdapter;
 
 /**
 * This class exposes a way to track and iterate a subset of the model.
@@ -35,10 +36,12 @@ class VisibleRangeSync;
 * This class is for internal use and should not be used by views. Please use
 * `ViewBase` for all relevant use cases.
 */
-class VisibleRange
+class VisibleRange : public QObject
 {
     friend class AbstractItemAdapter; // for the getters defined in visiblerange.cpp
     friend class TreeTraversalReflector; // notify of model changes
+
+    Q_OBJECT
 public:
 
     /// Some strategies to get the item size with or without loading them.
@@ -52,6 +55,7 @@ public:
     };
 
     explicit VisibleRange(ModelAdapter* ma);
+
     virtual ~VisibleRange() {}
 
     /**
@@ -73,7 +77,15 @@ public:
 
     bool isTotalSizeKnown() const;
 
-    QRectF totalSize() const;
+    QSizeF totalSize() const;
+
+    void setItemFactory(ViewBase::ItemFactoryBase *factory);
+
+    //TODO remove
+    AbstractItemAdapter* itemForIndex(const QModelIndex& idx) const;
+
+Q_SIGNALS:
+    void contentChanged();
 
 private:
     VisibleRangePrivate *d_ptr;

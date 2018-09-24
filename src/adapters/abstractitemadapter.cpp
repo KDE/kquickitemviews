@@ -135,9 +135,9 @@ const AbstractItemAdapterPrivate::StateF AbstractItemAdapterPrivate::m_fStateMac
 };
 #undef A
 
-AbstractItemAdapter::AbstractItemAdapter(ViewBase* v, VisibleRange* r) :
+AbstractItemAdapter::AbstractItemAdapter(VisibleRange* r) :
     d_ptr(new AbstractItemAdapterPrivate),
-    s_ptr(new VisualTreeItem(v, r))
+    s_ptr(new VisualTreeItem(r->modelAdapter()->view(), r))
 {
     d_ptr->q_ptr = this;
     s_ptr->d_ptr = this;

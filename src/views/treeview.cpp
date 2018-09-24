@@ -35,7 +35,7 @@
 class TreeViewItem : public AbstractItemAdapter
 {
 public:
-    explicit TreeViewItem(SingleModelViewBase* v, VisibleRange* r);
+    explicit TreeViewItem(VisibleRange* r);
     virtual ~TreeViewItem();
 
     // Actions
@@ -55,14 +55,13 @@ private:
 class TreeViewPrivate
 {
 public:
-
     // When all elements are assumed to have the same height, life is easy
     QVector<qreal> m_DepthChart {0};
 
     TreeView* q_ptr;
 };
 
-TreeView::TreeView(QQuickItem* parent) : SingleModelViewBase(parent),
+TreeView::TreeView(QQuickItem* parent) : SingleModelViewBase(new ItemFactory<TreeViewItem>(), parent),
     d_ptr(new TreeViewPrivate)
 {
     d_ptr->q_ptr = this;
@@ -73,14 +72,7 @@ TreeView::~TreeView()
     delete d_ptr;
 }
 
-AbstractItemAdapter* TreeView::createItem(VisibleRange* r) const
-{
-    return new TreeViewItem(
-        const_cast<TreeView*>(this), r
-    );
-}
-
-TreeViewItem::TreeViewItem(SingleModelViewBase* p, VisibleRange* r) : AbstractItemAdapter(p, r)
+TreeViewItem::TreeViewItem(VisibleRange* r) : AbstractItemAdapter(r)
 {
 }
 

@@ -95,7 +95,7 @@ class Q_DECL_EXPORT ListView : public SingleModelViewBase
     friend class ListViewSections;
 public:
     Q_PROPERTY(ListViewSections* section READ section CONSTANT)
-    Q_PROPERTY(int count READ count NOTIFY contentChanged)
+    Q_PROPERTY(int count READ count /*NOTIFY contentChanged*/)
     Q_PROPERTY(int currentIndex READ currentIndex WRITE setCurrentIndex NOTIFY indexChanged)
 
     explicit ListView(QQuickItem* parent = nullptr);
@@ -109,11 +109,9 @@ public:
     void setCurrentIndex(int index);
 
 Q_SIGNALS:
-    void contentChanged() final override;
     void indexChanged(int index);
 
 protected:
-    virtual AbstractItemAdapter* createItem(VisibleRange* r) const override;
     virtual void applyModelChanges(QAbstractItemModel* m) override;
 
 private:

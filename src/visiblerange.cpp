@@ -42,7 +42,7 @@ public:
     bool m_ModelHasSizeHints {false};
     QByteArray m_SizeHintRole;
     int m_SizeHintRoleIndex {-1};
-    QAbstractItemModel* m_pModel {nullptr};
+    TreeTraversalReflector *m_pReflector {nullptr};
 
     // The viewport rectangle
     QPointF m_Position;
@@ -52,27 +52,34 @@ public:
 
 public Q_SLOTS:
     void slotModelChanged(QAbstractItemModel* m);
+    void slotModelAboutToChange(QAbstractItemModel* m, QAbstractItemModel* o);
     void slotViewportChanged(const QRectF &viewport);
+    void slotDataChanged(const QModelIndex& tl, const QModelIndex& br);
 };
 
-VisibleRange::VisibleRange(ModelAdapter* ma) :
+VisibleRange::VisibleRange(ModelAdapter* ma) : QObject(),
     d_ptr(new VisibleRangePrivate()), s_ptr(new VisibleRangeSync())
 {
     d_ptr->m_pModelAdapter = ma;
+    d_ptr->m_pReflector    = new TreeTraversalReflector(ma->view());
 
-    QObject::connect(ma, &ModelAdapter::modelChanged,
+    connect(ma, &ModelAdapter::modelChanged,
         d_ptr, &VisibleRangePrivate::slotModelChanged);
-    QObject::connect(ma->view(), &Flickable::viewportChanged,
+    connect(ma->view(), &Flickable::viewportChanged,
         d_ptr, &VisibleRangePrivate::slotViewportChanged);
+    connect(ma, &ModelAdapter::delegateChanged,
+        d_ptr->m_pReflector, &TreeTraversalReflector::resetEverything);
 
     d_ptr->slotModelChanged(ma->rawModel());
+
+    connect(d_ptr->m_pReflector, &TreeTraversalReflector::contentChanged,
+        this, &VisibleRange::contentChanged);
 }
 
 QRectF VisibleRange::currentRect() const
 {
     return {};
 }
-
 
 QSizeF AbstractItemAdapter::sizeHint() const
 {
@@ -114,7 +121,7 @@ QSizeF VisibleRangePrivate::sizeHint(AbstractItemAdapter* item) const
         case VisibleRange::SizeHintStrategy::PROXY:
             Q_ASSERT(m_ModelHasSizeHints);
 
-            ret = qobject_cast<SizeHintProxyModel*>(m_pModel)
+            ret = qobject_cast<SizeHintProxyModel*>(m_pModelAdapter->rawModel())
                 ->sizeHintForIndex(item->index());
 
             static int i = 0;
@@ -149,15 +156,22 @@ void VisibleRange::setSizeHintRole(const QString& s)
 {
     d_ptr->m_SizeHintRole = s.toLatin1();
 
-    if (!d_ptr->m_SizeHintRole.isEmpty() && d_ptr->m_pModel)
-        d_ptr->m_SizeHintRoleIndex = d_ptr->m_pModel->roleNames().key(
+    if (!d_ptr->m_SizeHintRole.isEmpty() && d_ptr->m_pModelAdapter->rawModel())
+        d_ptr->m_SizeHintRoleIndex = d_ptr->m_pModelAdapter->rawModel()->roleNames().key(
             d_ptr->m_SizeHintRole
         );
 }
 
+void VisibleRangePrivate::slotModelAboutToChange(QAbstractItemModel* m, QAbstractItemModel* o)
+{
+    if (o)
+        disconnect(o, &QAbstractItemModel::dataChanged,
+            this, &VisibleRangePrivate::slotDataChanged);
+}
+
 void VisibleRangePrivate::slotModelChanged(QAbstractItemModel* m)
 {
-    m_pModel = m;
+    m_pReflector->setModel(m);
 
     // Check if the proxyModel is used
     m_ModelHasSizeHints = m && m->metaObject()->inherits(
@@ -168,6 +182,12 @@ void VisibleRangePrivate::slotModelChanged(QAbstractItemModel* m)
         m_SizeHintRoleIndex = m->roleNames().key(
             m_SizeHintRole
         );
+
+    if (m)
+        connect(m, &QAbstractItemModel::dataChanged,
+            this, &VisibleRangePrivate::slotDataChanged);
+
+    m_pReflector->populate();
 }
 
 void VisibleRangePrivate::slotViewportChanged(const QRectF &viewport)
@@ -207,6 +227,9 @@ bool VisibleRange::isTotalSizeKnown() const
     if (!d_ptr->m_pModelAdapter->delegate())
         return false;
 
+    if (!d_ptr->m_pModelAdapter->rawModel())
+        return true;
+
     switch(d_ptr->m_SizeStrategy) {
         case VisibleRange::SizeHintStrategy::JIT:
             return false;
@@ -215,9 +238,58 @@ bool VisibleRange::isTotalSizeKnown() const
     }
 }
 
-QRectF VisibleRange::totalSize() const
+QSizeF VisibleRange::totalSize() const
 {
+    if ((!d_ptr->m_pModelAdapter->delegate()) || !d_ptr->m_pModelAdapter->rawModel())
+        return {0.0, 0.0};
+
     return {}; //TODO
+}
+
+AbstractItemAdapter* VisibleRange::itemForIndex(const QModelIndex& idx) const
+{
+    return d_ptr->m_pReflector->itemForIndex(idx);
+}
+
+//TODO remove this content and check each range
+void VisibleRangePrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& br)
+{
+    if (tl.model() && tl.model() != m_pModelAdapter->rawModel()) {
+        Q_ASSERT(false);
+        return;
+    }
+
+    if (br.model() && br.model() != m_pModelAdapter->rawModel()) {
+        Q_ASSERT(false);
+        return;
+    }
+
+    if ((!tl.isValid()) || (!br.isValid()))
+        return;
+
+    if (!m_pReflector->isActive(tl.parent(), tl.row(), br.row()))
+        return;
+
+    //FIXME tolerate other cases
+    Q_ASSERT(m_pModelAdapter->rawModel());
+    Q_ASSERT(tl.model() == m_pModelAdapter->rawModel() && br.model() == m_pModelAdapter->rawModel());
+    Q_ASSERT(tl.parent() == br.parent());
+
+    //TODO Use a smaller range when possible
+
+    //itemForIndex(const QModelIndex& idx) const final override;
+    for (int i = tl.row(); i <= br.row(); i++) {
+        const auto idx = m_pModelAdapter->rawModel()->index(i, tl.column(), tl.parent());
+        if (auto item = m_pReflector->itemForIndex(idx))
+            item->s_ptr->performAction(VisualTreeItem::ViewAction::UPDATE);
+    }
+}
+
+void VisibleRange::setItemFactory(ViewBase::ItemFactoryBase *factory)
+{
+    d_ptr->m_pReflector->setItemFactory([this, factory]() -> AbstractItemAdapter* {
+        return factory->create(this);
+    });
 }
 
 #include <visiblerange.moc>

@@ -35,7 +35,7 @@
 class HierarchyViewItem : public AbstractItemAdapter
 {
 public:
-    explicit HierarchyViewItem(SingleModelViewBase* v, VisibleRange* r);
+    explicit HierarchyViewItem(VisibleRange* r);
     virtual ~HierarchyViewItem();
 
     // Actions
@@ -62,7 +62,7 @@ public:
     HierarchyView* q_ptr;
 };
 
-HierarchyView::HierarchyView(QQuickItem* parent) : SingleModelViewBase(parent),
+HierarchyView::HierarchyView(QQuickItem* parent) : SingleModelViewBase(new ItemFactory<HierarchyViewItem>(), parent),
     d_ptr(new HierarchyViewPrivate)
 {
     d_ptr->q_ptr = this;
@@ -73,14 +73,7 @@ HierarchyView::~HierarchyView()
     delete d_ptr;
 }
 
-AbstractItemAdapter* HierarchyView::createItem(VisibleRange* r) const
-{
-    return new HierarchyViewItem(
-        const_cast<HierarchyView*>(this), r
-    );
-}
-
-HierarchyViewItem::HierarchyViewItem(SingleModelViewBase* p, VisibleRange* r) : AbstractItemAdapter(p, r)
+HierarchyViewItem::HierarchyViewItem(VisibleRange* r) : AbstractItemAdapter(r)
 {
 }
 

@@ -161,7 +161,7 @@ QQuickItem* Flickable::contentItem()
     return d_ptr->m_pContainer;
 }
 
-QRectF Flickable::visibleRect() const
+QRectF Flickable::viewport() const
 {
     return {
         0.0,
@@ -194,6 +194,7 @@ void Flickable::setCurrentY(qreal y)
     d_ptr->m_pContainer->setY(-y);
 
     emit currentYChanged(y);
+    emit viewportChanged(viewport());
     emit percentageChanged(
         ((-d_ptr->m_pContainer->y()))/(d_ptr->m_pContainer->height()-height())
     );
@@ -310,6 +311,8 @@ void Flickable::geometryChanged(const QRectF& newGeometry, const QRectF& oldGeom
 
     //TODO prevent out of scope
     QQuickItem::geometryChanged(newGeometry, oldGeometry);
+
+    emit viewportChanged(viewport());
 }
 
 /// State functions ///

@@ -57,7 +57,7 @@ public:
      *
      * It is usually {0, currentY, height, width}.
      */
-    Q_PROPERTY(QRectF visibleRect READ visibleRect NOTIFY currentYChanged)
+    Q_PROPERTY(QRectF viewport READ viewport NOTIFY viewportChanged)
 
     explicit Flickable(QQuickItem* parent = nullptr);
     virtual ~Flickable();
@@ -65,7 +65,7 @@ public:
     qreal currentY() const;
     virtual void setCurrentY(qreal y);
 
-    QRectF visibleRect() const;
+    QRectF viewport() const;
 
     qreal contentHeight() const;
 
@@ -91,6 +91,7 @@ Q_SIGNALS:
     void percentageChanged(qreal percent);
     void draggingChanged(bool dragging);
     void movingChanged(bool dragging);
+    void viewportChanged(const QRectF &view);
 
 protected:
     bool event(QEvent *ev) override;

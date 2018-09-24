@@ -25,7 +25,6 @@
 struct TreeTraversalItems;
 class VisualTreeItem;
 class TreeTraversalReflectorPrivate;
-class VisibleRange;
 class AbstractItemAdapter;
 
 
@@ -66,14 +65,7 @@ public:
     bool isActive(const QModelIndex& parent, int first, int last); //TODO move to range
 
     //TODO remove those temporary helpers once its encapsulated
-    void refreshEverything();
-    void reloadRange(const QModelIndex& idx);
     void moveEverything();
-
-    // Mutator
-    bool addRange(VisibleRange* range);
-    bool removeRange(VisibleRange* range);
-    QVector<VisibleRange*> ranges() const;
 
     // Setters
     void setItemFactory(std::function<AbstractItemAdapter*()> factory);

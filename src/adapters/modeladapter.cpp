@@ -51,7 +51,8 @@ public:
     TreeTraversalReflector *m_pReflector          {nullptr};
     VisibleRange           *m_pRange              {nullptr};
     SelectionAdapter       *m_pSelectionManager   {nullptr};
-    ContextAdapterFactory         *m_pRoleContextAdapterFactory {nullptr};
+    ViewBase               *m_pView               {nullptr};
+    ContextAdapterFactory  *m_pRoleContextFactory {nullptr};
 
     bool m_Collapsable {true };
     bool m_AutoExpand  {false};
@@ -77,7 +78,9 @@ public Q_SLOTS:
 ModelAdapter::ModelAdapter(ViewBase* parent) : QObject(parent),
     d_ptr(new ModelAdapterPrivate())
 {
+    Q_ASSERT(parent);
     d_ptr->q_ptr = this;
+    d_ptr->m_pView = parent;
     d_ptr->m_pSelectionManager = new SelectionAdapter(this);
 
     d_ptr->m_pReflector = new TreeTraversalReflector(parent);
@@ -85,7 +88,6 @@ ModelAdapter::ModelAdapter(ViewBase* parent) : QObject(parent),
     contextAdapterFactory()->addContextExtension(selectionAdapter()->contextExtension());
 
     d_ptr->m_pRange = new VisibleRange(this);
-    d_ptr->m_pReflector->addRange(d_ptr->m_pRange);
 
     d_ptr->m_pReflector->setItemFactory([this, parent]() -> AbstractItemAdapter* {
         auto ret = parent->createItem(d_ptr->m_pRange);
@@ -286,23 +288,23 @@ SelectionAdapter* ModelAdapter::selectionAdapter() const
 
 ContextAdapterFactory* ModelAdapter::contextAdapterFactory() const
 {
-    if (!d_ptr->m_pRoleContextAdapterFactory)
-        d_ptr->m_pRoleContextAdapterFactory = new ContextAdapterFactory();
+    if (!d_ptr->m_pRoleContextFactory)
+        d_ptr->m_pRoleContextFactory = new ContextAdapterFactory();
 
-    return d_ptr->m_pRoleContextAdapterFactory;
+    return d_ptr->m_pRoleContextFactory;
 }
 
 void ModelAdapter::setContextAdapterFactory(ContextAdapterFactory* cm)
 {
     // It cannot (yet) be replaced.
-    Q_ASSERT(!d_ptr->m_pRoleContextAdapterFactory);
+    Q_ASSERT(!d_ptr->m_pRoleContextFactory);
 
-    d_ptr->m_pRoleContextAdapterFactory = cm;
+    d_ptr->m_pRoleContextFactory = cm;
 }
 
 QVector<VisibleRange*> ModelAdapter::visibleRanges() const
 {
-    return d_ptr->m_pReflector->ranges();
+    return {d_ptr->m_pRange};
 }
 
 void ModelAdapterPrivate::slotContentChanged()
@@ -365,6 +367,11 @@ void ModelAdapterPrivate::slotDataChanged(const QModelIndex& tl, const QModelInd
 AbstractItemAdapter* ModelAdapter::itemForIndex(const QModelIndex& idx) const
 {
     return d_ptr->m_pReflector->itemForIndex(idx);
+}
+
+ViewBase *ModelAdapter::view() const
+{
+    return d_ptr->m_pView;
 }
 
 #include <modeladapter.moc>

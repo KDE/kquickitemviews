@@ -323,16 +323,6 @@ int VisualTreeItem::depth() const
     return 0;//FIXME m_pTTI->m_Depth;
 }
 
-bool VisualTreeItem::fitsInView() const
-{
-    const auto geo  = geometry();
-    const auto v    = view()->visibleRect();
-
-    //TODO support horizontal visibility
-    return geo.y() >= v.y()
-        && (geo.y() <= v.y() + v.height());
-}
-
 QPair<QWeakPointer<AbstractItemAdapter::SelectionLocker>, AbstractItemAdapter*>
 AbstractItemAdapter::weakReference() const
 {

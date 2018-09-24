@@ -130,13 +130,6 @@ ViewBase::~ViewBase()
 void ViewBase::geometryChanged(const QRectF& newGeometry, const QRectF& oldGeometry)
 {
     Q_UNUSED(oldGeometry)
-    // Resize the visible ranges
-    for (auto ma : qAsConst(d_ptr->m_lAdapters)) {
-        const auto ranges = ma->visibleRanges();
-        for (auto vr : qAsConst(ranges))
-            vr->setSize(newGeometry.size());
-    }
-
     contentItem()->setWidth(newGeometry.width());
 }
 
@@ -172,13 +165,6 @@ bool ViewBasePrivate::resetScoll()
 
 bool ViewBasePrivate::refresh()
 {
-    // Move the visible ranges
-    for (auto ma : qAsConst(m_lAdapters)) {
-        const auto ranges = ma->visibleRanges();
-        for (auto vr : qAsConst(ranges))
-            vr->setPosition(QPointF(0.0, q_ptr->currentY()));
-    }
-
     return true;
 }
 

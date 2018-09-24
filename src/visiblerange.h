@@ -43,11 +43,12 @@ public:
 
     /// Some strategies to get the item size with or without loading them.
     enum class SizeHintStrategy {
-        AOT    , /*!< Load everything ahead of time, doesn't scale but very reliable */
-        JIT    , /*!< Do not try to compute the total size, scrollbars wont work     */
-        UNIFORM, /*!< Assume all elements have the same size, scales well when true  */
-        PROXY  , /*!< Use a QSizeHintProxyModel, require work by all developers      */
-        ROLE   , /*!< Use one of the QAbstractItemModel role as size                 */
+        AOT     , /*!< Load everything ahead of time, doesn't scale but very reliable */
+        JIT     , /*!< Do not try to compute the total size, scrollbars wont work     */
+        UNIFORM , /*!< Assume all elements have the same size, scales well when true  */
+        PROXY   , /*!< Use a QSizeHintProxyModel, require work by all developers      */
+        ROLE    , /*!< Use one of the QAbstractItemModel role as size                 */
+        DELEGATE, /*!< Assume the view re-implemented ::sizeHint is correct           */
     };
 
     explicit VisibleRange(ModelAdapter* ma);
@@ -64,15 +65,15 @@ public:
     SizeHintStrategy sizeHintStrategy() const;
     void setSizeHintStrategy(SizeHintStrategy s);
 
-    virtual void applyModelChanges(QAbstractItemModel* m);
-
     ModelAdapter *modelAdapter() const;
 
     QSizeF size() const;
-    void setSize(const QSizeF &size);
 
     QPointF position() const;
-    void setPosition(const QPointF& point);
+
+    bool isTotalSizeKnown() const;
+
+    QRectF totalSize() const;
 
 private:
     VisibleRangePrivate *d_ptr;

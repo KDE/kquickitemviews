@@ -101,18 +101,11 @@ public:
     /// Reference to the item own view
     ViewBase* view() const;
 
-    /// Visibility relative to the displayed window of the ViewBase::view()
-    bool isVisible() const;
-    bool fitsInView() const;
-
     /// Allow implementations to be notified when it becomes selected
     virtual void setSelected(bool) final;
 
     /// Geometry relative to the ViewBase::view()
     virtual QRectF geometry() const final;
-
-
-    //TODO ::above() and ::firstBelow() and ::lastBelow()
 
     virtual QQuickItem* item() const final;
 
@@ -121,8 +114,8 @@ public:
 
     mutable ViewItemContextAdapter* m_pContextAdapter {nullptr};
 
-    VisibleRange* m_pRange {nullptr};
-    BlockMetadata* m_pPos {nullptr};
+    VisibleRange  *m_pRange {nullptr};
+    BlockMetadata *m_pPos   {nullptr};
 
     bool performAction(ViewAction); //FIXME make private, remove #include
 

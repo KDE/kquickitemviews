@@ -48,6 +48,4 @@ class VisibleRangeSync final
 {
 public:
     inline void updateSingleItem(const QModelIndex& index, BlockMetadata* b);
-
-    TreeTraversalReflector *m_pReflector {nullptr};
 };

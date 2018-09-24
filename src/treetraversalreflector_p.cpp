@@ -25,6 +25,7 @@
 
 // Qt
 #include <QQmlComponent>
+#include <QtCore/QDebug>
 
 // Use some constant for readability
 #define PREVIOUS 0
@@ -106,6 +107,8 @@ struct TreeTraversalItems
     QPersistentModelIndex m_Index;
     VisualTreeItem* m_pTreeItem {nullptr};
 
+    //TODO keep the absolute index of the GC circular buffer
+
     TreeTraversalReflectorPrivate* d_ptr;
 };
 
@@ -127,12 +130,16 @@ public:
 
     TreeTraversalItems* m_pRoot {new TreeTraversalItems(nullptr, this)};
 
+    //TODO add a circular buffer to GC the items
+    // * relative index: when to trigger GC
+    // * absolute array index: kept in the TreeTraversalItems so it can
+    //   remove itself
+
     /// All elements with loaded children
     QHash<QPersistentModelIndex, TreeTraversalItems*> m_hMapper;
     QAbstractItemModel* m_pModel {nullptr};
     std::function<AbstractItemAdapter*()> m_fFactory;
     TreeTraversalReflector* q_ptr;
-    QVector<VisibleRange*> m_lRanges;
 
     // Tests
     void _test_validateTree(TreeTraversalItems* p);
@@ -263,11 +270,12 @@ bool TreeTraversalItems::error()
 
 bool TreeTraversalItems::updateVisibility()
 {
+
     //TODO support horizontal visibility
 
 //     const auto sh = sizeHint();
 
-    const bool isVisible = m_pTreeItem && m_pTreeItem->fitsInView();
+    const bool isVisible = true; //FIXME
 
     //TODO this is a cheap workaround, it leaves the m_tVisibleTTIRange in a
     // potentially broken state
@@ -1133,32 +1141,6 @@ AbstractItemAdapter* TreeTraversalReflector::itemForIndex(const QModelIndex& idx
     return tti && tti->m_pTreeItem ? tti->m_pTreeItem->d_ptr : nullptr;
 }
 
-bool TreeTraversalReflector::addRange(VisibleRange* range)
-{
-    Q_ASSERT(!range->s_ptr->m_pReflector);
-
-    range->s_ptr->m_pReflector = this;
-    d_ptr->m_lRanges << range;
-    return false;
-}
-
-bool TreeTraversalReflector::removeRange(VisibleRange* range)
-{
-    Q_UNUSED(range)
-    Q_ASSERT(false); //TODO
-    return false;
-}
-
-QVector<VisibleRange*> TreeTraversalReflector::ranges() const
-{
-    return d_ptr->m_lRanges;
-}
-
-bool VisualTreeItem::isVisible() const
-{
-    return m_pTTI->m_State == TreeTraversalItems::State::VISIBLE;
-}
-
 QPersistentModelIndex VisualTreeItem::index() const
 {
     return m_pTTI->m_Index;
@@ -1233,32 +1215,9 @@ int VisualTreeItem::column() const
 }
 
 //TODO remove
-void TreeTraversalReflector::refreshEverything()
-{
-    for (auto i = d_ptr->m_pRoot->m_hLookup.constBegin(); i != d_ptr->m_pRoot->m_hLookup.constEnd(); i++)
-        i.value()->performAction(TreeTraversalItems::Action::UPDATE);
-}
-
-//TODO remove
 void TreeTraversalReflector::moveEverything()
 {
     d_ptr->m_pRoot->performAction(TreeTraversalItems::Action::MOVE);
-}
-
-//TODO remove
-void TreeTraversalReflector::reloadRange(const QModelIndex& idx)
-{
-    if (auto p = d_ptr->ttiForIndex(idx)) {
-        auto c = p->m_tChildren[FIRST];
-
-        while (c && c != p->m_tChildren[LAST]) {
-            if (c->m_pTreeItem) {
-                c->m_pTreeItem->performAction( VisualTreeItem::ViewAction::UPDATE );
-                c->m_pTreeItem->performAction( VisualTreeItem::ViewAction::MOVE   );
-            }
-            c = c->m_tSiblings[NEXT];
-        }
-    }
 }
 
 #undef PREVIOUS

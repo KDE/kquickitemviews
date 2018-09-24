@@ -25,11 +25,14 @@
 #include "visiblerange_p.h"
 #include "proxies/sizehintproxymodel.h"
 #include "treetraversalreflector_p.h"
+#include "adapters/modeladapter.h"
 #include "adapters/abstractitemadapter_p.h"
 #include "adapters/abstractitemadapter.h"
+#include "viewbase.h"
 
-class VisibleRangePrivate
+class VisibleRangePrivate : public QObject
 {
+    Q_OBJECT
 public:
     QQmlEngine* m_pEngine {nullptr};
     ModelAdapter* m_pModelAdapter;
@@ -46,12 +49,23 @@ public:
     QSizeF m_Size;
 
     QSizeF sizeHint(AbstractItemAdapter* item) const;
+
+public Q_SLOTS:
+    void slotModelChanged(QAbstractItemModel* m);
+    void slotViewportChanged(const QRectF &viewport);
 };
 
 VisibleRange::VisibleRange(ModelAdapter* ma) :
     d_ptr(new VisibleRangePrivate()), s_ptr(new VisibleRangeSync())
 {
     d_ptr->m_pModelAdapter = ma;
+
+    QObject::connect(ma, &ModelAdapter::modelChanged,
+        d_ptr, &VisibleRangePrivate::slotModelChanged);
+    QObject::connect(ma->view(), &Flickable::viewportChanged,
+        d_ptr, &VisibleRangePrivate::slotViewportChanged);
+
+    d_ptr->slotModelChanged(ma->rawModel());
 }
 
 QRectF VisibleRange::currentRect() const
@@ -108,6 +122,7 @@ QSizeF VisibleRangePrivate::sizeHint(AbstractItemAdapter* item) const
 
             break;
         case VisibleRange::SizeHintStrategy::ROLE:
+        case VisibleRange::SizeHintStrategy::DELEGATE:
             Q_ASSERT(false);
             break;
     }
@@ -140,19 +155,25 @@ void VisibleRange::setSizeHintRole(const QString& s)
         );
 }
 
-void VisibleRange::applyModelChanges(QAbstractItemModel* m)
+void VisibleRangePrivate::slotModelChanged(QAbstractItemModel* m)
 {
-    d_ptr->m_pModel = m;
+    m_pModel = m;
 
     // Check if the proxyModel is used
-    d_ptr->m_ModelHasSizeHints = m->metaObject()->inherits(
+    m_ModelHasSizeHints = m && m->metaObject()->inherits(
         &SizeHintProxyModel::staticMetaObject
     );
 
-    if (!d_ptr->m_SizeHintRole.isEmpty() && m)
-        d_ptr->m_SizeHintRoleIndex = m->roleNames().key(
-            d_ptr->m_SizeHintRole
+    if (!m_SizeHintRole.isEmpty() && m)
+        m_SizeHintRoleIndex = m->roleNames().key(
+            m_SizeHintRole
         );
+}
+
+void VisibleRangePrivate::slotViewportChanged(const QRectF &viewport)
+{
+    m_Position = viewport.topLeft();
+    m_Size = viewport.size();
 }
 
 ModelAdapter *VisibleRange::modelAdapter() const
@@ -165,22 +186,9 @@ QSizeF VisibleRange::size() const
     return d_ptr->m_Size;
 }
 
-void VisibleRange::setSize(const QSizeF &size)
-{
-    d_ptr->m_Size = size;
-    Q_ASSERT(s_ptr->m_pReflector);
-    s_ptr->m_pReflector->moveEverything();
-}
-
 QPointF VisibleRange::position() const
 {
     return d_ptr->m_Position;
-}
-
-void VisibleRange::setPosition(const QPointF& point)
-{
-    Q_ASSERT(false); //FIXME so I don't forget
-    d_ptr->m_Position = point;
 }
 
 VisibleRange::SizeHintStrategy VisibleRange::sizeHintStrategy() const
@@ -193,3 +201,23 @@ void VisibleRange::setSizeHintStrategy(VisibleRange::SizeHintStrategy s)
     Q_ASSERT(false); //TODO invalidate the cache
     d_ptr->m_SizeStrategy = s;
 }
+
+bool VisibleRange::isTotalSizeKnown() const
+{
+    if (!d_ptr->m_pModelAdapter->delegate())
+        return false;
+
+    switch(d_ptr->m_SizeStrategy) {
+        case VisibleRange::SizeHintStrategy::JIT:
+            return false;
+        default:
+            return true;
+    }
+}
+
+QRectF VisibleRange::totalSize() const
+{
+    return {}; //TODO
+}
+
+#include <visiblerange.moc>

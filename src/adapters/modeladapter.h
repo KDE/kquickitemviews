@@ -67,7 +67,7 @@ public:
     };
     Q_ENUM(RecyclingMode)
 
-    explicit ModelAdapter(ViewBase* parent = nullptr);
+    explicit ModelAdapter(ViewBase *parent = nullptr);
     virtual ~ModelAdapter();
 
     QVariant model() const;
@@ -102,6 +102,8 @@ public:
     QVector<VisibleRange*> visibleRanges() const;
 
     QAbstractItemModel *rawModel() const;
+
+    ViewBase *view() const;
 
     AbstractItemAdapter* itemForIndex(const QModelIndex& idx) const; //FIXME remove
 

@@ -19,6 +19,10 @@
 
 // KQuickItemViews
 #include "adapters/abstractitemadapter.h"
+#include "extensions/contextextension.h"
+#include "adapters/modeladapter.h"
+#include "contextadapterfactory.h"
+#include "adapters/contextadapter.h"
 
 // Qt
 #include <QQmlContext>
@@ -46,6 +50,16 @@ private:
     bool m_IsHead { false };
 };
 
+/// Add the same property as the QtQuick.ListView
+class TreeContextProperties final : public ContextExtension
+{
+public:
+    virtual ~TreeContextProperties() {}
+    virtual QVector<QByteArray>& propertyNames() const override;
+    virtual QVariant getProperty(AbstractItemAdapter* item, uint id, const QModelIndex& index) const override;
+    virtual void setProperty(AbstractItemAdapter* item, uint id, const QVariant& value) const override;
+};
+
 class TreeViewPrivate
 {
 public:
@@ -54,6 +68,9 @@ public:
 TreeView::TreeView(QQuickItem* parent) : SingleModelViewBase(new ItemFactory<TreeViewItem>(), parent),
     d_ptr(new TreeViewPrivate)
 {
+    modelAdapters().first()->contextAdapterFactory()->addContextExtension(
+        new TreeContextProperties()
+    );
 }
 
 TreeView::~TreeView()
@@ -151,4 +168,22 @@ bool TreeViewItem::remove()
     }
 
     return true;
+}
+
+QVector<QByteArray>& TreeContextProperties::propertyNames() const
+{
+    static QVector<QByteArray> ret { "expanded" };
+    return ret;
+}
+
+QVariant TreeContextProperties::getProperty(AbstractItemAdapter* item, uint id, const QModelIndex& index) const
+{
+    Q_ASSERT(id == 0 && item);
+    return !item->isCollapsed();
+}
+
+void TreeContextProperties::setProperty(AbstractItemAdapter* item, uint id, const QVariant& value) const
+{
+    Q_ASSERT(id == 0 && item && value.canConvert<bool>());
+    item->setCollapsed(!value.toBool());
 }

@@ -119,6 +119,7 @@ public:
 
     // Managed by the Viewport
     Qt::Edges m_IsEdge {};
+    bool m_IsCollapsed {false}; //TODO change the default to true
 
     bool performAction(ViewAction); //FIXME make private, remove #include
 

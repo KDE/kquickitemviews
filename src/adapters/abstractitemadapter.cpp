@@ -570,3 +570,13 @@ void VisualTreeItem::updateGeometry()
 
     m_pRange->s_ptr->geometryUpdated(this);
 }
+
+void AbstractItemAdapter::setCollapsed(bool v)
+{
+    s_ptr->m_IsCollapsed = v;
+}
+
+bool AbstractItemAdapter::isCollapsed() const
+{
+    return s_ptr->m_IsCollapsed;
+}

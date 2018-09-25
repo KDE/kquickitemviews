@@ -204,6 +204,11 @@ public:
      */
     virtual QRectF geometry() const;
 
+    /**
+     * Set if the children of this item should be skipped from the view.
+     */
+    void setCollapsed(bool v);
+    bool isCollapsed() const;
 
     /**
      * Implement this function when selecting an item require extra operations

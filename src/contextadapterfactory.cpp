@@ -69,7 +69,7 @@ struct MetaRole
 struct GroupMetaData
 {
     ContextExtension* ptr;
-    int offset;
+    uint offset;
 };
 
 /**

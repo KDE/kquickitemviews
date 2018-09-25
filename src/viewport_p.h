@@ -42,15 +42,15 @@ struct BlockMetadata
 
 /**
  * In order to keep the separation of concerns design goal intact, this
- * interface between the TreeTraversalReflector and VisibleRange internal
+ * interface between the TreeTraversalReflector and Viewport internal
  * metadata without exposing them.
  */
-class VisibleRangeSync final
+class ViewportSync final
 {
 public:
     void geometryUpdated(VisualTreeItem* item);
 
     inline void updateSingleItem(const QModelIndex& index, BlockMetadata* b);
 
-    VisibleRange *q_ptr;
+    Viewport *q_ptr;
 };

@@ -35,7 +35,7 @@
 class HierarchyViewItem final : public AbstractItemAdapter
 {
 public:
-    explicit HierarchyViewItem(VisibleRange* r);
+    explicit HierarchyViewItem(Viewport* r);
     virtual ~HierarchyViewItem();
 
     // Actions
@@ -67,7 +67,7 @@ HierarchyView::~HierarchyView()
     delete d_ptr;
 }
 
-HierarchyViewItem::HierarchyViewItem(VisibleRange* r) : AbstractItemAdapter(r)
+HierarchyViewItem::HierarchyViewItem(Viewport* r) : AbstractItemAdapter(r)
 {
 }
 

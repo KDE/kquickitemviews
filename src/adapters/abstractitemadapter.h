@@ -25,7 +25,7 @@ class QQmlContext;
 class AbstractItemAdapterPrivate;
 class VisualTreeItem;
 class ViewBase;
-class VisibleRange;
+class Viewport;
 
 /**
  * This class must be extended by the views to bind QModelIndex with a GUI element.
@@ -43,7 +43,7 @@ class VisibleRange;
  *
  * These objects are created if and only if those 2 conditions are met:
  *
- *  * The QModelIndex is currently part of a tracked range (see VisibleRange).
+ *  * The QModelIndex is currently part of a tracked range (see Viewport).
  *  * It didn't fail to load.
  *
  * If the overloaded functions returns false, then the consumer of this
@@ -68,11 +68,11 @@ class AbstractItemAdapter
     friend class ViewBasePrivate; //notify when the view is resized
     friend class AbstractItemAdapterPrivate; // d_ptr (Q_DECLARE_PRIVATE)
     friend class ViewItemContextAdapter;
-    friend class VisibleRangePrivate; // Manage the geometry and size hints
+    friend class ViewportPrivate; // Manage the geometry and size hints
     friend class ModelAdapterPrivate; //TODO remove
 
 public:
-    explicit AbstractItemAdapter(VisibleRange* r);
+    explicit AbstractItemAdapter(Viewport* r);
     virtual ~AbstractItemAdapter();
 
     ViewBase* view() const;
@@ -93,7 +93,7 @@ public:
      */
     virtual QQuickItem *item() const;
 
-    VisibleRange *visibleRange() const;
+    Viewport *viewport() const;
 
     /**
      * The external state if the item.

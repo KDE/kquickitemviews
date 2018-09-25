@@ -21,7 +21,7 @@
 #include "adapters/selectionadapter.h"
 #include "adapters/contextadapter.h"
 #include "adapters/modeladapter.h"
-#include "visiblerange.h"
+#include "viewport.h"
 
 class SingleModelViewBasePrivate
 {
@@ -40,7 +40,7 @@ SingleModelViewBase::SingleModelViewBase(ItemFactoryBase *factory, QQuickItem* p
     d_ptr->m_pModelAdapter = new ModelAdapter(this);
     addModelAdapter(d_ptr->m_pModelAdapter);
 
-    d_ptr->m_pModelAdapter->visibleRanges().first()->setItemFactory(factory);
+    d_ptr->m_pModelAdapter->viewports().first()->setItemFactory(factory);
 
     auto sm = d_ptr->m_pModelAdapter->selectionAdapter();
 
@@ -140,8 +140,8 @@ void SingleModelViewBase::setCurrentIndex(const QModelIndex& index, QItemSelecti
 
 bool SingleModelViewBase::hasUniformRowHeight() const
 {
-    return d_ptr->m_pModelAdapter->visibleRanges().constFirst()->
-        sizeHintStrategy() == VisibleRange::SizeHintStrategy::UNIFORM;
+    return d_ptr->m_pModelAdapter->viewports().constFirst()->
+        sizeHintStrategy() == Viewport::SizeHintStrategy::UNIFORM;
 }
 
 void SingleModelViewBase::setUniformRowHeight(bool value)
@@ -152,8 +152,8 @@ void SingleModelViewBase::setUniformRowHeight(bool value)
 
 bool SingleModelViewBase::hasUniformColumnWidth() const
 {
-    return d_ptr->m_pModelAdapter->visibleRanges().constFirst()->
-        sizeHintStrategy() == VisibleRange::SizeHintStrategy::UNIFORM;
+    return d_ptr->m_pModelAdapter->viewports().constFirst()->
+        sizeHintStrategy() == Viewport::SizeHintStrategy::UNIFORM;
 }
 
 void SingleModelViewBase::setUniformColumnColumnWidth(bool value)

@@ -23,7 +23,7 @@ struct TreeTraversalItems;
 class AbstractItemAdapter;
 class ViewItemContextAdapter;
 class ContextAdapter;
-class VisibleRange;
+class Viewport;
 struct BlockMetadata;
 
 // Qt
@@ -50,7 +50,7 @@ class VisualTreeItem
     friend class AbstractItemAdapter;
 public:
 
-    explicit VisualTreeItem(ViewBase* p, VisibleRange* r) :
+    explicit VisualTreeItem(ViewBase* p, Viewport* r) :
         m_pRange(r), m_pView(p) {}
 
     virtual ~VisualTreeItem() {}
@@ -114,10 +114,10 @@ public:
 
     mutable ViewItemContextAdapter* m_pContextAdapter {nullptr};
 
-    VisibleRange  *m_pRange {nullptr};
+    Viewport  *m_pRange {nullptr};
     BlockMetadata *m_pPos   {nullptr};
 
-    // Managed by the VisibleRange
+    // Managed by the Viewport
     Qt::Edges m_IsEdge {};
 
     bool performAction(ViewAction); //FIXME make private, remove #include

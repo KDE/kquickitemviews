@@ -20,8 +20,8 @@
 // KQuickItemViews
 #include "adapters/abstractitemadapter_p.h"
 #include "adapters/abstractitemadapter.h"
-#include "visiblerange.h"
-#include "visiblerange_p.h"
+#include "viewport.h"
+#include "viewport_p.h"
 
 // Qt
 #include <QQmlComponent>

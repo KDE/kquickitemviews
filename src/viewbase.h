@@ -30,7 +30,7 @@ class ViewBaseSync;
 class ViewBase;
 class AbstractItemAdapter;
 class ModelAdapter;
-class VisibleRange;
+class Viewport;
 class ViewBaseItemVariables;
 
 /**
@@ -57,11 +57,11 @@ class ViewBase : public Flickable
     friend class ModelAdapter; // call createItem
 public:
     struct ItemFactoryBase {
-        virtual AbstractItemAdapter* create(VisibleRange* r) const = 0;
+        virtual AbstractItemAdapter* create(Viewport* r) const = 0;
     };
 
     template<typename T> struct ItemFactory final : public ItemFactoryBase {
-        virtual AbstractItemAdapter* create(VisibleRange* r) const override {
+        virtual AbstractItemAdapter* create(Viewport* r) const override {
             return new T(r);
         }
     };

@@ -24,7 +24,7 @@
 #include <QtCore/QDebug>
 
 // KQuickItemViews
-#include "visiblerange.h"
+#include "viewport.h"
 #include "viewbase.h"
 #include "selectionadapter.h"
 #include "contextadapterfactory.h"
@@ -47,7 +47,7 @@ public:
     QSharedItemModel        m_pModelPtr           {       };
     QAbstractItemModel     *m_pRawModel           {nullptr};
     QQmlComponent          *m_pDelegate           {nullptr};
-    VisibleRange           *m_pRange              {nullptr};
+    Viewport           *m_pRange              {nullptr};
     SelectionAdapter       *m_pSelectionManager   {nullptr};
     ViewBase               *m_pView               {nullptr};
     ContextAdapterFactory  *m_pRoleContextFactory {nullptr};
@@ -83,9 +83,9 @@ ModelAdapter::ModelAdapter(ViewBase* parent) : QObject(parent),
     selectionAdapter()->s_ptr->setView(parent);
     contextAdapterFactory()->addContextExtension(selectionAdapter()->contextExtension());
 
-    d_ptr->m_pRange = new VisibleRange(this);
+    d_ptr->m_pRange = new Viewport(this);
 
-    connect(d_ptr->m_pRange, &VisibleRange::contentChanged,
+    connect(d_ptr->m_pRange, &Viewport::contentChanged,
         d_ptr, &ModelAdapterPrivate::slotContentChanged);
 //     connect(d_ptr->m_pReflector, &TreeTraversalReflector::countChanged,
 //         d_ptr, &ModelAdapterPrivate::slotCountChanged);
@@ -280,7 +280,7 @@ void ModelAdapter::setContextAdapterFactory(ContextAdapterFactory* cm)
     d_ptr->m_pRoleContextFactory = cm;
 }
 
-QVector<VisibleRange*> ModelAdapter::visibleRanges() const
+QVector<Viewport*> ModelAdapter::viewports() const
 {
     return {d_ptr->m_pRange};
 }

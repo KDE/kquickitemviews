@@ -30,8 +30,8 @@
 #include "abstractitemadapter_p.h"
 #include "adapters/selectionadapter.h"
 #include "adapters/selectionadapter_p.h"
-#include "visiblerange.h"
-#include "visiblerange_p.h"
+#include "viewport.h"
+#include "viewport_p.h"
 #include "modeladapter.h"
 #include "viewbase.h"
 #include "contextadapterfactory.h"
@@ -138,7 +138,7 @@ const AbstractItemAdapterPrivate::StateF AbstractItemAdapterPrivate::m_fStateMac
 };
 #undef A
 
-AbstractItemAdapter::AbstractItemAdapter(VisibleRange* r) :
+AbstractItemAdapter::AbstractItemAdapter(Viewport* r) :
     d_ptr(new AbstractItemAdapterPrivate),
     s_ptr(new VisualTreeItem(r->modelAdapter()->view(), r))
 {
@@ -384,7 +384,7 @@ QQuickItem *AbstractItemAdapter::item() const
     return d_ptr->m_pItem;
 }
 
-VisibleRange *AbstractItemAdapter::visibleRange() const
+Viewport *AbstractItemAdapter::viewport() const
 {
     return s_ptr->m_pRange;
 }

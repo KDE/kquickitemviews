@@ -35,7 +35,7 @@
 class TreeViewItem final : public AbstractItemAdapter
 {
 public:
-    explicit TreeViewItem(VisibleRange* r);
+    explicit TreeViewItem(Viewport* r);
     virtual ~TreeViewItem();
 
     // Actions
@@ -61,7 +61,7 @@ TreeView::~TreeView()
     delete d_ptr;
 }
 
-TreeViewItem::TreeViewItem(VisibleRange* r) : AbstractItemAdapter(r)
+TreeViewItem::TreeViewItem(Viewport* r) : AbstractItemAdapter(r)
 {
 }
 

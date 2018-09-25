@@ -29,7 +29,7 @@
 #include "adapters/abstractitemadapter.h"
 #include "adapters/selectionadapter.h"
 #include "treetraversalreflector_p.h"
-#include "visiblerange.h"
+#include "viewport.h"
 #include "contextadapterfactory.h"
 #include "adapters/contextadapter.h"
 #include "adapters/modeladapter.h"

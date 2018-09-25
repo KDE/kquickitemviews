@@ -15,14 +15,14 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#include "visiblerange.h"
+#include "viewport.h"
 
 // Qt
 #include <QtCore/QDebug>
 #include <QQmlEngine>
 
 // KQuickItemViews
-#include "visiblerange_p.h"
+#include "viewport_p.h"
 #include "proxies/sizehintproxymodel.h"
 #include "treetraversalreflector_p.h"
 #include "adapters/modeladapter.h"
@@ -30,14 +30,14 @@
 #include "adapters/abstractitemadapter.h"
 #include "viewbase.h"
 
-class VisibleRangePrivate : public QObject
+class ViewportPrivate : public QObject
 {
     Q_OBJECT
 public:
     QQmlEngine* m_pEngine {nullptr};
     ModelAdapter* m_pModelAdapter;
 
-    VisibleRange::SizeHintStrategy m_SizeStrategy { VisibleRange::SizeHintStrategy::PROXY };
+    Viewport::SizeHintStrategy m_SizeStrategy { Viewport::SizeHintStrategy::PROXY };
 
     bool m_ModelHasSizeHints {false};
     QByteArray m_SizeHintRole;
@@ -55,7 +55,7 @@ public:
     VisualTreeItem *m_lpLoadedEdges[4] {nullptr}; //top, left, right, bottom
     VisualTreeItem *m_lpVisibleEdges[4] {nullptr}; //top, left, right, bottom //TODO
 
-    VisibleRange *q_ptr;
+    Viewport *q_ptr;
 
 public Q_SLOTS:
     void slotModelChanged(QAbstractItemModel* m);
@@ -64,8 +64,8 @@ public Q_SLOTS:
     void slotDataChanged(const QModelIndex& tl, const QModelIndex& br);
 };
 
-VisibleRange::VisibleRange(ModelAdapter* ma) : QObject(),
-    d_ptr(new VisibleRangePrivate()), s_ptr(new VisibleRangeSync())
+Viewport::Viewport(ModelAdapter* ma) : QObject(),
+    d_ptr(new ViewportPrivate()), s_ptr(new ViewportSync())
 {
     d_ptr->q_ptr = this;
     s_ptr->q_ptr = this;
@@ -73,19 +73,19 @@ VisibleRange::VisibleRange(ModelAdapter* ma) : QObject(),
     d_ptr->m_pReflector    = new TreeTraversalReflector(ma->view());
 
     connect(ma, &ModelAdapter::modelChanged,
-        d_ptr, &VisibleRangePrivate::slotModelChanged);
+        d_ptr, &ViewportPrivate::slotModelChanged);
     connect(ma->view(), &Flickable::viewportChanged,
-        d_ptr, &VisibleRangePrivate::slotViewportChanged);
+        d_ptr, &ViewportPrivate::slotViewportChanged);
     connect(ma, &ModelAdapter::delegateChanged,
         d_ptr->m_pReflector, &TreeTraversalReflector::resetEverything);
 
     d_ptr->slotModelChanged(ma->rawModel());
 
     connect(d_ptr->m_pReflector, &TreeTraversalReflector::contentChanged,
-        this, &VisibleRange::contentChanged);
+        this, &Viewport::contentChanged);
 }
 
-QRectF VisibleRange::currentRect() const
+QRectF Viewport::currentRect() const
 {
     return {};
 }
@@ -97,7 +97,7 @@ QSizeF AbstractItemAdapter::sizeHint() const
     );
 }
 
-// QSizeF VisibleRange::sizeHint(const QModelIndex& index) const
+// QSizeF Viewport::sizeHint(const QModelIndex& index) const
 // {
 //     if (!d_ptr->m_SizeHintRole.isEmpty())
 //         return index.data(d_ptr->m_SizeHintRoleIndex).toSize();
@@ -112,7 +112,7 @@ QSizeF AbstractItemAdapter::sizeHint() const
 //     return {};
 // }
 
-QPair<Qt::Edge,Qt::Edge> VisibleRangePrivate::fromGravity() const
+QPair<Qt::Edge,Qt::Edge> ViewportPrivate::fromGravity() const
 {
     switch (m_pModelAdapter->view()->gravity()) {
         case Qt::Corner::TopLeftCorner:
@@ -129,22 +129,22 @@ QPair<Qt::Edge,Qt::Edge> VisibleRangePrivate::fromGravity() const
     return {};
 }
 
-QSizeF VisibleRangePrivate::sizeHint(AbstractItemAdapter* item) const
+QSizeF ViewportPrivate::sizeHint(AbstractItemAdapter* item) const
 {
     QSizeF ret;
 
     //TODO switch to function table
     switch (m_SizeStrategy) {
-        case VisibleRange::SizeHintStrategy::AOT:
+        case Viewport::SizeHintStrategy::AOT:
             Q_ASSERT(false);
             break;
-        case VisibleRange::SizeHintStrategy::JIT:
+        case Viewport::SizeHintStrategy::JIT:
             Q_ASSERT(false);
             break;
-        case VisibleRange::SizeHintStrategy::UNIFORM:
+        case Viewport::SizeHintStrategy::UNIFORM:
             Q_ASSERT(false);
             break;
-        case VisibleRange::SizeHintStrategy::PROXY:
+        case Viewport::SizeHintStrategy::PROXY:
             Q_ASSERT(m_ModelHasSizeHints);
 
             ret = qobject_cast<SizeHintProxyModel*>(m_pModelAdapter->rawModel())
@@ -154,8 +154,8 @@ QSizeF VisibleRangePrivate::sizeHint(AbstractItemAdapter* item) const
             qDebug() << "SH" << ret << i++;
 
             break;
-        case VisibleRange::SizeHintStrategy::ROLE:
-        case VisibleRange::SizeHintStrategy::DELEGATE:
+        case Viewport::SizeHintStrategy::ROLE:
+        case Viewport::SizeHintStrategy::DELEGATE:
             Q_ASSERT(false);
             break;
     }
@@ -173,12 +173,12 @@ QSizeF VisibleRangePrivate::sizeHint(AbstractItemAdapter* item) const
     return ret;
 }
 
-QString VisibleRange::sizeHintRole() const
+QString Viewport::sizeHintRole() const
 {
     return d_ptr->m_SizeHintRole;
 }
 
-void VisibleRange::setSizeHintRole(const QString& s)
+void Viewport::setSizeHintRole(const QString& s)
 {
     d_ptr->m_SizeHintRole = s.toLatin1();
 
@@ -188,14 +188,14 @@ void VisibleRange::setSizeHintRole(const QString& s)
         );
 }
 
-void VisibleRangePrivate::slotModelAboutToChange(QAbstractItemModel* m, QAbstractItemModel* o)
+void ViewportPrivate::slotModelAboutToChange(QAbstractItemModel* m, QAbstractItemModel* o)
 {
     if (o)
         disconnect(o, &QAbstractItemModel::dataChanged,
-            this, &VisibleRangePrivate::slotDataChanged);
+            this, &ViewportPrivate::slotDataChanged);
 }
 
-void VisibleRangePrivate::slotModelChanged(QAbstractItemModel* m)
+void ViewportPrivate::slotModelChanged(QAbstractItemModel* m)
 {
     m_pReflector->setModel(m);
 
@@ -211,44 +211,44 @@ void VisibleRangePrivate::slotModelChanged(QAbstractItemModel* m)
 
     if (m)
         connect(m, &QAbstractItemModel::dataChanged,
-            this, &VisibleRangePrivate::slotDataChanged);
+            this, &ViewportPrivate::slotDataChanged);
 
     m_pReflector->populate(fromGravity().first);
     //m_pReflector->populate(fromGravity().second); //TODO
 }
 
-void VisibleRangePrivate::slotViewportChanged(const QRectF &viewport)
+void ViewportPrivate::slotViewportChanged(const QRectF &viewport)
 {
     m_UsedRect = viewport;
 }
 
-ModelAdapter *VisibleRange::modelAdapter() const
+ModelAdapter *Viewport::modelAdapter() const
 {
     return d_ptr->m_pModelAdapter;
 }
 
-QSizeF VisibleRange::size() const
+QSizeF Viewport::size() const
 {
     return d_ptr->m_UsedRect.size();
 }
 
-QPointF VisibleRange::position() const
+QPointF Viewport::position() const
 {
     return d_ptr->m_UsedRect.topLeft();
 }
 
-VisibleRange::SizeHintStrategy VisibleRange::sizeHintStrategy() const
+Viewport::SizeHintStrategy Viewport::sizeHintStrategy() const
 {
     return d_ptr->m_SizeStrategy;
 }
 
-void VisibleRange::setSizeHintStrategy(VisibleRange::SizeHintStrategy s)
+void Viewport::setSizeHintStrategy(Viewport::SizeHintStrategy s)
 {
     Q_ASSERT(false); //TODO invalidate the cache
     d_ptr->m_SizeStrategy = s;
 }
 
-bool VisibleRange::isTotalSizeKnown() const
+bool Viewport::isTotalSizeKnown() const
 {
     if (!d_ptr->m_pModelAdapter->delegate())
         return false;
@@ -257,14 +257,14 @@ bool VisibleRange::isTotalSizeKnown() const
         return true;
 
     switch(d_ptr->m_SizeStrategy) {
-        case VisibleRange::SizeHintStrategy::JIT:
+        case Viewport::SizeHintStrategy::JIT:
             return false;
         default:
             return true;
     }
 }
 
-QSizeF VisibleRange::totalSize() const
+QSizeF Viewport::totalSize() const
 {
     if ((!d_ptr->m_pModelAdapter->delegate()) || !d_ptr->m_pModelAdapter->rawModel())
         return {0.0, 0.0};
@@ -272,13 +272,13 @@ QSizeF VisibleRange::totalSize() const
     return {}; //TODO
 }
 
-AbstractItemAdapter* VisibleRange::itemForIndex(const QModelIndex& idx) const
+AbstractItemAdapter* Viewport::itemForIndex(const QModelIndex& idx) const
 {
     return d_ptr->m_pReflector->itemForIndex(idx);
 }
 
 //TODO remove this content and check each range
-void VisibleRangePrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& br)
+void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& br)
 {
     if (tl.model() && tl.model() != m_pModelAdapter->rawModel()) {
         Q_ASSERT(false);
@@ -311,19 +311,19 @@ void VisibleRangePrivate::slotDataChanged(const QModelIndex& tl, const QModelInd
     }
 }
 
-void VisibleRange::setItemFactory(ViewBase::ItemFactoryBase *factory)
+void Viewport::setItemFactory(ViewBase::ItemFactoryBase *factory)
 {
     d_ptr->m_pReflector->setItemFactory([this, factory]() -> AbstractItemAdapter* {
         return factory->create(this);
     });
 }
 
-Qt::Edges VisibleRange::availableEdges() const
+Qt::Edges Viewport::availableEdges() const
 {
     return d_ptr->m_pReflector->availableEdges();
 }
 
-void VisibleRangePrivate::updateEdges(VisualTreeItem* item)
+void ViewportPrivate::updateEdges(VisualTreeItem* item)
 {
     enum Pos {Top, Left, Right, Bottom};
 
@@ -369,7 +369,7 @@ void VisibleRangePrivate::updateEdges(VisualTreeItem* item)
 //     m_pReflector->setAvailableEdges(available);
 }
 
-void VisibleRangeSync::geometryUpdated(VisualTreeItem* item)
+void ViewportSync::geometryUpdated(VisualTreeItem* item)
 {
     //TODO assert if the size hints don't match reality
 
@@ -383,4 +383,4 @@ void VisibleRangeSync::geometryUpdated(VisualTreeItem* item)
     const bool hasSpaceOnTop = view.y();
 }
 
-#include <visiblerange.moc>
+#include <viewport.moc>

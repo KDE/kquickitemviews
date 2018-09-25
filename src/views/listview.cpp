@@ -65,7 +65,7 @@ struct ListViewSection final
 class ListViewItem : public AbstractItemAdapter
 {
 public:
-    explicit ListViewItem(VisibleRange* r);
+    explicit ListViewItem(Viewport* r);
     virtual ~ListViewItem();
 
     // Actions
@@ -348,7 +348,7 @@ void ListViewPrivate::reloadSectionIndices() const
     m_IndexLoaded = m_pFirstSection != nullptr;
 }
 
-ListViewItem::ListViewItem(VisibleRange* r) : AbstractItemAdapter(r)
+ListViewItem::ListViewItem(Viewport* r) : AbstractItemAdapter(r)
 {
 }
 

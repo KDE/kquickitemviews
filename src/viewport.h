@@ -23,8 +23,8 @@
 
 // KQuickItemViews
 #include <viewbase.h>
-class VisibleRangePrivate;
-class VisibleRangeSync;
+class ViewportPrivate;
+class ViewportSync;
 class AbstractItemAdapter;
 
 /**
@@ -36,11 +36,11 @@ class AbstractItemAdapter;
 * This class is for internal use and should not be used by views. Please use
 * `ViewBase` for all relevant use cases.
 */
-class VisibleRange : public QObject
+class Viewport : public QObject
 {
-    friend class AbstractItemAdapter; // for the getters defined in visiblerange.cpp
+    friend class AbstractItemAdapter; // for the getters defined in viewport.cpp
     friend class TreeTraversalReflector; // notify of model changes
-    friend class VisibleRangeSync; // its own internal API
+    friend class ViewportSync; // its own internal API
 
     Q_OBJECT
 public:
@@ -55,9 +55,9 @@ public:
         DELEGATE, /*!< Assume the view re-implemented ::sizeHint is correct           */
     };
 
-    explicit VisibleRange(ModelAdapter* ma);
+    explicit Viewport(ModelAdapter* ma);
 
-    virtual ~VisibleRange() {}
+    virtual ~Viewport() {}
 
     /**
      * Get the current (cartesian) rectangle represented by this range.
@@ -91,7 +91,7 @@ Q_SIGNALS:
     void contentChanged();
 
 public:
-    VisibleRangeSync *s_ptr;
+    ViewportSync *s_ptr;
 private:
-    VisibleRangePrivate *d_ptr;
+    ViewportPrivate *d_ptr;
 };

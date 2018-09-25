@@ -22,7 +22,7 @@
 // KQuickItemViews
 class SelectionAdapter;
 class ContextAdapterFactory;
-class VisibleRange;
+class Viewport;
 class ViewBase;
 class AbstractItemAdapter;
 class ModelAdapterPrivate;
@@ -99,7 +99,7 @@ public:
     SelectionAdapter* selectionAdapter() const;
     ContextAdapterFactory* contextAdapterFactory() const;
 
-    QVector<VisibleRange*> visibleRanges() const;
+    QVector<Viewport*> viewports() const;
 
     QAbstractItemModel *rawModel() const;
 

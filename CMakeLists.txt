@@ -66,7 +66,7 @@ SET( kquickview_LIB_SRCS
     src/views/hierarchyview.cpp
     src/views/listview.cpp
     src/views/treeview.cpp
-    src/visiblerange.cpp
+    src/viewport.cpp
     src/contextadapterfactory.cpp
 )
 
@@ -101,7 +101,7 @@ SET( kquickview_LIB_HDRS
     views/hierarchyview.h
     views/listview.h
     views/treeview.h
-    visiblerange.h
+    viewport.h
 )
 
 # Create include file aliases

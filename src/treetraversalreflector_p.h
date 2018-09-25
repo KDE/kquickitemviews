@@ -48,22 +48,41 @@ class VisibleRange;
  * Note that you should only use this class directly when implementing low level
  * views such as charts or graphs. The `ViewBase` is a better base
  * for most traditional views.
+ *
+ * The `setAvailableEdges` must be kept up to date by the owner and `populate`
+ * or `detachUntil` called to trigger manual changes. Otherwise it will listen
+ * to the model and modify itself and the model changes.
  */
 class TreeTraversalReflector final : public QObject
 {
     Q_OBJECT
     friend struct TreeTraversalItems; // Internal representation
 public:
+
     explicit TreeTraversalReflector(QObject* parent = nullptr);
     virtual ~TreeTraversalReflector();
 
     QAbstractItemModel* model() const;
     void setModel(QAbstractItemModel* m);
-    void populate();
+
+    void setAvailableEdges(Qt::Edges edges);
+    Qt::Edges availableEdges() const;
 
     // Getter
     AbstractItemAdapter* itemForIndex(const QModelIndex& idx) const; //TODO remove
     bool isActive(const QModelIndex& parent, int first, int last); //TODO move to range
+
+    /**
+     * The relfector internally track its viewport from the model point of view,
+     * which may or may not be the same as the view. This method will detach
+     * every element from the edge to the item)
+     */
+    bool detachUntil(Qt::Edge from, TreeTraversalItems *to);
+
+    /**
+     *
+     */
+    bool populate(Qt::Edge from);
 
     //TODO remove those temporary helpers once its encapsulated
     void moveEverything();

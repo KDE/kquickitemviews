@@ -40,6 +40,7 @@ class VisibleRange : public QObject
 {
     friend class AbstractItemAdapter; // for the getters defined in visiblerange.cpp
     friend class TreeTraversalReflector; // notify of model changes
+    friend class VisibleRangeSync; // its own internal API
 
     Q_OBJECT
 public:
@@ -79,6 +80,8 @@ public:
 
     QSizeF totalSize() const;
 
+    Qt::Edges availableEdges() const;
+
     void setItemFactory(ViewBase::ItemFactoryBase *factory);
 
     //TODO remove
@@ -87,7 +90,8 @@ public:
 Q_SIGNALS:
     void contentChanged();
 
+public:
+    VisibleRangeSync *s_ptr;
 private:
     VisibleRangePrivate *d_ptr;
-    VisibleRangeSync    *s_ptr;
 };

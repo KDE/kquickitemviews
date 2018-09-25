@@ -26,7 +26,6 @@
 class SingleModelViewBasePrivate
 {
 public:
-    Qt::Corner    m_Corner           {Qt::TopLeftCorner};
     bool          m_IsSortingEnabled {      false      };
     ModelAdapter *m_pModelAdapter    {     nullptr     };
 
@@ -59,17 +58,6 @@ SingleModelViewBase::SingleModelViewBase(ItemFactoryBase *factory, QQuickItem* p
 SingleModelViewBase::~SingleModelViewBase()
 {
     delete d_ptr;
-}
-
-Qt::Corner SingleModelViewBase::gravity() const
-{
-    return d_ptr->m_Corner;
-}
-
-void SingleModelViewBase::setGravity(Qt::Corner g)
-{
-    d_ptr->m_Corner = g;
-    refresh();
 }
 
 QQmlComponent* SingleModelViewBase::highlight() const

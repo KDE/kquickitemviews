@@ -117,6 +117,9 @@ public:
     VisibleRange  *m_pRange {nullptr};
     BlockMetadata *m_pPos   {nullptr};
 
+    // Managed by the VisibleRange
+    Qt::Edges m_IsEdge {};
+
     bool performAction(ViewAction); //FIXME make private, remove #include
 
 private:

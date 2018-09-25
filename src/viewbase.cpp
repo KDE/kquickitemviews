@@ -62,7 +62,8 @@ public:
     static const State  m_fStateMap    [5][5];
     static const StateF m_fStateMachine[5][5];
 
-    QQmlEngine*    m_pEngine    {nullptr};
+    QQmlEngine *m_pEngine {      nullptr    };
+    Qt::Corner  m_Corner  {Qt::TopLeftCorner};
 
     QVector<ModelAdapter*> m_lAdapters;
 
@@ -184,31 +185,6 @@ bool ViewBasePrivate::error()
     return true;
 }
 
-void VisualTreeItem::updateGeometry()
-{
-    const auto geo = geometry();
-
-    //TODO handle up/left/right too
-
-    if (!down()) {
-        view()->contentItem()->setHeight(std::max(
-            geo.y()+geo.height(), view()->height()
-        ));
-
-        emit view()->contentHeightChanged(view()->contentItem()->height());
-    }
-
-    const auto sm = m_pRange->modelAdapter()->selectionAdapter();
-
-    if (sm && sm->selectionModel() && sm->selectionModel()->currentIndex() == index())
-        sm->s_ptr->updateSelection(index());
-}
-
-ViewBase* VisualTreeItem::view() const
-{
-    return m_pView;
-}
-
 void ViewBase::refresh()
 {
     //TODO
@@ -275,6 +251,17 @@ bool ViewBase::isEmpty() const
     }
 
     return true;
+}
+
+Qt::Corner ViewBase::gravity() const
+{
+    return d_ptr->m_Corner;
+}
+
+void ViewBase::setGravity(Qt::Corner g)
+{
+    d_ptr->m_Corner = g;
+    refresh();
 }
 
 #include <viewbase.moc>

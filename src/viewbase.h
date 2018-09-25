@@ -67,6 +67,10 @@ public:
     };
 
     Q_PROPERTY(bool empty READ isEmpty NOTIFY contentChanged)
+    Q_PROPERTY(Qt::Corner gravity READ gravity WRITE setGravity)
+
+    Qt::Corner gravity() const;
+    void setGravity(Qt::Corner g);
 
     explicit ViewBase(QQuickItem* parent = nullptr);
 

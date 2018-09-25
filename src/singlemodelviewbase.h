@@ -36,7 +36,6 @@ class SingleModelViewBase : public ViewBase
 {
     Q_OBJECT
 public:
-    Q_PROPERTY(Qt::Corner gravity READ gravity WRITE setGravity)
     Q_PROPERTY(QQmlComponent* highlight READ highlight WRITE setHighlight)
     Q_PROPERTY(QSharedPointer<QItemSelectionModel> selectionModel READ selectionModel WRITE setSelectionModel NOTIFY selectionModelChanged)
     Q_PROPERTY(bool sortingEnabled READ isSortingEnabled WRITE setSortingEnabled)
@@ -61,9 +60,6 @@ public:
         SingleModelViewBase((ItemFactoryBase*) b, parent) {}
 
     virtual ~SingleModelViewBase();
-
-    Qt::Corner gravity() const;
-    void setGravity(Qt::Corner g);
 
     QQmlComponent* highlight() const;
     void setHighlight(QQmlComponent* h);

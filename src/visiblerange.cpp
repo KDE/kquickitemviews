@@ -45,10 +45,17 @@ public:
     TreeTraversalReflector *m_pReflector {nullptr};
 
     // The viewport rectangle
-    QPointF m_Position;
-    QSizeF m_Size;
+    QRectF m_ViewRect;
+    QRectF m_UsedRect;
 
     QSizeF sizeHint(AbstractItemAdapter* item) const;
+    void updateEdges(VisualTreeItem* item);
+    QPair<Qt::Edge,Qt::Edge> fromGravity() const;
+
+    VisualTreeItem *m_lpLoadedEdges[4] {nullptr}; //top, left, right, bottom
+    VisualTreeItem *m_lpVisibleEdges[4] {nullptr}; //top, left, right, bottom //TODO
+
+    VisibleRange *q_ptr;
 
 public Q_SLOTS:
     void slotModelChanged(QAbstractItemModel* m);
@@ -60,6 +67,8 @@ public Q_SLOTS:
 VisibleRange::VisibleRange(ModelAdapter* ma) : QObject(),
     d_ptr(new VisibleRangePrivate()), s_ptr(new VisibleRangeSync())
 {
+    d_ptr->q_ptr = this;
+    s_ptr->q_ptr = this;
     d_ptr->m_pModelAdapter = ma;
     d_ptr->m_pReflector    = new TreeTraversalReflector(ma->view());
 
@@ -102,6 +111,23 @@ QSizeF AbstractItemAdapter::sizeHint() const
 //
 //     return {};
 // }
+
+QPair<Qt::Edge,Qt::Edge> VisibleRangePrivate::fromGravity() const
+{
+    switch (m_pModelAdapter->view()->gravity()) {
+        case Qt::Corner::TopLeftCorner:
+            return {Qt::Edge::TopEdge, Qt::Edge::LeftEdge};
+        case Qt::Corner::TopRightCorner:
+            return {Qt::Edge::TopEdge, Qt::Edge::RightEdge};
+        case Qt::Corner::BottomLeftCorner:
+            return {Qt::Edge::BottomEdge, Qt::Edge::LeftEdge};
+        case Qt::Corner::BottomRightCorner:
+            return {Qt::Edge::BottomEdge, Qt::Edge::RightEdge};
+    }
+
+    Q_ASSERT(false);
+    return {};
+}
 
 QSizeF VisibleRangePrivate::sizeHint(AbstractItemAdapter* item) const
 {
@@ -187,13 +213,13 @@ void VisibleRangePrivate::slotModelChanged(QAbstractItemModel* m)
         connect(m, &QAbstractItemModel::dataChanged,
             this, &VisibleRangePrivate::slotDataChanged);
 
-    m_pReflector->populate();
+    m_pReflector->populate(fromGravity().first);
+    //m_pReflector->populate(fromGravity().second); //TODO
 }
 
 void VisibleRangePrivate::slotViewportChanged(const QRectF &viewport)
 {
-    m_Position = viewport.topLeft();
-    m_Size = viewport.size();
+    m_UsedRect = viewport;
 }
 
 ModelAdapter *VisibleRange::modelAdapter() const
@@ -203,12 +229,12 @@ ModelAdapter *VisibleRange::modelAdapter() const
 
 QSizeF VisibleRange::size() const
 {
-    return d_ptr->m_Size;
+    return d_ptr->m_UsedRect.size();
 }
 
 QPointF VisibleRange::position() const
 {
-    return d_ptr->m_Position;
+    return d_ptr->m_UsedRect.topLeft();
 }
 
 VisibleRange::SizeHintStrategy VisibleRange::sizeHintStrategy() const
@@ -290,6 +316,71 @@ void VisibleRange::setItemFactory(ViewBase::ItemFactoryBase *factory)
     d_ptr->m_pReflector->setItemFactory([this, factory]() -> AbstractItemAdapter* {
         return factory->create(this);
     });
+}
+
+Qt::Edges VisibleRange::availableEdges() const
+{
+    return d_ptr->m_pReflector->availableEdges();
+}
+
+void VisibleRangePrivate::updateEdges(VisualTreeItem* item)
+{
+    enum Pos {Top, Left, Right, Bottom};
+
+    const auto geo  = item->geometry();
+
+    static const Qt::Edge edgeMap[] = {
+        Qt::TopEdge, Qt::LeftEdge, Qt::RightEdge, Qt::BottomEdge
+    };
+
+#define CHECK_EDGE(code) [](const QRectF& old, const QRectF& self) {return code;}
+    static const std::function<bool(const QRectF&, const QRectF&)> isEdge[] = {
+        CHECK_EDGE(old.y() > self.y()),
+        CHECK_EDGE(old.x() > self.x()),
+        CHECK_EDGE(old.bottomRight().x() < self.bottomRight().x()),
+        CHECK_EDGE(old.bottomRight().y() < self.bottomRight().y()),
+    };
+#undef CHECK_EDGE
+
+    Qt::Edges ret;
+
+    for (int i = Pos::Top; i <= Pos::Bottom; i++) {
+        if ((!m_lpLoadedEdges[i]) || m_lpLoadedEdges[i] == item || isEdge[i](m_lpLoadedEdges[i]->geometry(), geo)) {
+            ret |= edgeMap[i];
+
+            // Unset the edge
+            if (m_lpLoadedEdges[i] != item) {
+                if (m_lpLoadedEdges[i])
+                    m_lpLoadedEdges[i]->m_IsEdge &= ~edgeMap[i];
+
+                m_lpLoadedEdges[i] = item;
+            }
+        }
+    }
+
+//TODO update m_lpVisibleEdges
+//     Qt::Edges available;
+//
+//     for (int i = Pos::Top; i <= Pos::Bottom; i++) {
+//         if ((!m_lpLoadedEdges[i]) || m_lpLoadedEdges[i]->geometry().contains(m_ViewRect))
+//             available |= edgeMap[i];
+//     }
+//
+//     m_pReflector->setAvailableEdges(available);
+}
+
+void VisibleRangeSync::geometryUpdated(VisualTreeItem* item)
+{
+    //TODO assert if the size hints don't match reality
+
+    const auto geo  = item->geometry();
+    const auto old  = q_ptr->d_ptr->m_UsedRect;
+    const auto view = q_ptr->d_ptr->m_ViewRect;
+
+    // Update the used rect
+    const QRectF r = q_ptr->d_ptr->m_UsedRect = q_ptr->d_ptr->m_UsedRect.united(geo);
+
+    const bool hasSpaceOnTop = view.y();
 }
 
 #include <visiblerange.moc>

@@ -28,7 +28,10 @@
 
 // KQuickItemViews
 #include "abstractitemadapter_p.h"
+#include "adapters/selectionadapter.h"
+#include "adapters/selectionadapter_p.h"
 #include "visiblerange.h"
+#include "visiblerange_p.h"
 #include "modeladapter.h"
 #include "viewbase.h"
 #include "contextadapterfactory.h"
@@ -539,4 +542,31 @@ ViewBaseItemVariables *AbstractItemAdapterPrivate::sharedVariables() const
     }
 
     return q_ptr->s_ptr->m_pView->m_pItemVars;
+}
+
+ViewBase* VisualTreeItem::view() const
+{
+    return m_pView;
+}
+
+void VisualTreeItem::updateGeometry()
+{
+    const auto geo = geometry();
+
+    //TODO handle up/left/right too
+
+    if (!down()) {
+        view()->contentItem()->setHeight(std::max(
+            geo.y()+geo.height(), view()->height()
+        ));
+
+        emit view()->contentHeightChanged(view()->contentItem()->height());
+    }
+
+    const auto sm = m_pRange->modelAdapter()->selectionAdapter();
+
+    if (sm && sm->selectionModel() && sm->selectionModel()->currentIndex() == index())
+        sm->s_ptr->updateSelection(index());
+
+    m_pRange->s_ptr->geometryUpdated(this);
 }

@@ -83,9 +83,6 @@ struct TreeTraversalItems
     TreeTraversalItems* left () const;
     TreeTraversalItems* right() const;
 
-    // Helpers
-    bool updateVisibility();
-
     //TODO use a btree, not an hash
     QHash<QPersistentModelIndex, TreeTraversalItems*> m_hLookup;
 
@@ -123,6 +120,8 @@ public:
     void createGap(TreeTraversalItems* first, TreeTraversalItems* last  );
     TreeTraversalItems* ttiForIndex(const QModelIndex& idx) const;
 
+    bool isInsertActive(const QModelIndex& p, int first, int last) const;
+
     void setTemporaryIndices(const QModelIndex &parent, int start, int end,
                              const QModelIndex &destination, int row);
     void resetTemporaryIndices(const QModelIndex &parent, int start, int end,
@@ -139,6 +138,9 @@ public:
     QHash<QPersistentModelIndex, TreeTraversalItems*> m_hMapper;
     QAbstractItemModel* m_pModel {nullptr};
     std::function<AbstractItemAdapter*()> m_fFactory;
+    Qt::Edges m_Edges {Qt::TopEdge|Qt::LeftEdge|Qt::RightEdge|Qt::BottomEdge};
+    TreeTraversalItems *m_lpEdges[4];
+
     TreeTraversalReflector* q_ptr;
 
     // Tests
@@ -267,27 +269,11 @@ bool TreeTraversalItems::error()
 }
 #pragma GCC diagnostic pop
 
-
-bool TreeTraversalItems::updateVisibility()
-{
-
-    //TODO support horizontal visibility
-
-//     const auto sh = sizeHint();
-
-    const bool isVisible = true; //FIXME
-
-    //TODO this is a cheap workaround, it leaves the m_tVisibleTTIRange in a
-    // potentially broken state
-    if ((!m_pTreeItem) && !isVisible)
-        return false;
-
-    return isVisible;
-}
-
 bool TreeTraversalItems::show()
 {
 //     qDebug() << "SHOW";
+
+    enum Pos {Top, Left, Right, Bottom};
 
     if (!m_pTreeItem) {
         m_pTreeItem = d_ptr->q_ptr->d_ptr->m_fFactory()->s_ptr;
@@ -306,7 +292,16 @@ bool TreeTraversalItems::show()
         m_pTreeItem = nullptr;
     }
 
-    updateVisibility();
+    Q_ASSERT(m_State == State::VISIBLE);
+
+    // Update the edges
+    auto upTTI = up();
+    if ((!upTTI) || upTTI->m_State != State::VISIBLE)
+        d_ptr->m_lpEdges[Pos::Top] = this;
+
+    auto downTTI = down();
+    if ((!upTTI) || upTTI->m_State != State::VISIBLE)
+        d_ptr->m_lpEdges[Pos::Bottom] = this;
 
     return true;
 }
@@ -322,10 +317,13 @@ bool TreeTraversalItems::attach()
 //     if (!updateVisibility())
 //         return true;
 
+    // Attach can only be called when there is room in the viewport //FIXME and the buffer
+    Q_ASSERT(d_ptr->m_Edges & (Qt::TopEdge|Qt::BottomEdge));
+
     if (m_pTreeItem)
         m_pTreeItem->performAction(VisualTreeItem::ViewAction::ATTACH);
 
-
+    //TODO check the edge and gravity, device to load
     //     qDebug() << "ATTACH" << (int)m_State;
     performAction(Action::MOVE); //FIXME don't
     return performAction(Action::SHOW); //FIXME don't
@@ -421,7 +419,6 @@ bool TreeTraversalItems::index()
     // machine.
     if (m_pTreeItem) {
         m_pTreeItem->performAction(VisualTreeItem::ViewAction::MOVE); //FIXME don't
-        updateVisibility(); //FIXME add a new state change for this
     }
 
     return true;
@@ -496,7 +493,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
     Q_ASSERT((!parent.isValid()) || parent.model() == q_ptr->model());
 //     qDebug() << "\n\nADD" << first << last;
 
-    if (!q_ptr->isActive(parent, first, last)) {
+    if (!isInsertActive(parent, first, last)) {
         Q_ASSERT(false); //FIXME so I can't forget when time comes
         return;
     }
@@ -814,12 +811,10 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
         return;
 
     // Whatever has to be done only affect a part that's not currently tracked.
-    if ((!q_ptr->isActive(parent, start, end)) && !q_ptr->isActive(destination, row, row+(end-start)))
+    if (q_ptr->isActive(destination, row, row))
         return;
 
     setTemporaryIndices(parent, start, end, destination, row);
-
-    //TODO also support trees
 
     // As the actual view is implemented as a daisy chained list, only moving
     // the edges is necessary for the TreeTraversalItems. Each VisualTreeItem
@@ -1051,13 +1046,47 @@ void TreeTraversalReflector::setModel(QAbstractItemModel* m)
         &TreeTraversalReflectorPrivate::slotRowsMoved2);
 }
 
-void TreeTraversalReflector::populate()
+bool TreeTraversalReflector::populate(Qt::Edge from)
 {
+    Q_UNUSED(from)
+
     if (!model())
-        return;
+        return false;
 
     if (auto rc = model()->rowCount())
         d_ptr->slotRowsInserted({}, 0, rc - 1);
+
+    return true;
+}
+
+bool TreeTraversalReflector::detachUntil(Qt::Edge from, TreeTraversalItems *to)
+{
+    Q_ASSERT(false); //TODO
+    return false;
+}
+
+bool TreeTraversalReflectorPrivate::isInsertActive(const QModelIndex& p, int first, int last) const
+{
+    if (m_Edges & (Qt::TopEdge|Qt::BottomEdge))
+        return true;
+
+    auto parent = p.isValid() ? ttiForIndex(p) : m_pRoot;
+
+    // It's controversial as it means if the items would otherwise be
+    // visible because their parent "virtual" position + insertion height
+    // could happen to be in the view but in this case the scrollbar would
+    // move. Mobile views tend to not shuffle the current content around so
+    // from that point of view it is correct, but if the item is in the
+    // buffer, then it will move so doing this is a bit buggy.
+    if (!parent)
+        return false;
+
+    // Return true if the previous element or next element are loaded
+    const QModelIndex prev = first ? m_pModel->index(first - 1, 0, p) : QModelIndex();
+    const QModelIndex next = first ? m_pModel->index(last  + 1, 0, p) : QModelIndex();
+
+    return (prev.isValid() && parent->m_hLookup.contains(prev))
+        || (next.isValid() && parent->m_hLookup.contains(next));
 }
 
 /// Return true if the indices affect the current view
@@ -1066,28 +1095,7 @@ bool TreeTraversalReflector::isActive(const QModelIndex& parent, int first, int 
     Q_UNUSED(parent)
     Q_UNUSED(first)
     Q_UNUSED(last)
-
     return true; //FIXME
-
-    /*if (m_State == State::UNFILLED)
-        return true;
-
-    //FIXME only insert elements with loaded children into d_ptr->m_hMapper
-    auto pitem = parent.isValid() ? d_ptr->m_hMapper.value(parent) : d_ptr->m_pRoot;
-
-    if (parent.isValid() && pitem == d_ptr->m_pRoot)
-        return false;
-
-    if ((!pitem->m_tChildren[LAST]) || (!pitem->m_tChildren[FIRST]))
-        return true;
-
-    if (pitem->m_tChildren[LAST]->m_Index.row() >= first)
-        return true;
-
-    if (pitem->m_tChildren[FIRST]->m_Index.row() <= last)
-        return true;
-
-    return false;*/
 }
 
 /// Add new entries to the mapping
@@ -1138,6 +1146,16 @@ AbstractItemAdapter* TreeTraversalReflector::itemForIndex(const QModelIndex& idx
 {
     const auto tti = d_ptr->ttiForIndex(idx);
     return tti && tti->m_pTreeItem ? tti->m_pTreeItem->d_ptr : nullptr;
+}
+
+void TreeTraversalReflector::setAvailableEdges(Qt::Edges edges)
+{
+    d_ptr->m_Edges = edges;
+}
+
+Qt::Edges TreeTraversalReflector::availableEdges() const
+{
+    return d_ptr->m_Edges;
 }
 
 QPersistentModelIndex VisualTreeItem::index() const

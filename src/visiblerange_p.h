@@ -18,6 +18,7 @@
 
 struct TreeTraversalItems;
 class TreeTraversalReflector;
+class VisualTreeItem;
 
 /**
  * For size modes like UniformRowHeight, it's pointless to keep track of
@@ -47,5 +48,9 @@ struct BlockMetadata
 class VisibleRangeSync final
 {
 public:
+    void geometryUpdated(VisualTreeItem* item);
+
     inline void updateSingleItem(const QModelIndex& index, BlockMetadata* b);
+
+    VisibleRange *q_ptr;
 };

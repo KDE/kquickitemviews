@@ -277,8 +277,10 @@ ListViewSection* ListViewPrivate::getSection(ListViewItem* i)
     const auto next = static_cast<ListViewItem*>(i->down());
 
     // The section owner isn't currently loaded
-    if ((!prev) && i->row() > 0)
-        Q_ASSERT(false); //TODO when GC is enabled, the assert is to make sure I don't forget
+    if ((!prev) && i->row() > 0) {
+        //Q_ASSERT(false); //TODO when GC is enabled, the assert is to make sure I don't forget
+        return nullptr;
+    }
 
     // Check if the nearby sections are compatible
     for (auto& s : {
@@ -659,18 +661,18 @@ void ListViewPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& 
     auto tli = static_cast<ListViewItem*>(q_ptr->itemForIndex(tl));
     auto bri = static_cast<ListViewItem*>(q_ptr->itemForIndex(br));
 
-    Q_ASSERT(tli);
-    Q_ASSERT(bri);
-
-    bool outdated = false;
-
-    //TODO there is some possible optimizations here, not *all* subsequent
-    // elements needs to be moved
-    do {
-        if (outdated || (outdated = (tli->m_pSection != getSection(tli))))
-            tli->move();
-
-    } while(tli != bri && (tli = static_cast<ListViewItem*>(tli->down())));
+//     Q_ASSERT(tli);
+//     Q_ASSERT(bri);
+//
+//     bool outdated = false;
+//
+//     //TODO there is some possible optimizations here, not *all* subsequent
+//     // elements needs to be moved
+//     do {
+//         if (outdated || (outdated = (tli->m_pSection != getSection(tli))))
+//             tli->move();
+//
+//     } while(tli != bri && (tli = static_cast<ListViewItem*>(tli->down())));
 }
 
 #include <listview.moc>

@@ -34,10 +34,41 @@ struct BlockMetadata
         BLOCK
     };
 
+    enum class Source {
+        NONE,
+        HINTS,
+        WIDGETS,
+    };
+
+    enum class Action {
+        SHOW   = 0, /*!< Make visible on screen (or buffer) */
+        HIDE   = 1, /*!< Remove from the screen (or buffer) */
+        ATTACH = 2, /*!< Track, but do not show             */
+        DETACH = 3, /*!< Stop tracking for changes          */
+        UPDATE = 4, /*!< Update the element                 */
+        MOVE   = 5, /*!< Update the depth and lookup        */
+        RESET  = 6, /*!< Flush the visual item              */
+    };
+
+    QRectF geometry() const { return QRectF(m_Position, m_Size); }
+    QModelIndex index() const;
+
+    Qt::Edge m_BufferEdge {Qt::TopEdge};
+    Qt::Edges m_IsEdge {};
+
+    bool performAction(Action);
+
+    Source  m_Source  {Source::NONE};
     Mode    m_Mode    {Mode::SINGLE};
     QPointF m_Position;
     QSizeF  m_Size;
-    TreeTraversalItems* m_pTTI {nullptr};
+    TreeTraversalItems *m_pTTI  {nullptr};
+    VisualTreeItem     *m_pItem {nullptr};
+
+    BlockMetadata *up   () const;
+    BlockMetadata *down () const;
+    BlockMetadata *left () const;
+    BlockMetadata *right() const;
 };
 
 /**
@@ -48,7 +79,16 @@ struct BlockMetadata
 class ViewportSync final
 {
 public:
-    void geometryUpdated(VisualTreeItem* item);
+
+    /**
+     * From the model
+     */
+    void updateGeometry(BlockMetadata* item);
+
+    /**
+     * From the widget
+     */
+    void geometryUpdated(BlockMetadata* item);
 
     inline void updateSingleItem(const QModelIndex& index, BlockMetadata* b);
 

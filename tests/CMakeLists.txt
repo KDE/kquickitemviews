@@ -26,12 +26,6 @@ INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR})
 SET(modelviewtester_SRC
 modelviewtester.cpp
 testmain.cpp
-qmlwidgets/hierarchyview.cpp
-qmlwidgets/qmlaction.cpp
-qmlwidgets/quicklistview.cpp
-qmlwidgets/quicktreeview.cpp
-qmlwidgets/simpleflickable.cpp
-qmlwidgets/abstractquickview.cpp
 )
 
 QT5_ADD_RESOURCES(modelviewtester_SRC
@@ -43,6 +37,7 @@ set(CMAKE_AUTOMOC ON)
 ADD_EXECUTABLE( modelviewtester ${modelviewtester_SRC} )
 
 TARGET_LINK_LIBRARIES( modelviewtester
+    kquickview
     Qt5::Core
     Qt5::Gui
     Qt5::Widgets

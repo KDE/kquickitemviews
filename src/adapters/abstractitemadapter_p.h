@@ -18,9 +18,9 @@
 #pragma once
 
 // KQuickItemViews
+#include "abstractitemadapter.h"
 class ViewBase;
 struct TreeTraversalItems;
-class AbstractItemAdapter;
 class ViewItemContextAdapter;
 class ContextAdapter;
 class Viewport;
@@ -48,7 +48,9 @@ class VisualTreeItem
     friend class AbstractItemAdapterPrivate; //TODO remove
     friend class TreeTraversalReflector;
     friend class AbstractItemAdapter;
+    friend class ViewportPrivate; //TODO remove
 public:
+    using StateFlags = AbstractItemAdapter::StateFlags;
 
     explicit VisualTreeItem(ViewBase* p, Viewport* r) :
         m_pRange(r), m_pView(p) {}
@@ -78,14 +80,11 @@ public:
     /// Call to notify that the geometry changed (for the selection delegate)
     void updateGeometry();
 
-    // Helpers
-
-
     // Spacial navigation
-    VisualTreeItem* up  () const;
-    VisualTreeItem* down() const;
-    VisualTreeItem* left () const { return nullptr ;}
-    VisualTreeItem* right() const { return nullptr ;}
+    VisualTreeItem* up   (StateFlags flags = StateFlags::NORMAL) const;
+    VisualTreeItem* down (StateFlags flags = StateFlags::NORMAL) const;
+    VisualTreeItem* left (StateFlags flags = StateFlags::NORMAL) const { return nullptr ;}
+    VisualTreeItem* right(StateFlags flags = StateFlags::NORMAL) const { return nullptr ;}
     int row   () const;
     int column() const;
     int depth() const;
@@ -114,11 +113,10 @@ public:
 
     mutable ViewItemContextAdapter* m_pContextAdapter {nullptr};
 
-    Viewport  *m_pRange {nullptr};
-    BlockMetadata *m_pPos   {nullptr};
+    Viewport      *m_pRange    {nullptr};
+    BlockMetadata *m_pGeometry {nullptr};
 
     // Managed by the Viewport
-    Qt::Edges m_IsEdge {};
     bool m_IsCollapsed {false}; //TODO change the default to true
 
     bool performAction(ViewAction); //FIXME make private, remove #include

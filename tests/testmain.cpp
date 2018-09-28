@@ -28,9 +28,9 @@
 
 #include "modelviewtester.h"
 
-#include <hierarchyview.h>
-#include <quicklistview.h>
-#include <quicktreeview.h>
+#include <views/hierarchyview.h>
+#include <views/listview.h>
+#include <views/treeview.h>
 
 #include <functional>
 
@@ -47,8 +47,8 @@ int main(int argc, char **argv)
     view.engine()->rootContext()->setContextProperty("testmodel", QVariant::fromValue(mptr));
 
     qmlRegisterType<HierarchyView>("RingQmlWidgets", 1, 0, "HierarchyView");
-    qmlRegisterType<QuickTreeView>("RingQmlWidgets", 1, 0, "QuickTreeView");
-    qmlRegisterType<QuickListView>("RingQmlWidgets", 1, 0, "QuickListView");
+    qmlRegisterType<TreeView     >("RingQmlWidgets", 1, 0, "QuickTreeView");
+    qmlRegisterType<ListView     >("RingQmlWidgets", 1, 0, "QuickListView");
 
     view.setResizeMode(QQuickView::SizeRootObjectToView);
     view.setSource(QUrl("qrc:///modeltest.qml"));

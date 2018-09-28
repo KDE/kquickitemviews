@@ -132,6 +132,13 @@ void ViewBase::geometryChanged(const QRectF& newGeometry, const QRectF& oldGeome
 {
     Q_UNUSED(oldGeometry)
     contentItem()->setWidth(newGeometry.width());
+
+    // Resize the viewport(s)
+    for (auto ma : qAsConst(d_ptr->m_lAdapters)) {
+        const auto vps = ma->viewports();
+        for (auto vp : qAsConst(vps))
+            vp->resize(newGeometry);
+    }
 }
 
 AbstractItemAdapter* ViewBase::itemForIndex(const QModelIndex& idx) const

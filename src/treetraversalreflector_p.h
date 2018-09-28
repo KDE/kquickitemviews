@@ -59,7 +59,7 @@ class TreeTraversalReflector final : public QObject
     friend struct TreeTraversalItems; // Internal representation
 public:
 
-    explicit TreeTraversalReflector(QObject* parent = nullptr);
+    explicit TreeTraversalReflector(Viewport* parent = nullptr);
     virtual ~TreeTraversalReflector();
 
     QAbstractItemModel* model() const;
@@ -78,6 +78,7 @@ public:
      * every element from the edge to the item)
      */
     bool detachUntil(Qt::Edge from, TreeTraversalItems *to);
+    bool detachUntil(Qt::Edge from, VisualTreeItem *to);
 
     /**
      *
@@ -86,6 +87,8 @@ public:
 
     //TODO remove those temporary helpers once its encapsulated
     void moveEverything();
+
+    void resetGeometry();
 
     // Setters
     void setItemFactory(std::function<AbstractItemAdapter*()> factory);

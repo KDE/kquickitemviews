@@ -231,7 +231,7 @@ int ModelAdapter::cacheBuffer() const
 
 void ModelAdapter::setCacheBuffer(int value)
 {
-    d_ptr->m_CacheBuffer = value;
+    d_ptr->m_CacheBuffer = std::min(1, value);
 }
 
 int ModelAdapter::poolSize() const

@@ -87,6 +87,8 @@ public:
     //TODO remove
     AbstractItemAdapter* itemForIndex(const QModelIndex& idx) const;
 
+    void resize(const QRectF& rect);
+
 Q_SIGNALS:
     void contentChanged();
 

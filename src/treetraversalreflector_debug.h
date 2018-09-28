@@ -18,9 +18,9 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItems* p)
         return;
     }*/
 
-    if (p->m_pParent == m_pRoot && m_pRoot->m_tChildren[FIRST] == p && p->m_pTreeItem) {
-        Q_ASSERT(!p->m_pTreeItem->up());
-    }
+//     if (p->m_pParent == m_pRoot && m_pRoot->m_tChildren[FIRST] == p && p->m_pTreeItem) {
+//         Q_ASSERT(!p->m_pTreeItem->up());
+//     }
 
     // First, let's check the linked list to avoid running more test on really
     // corrupted data

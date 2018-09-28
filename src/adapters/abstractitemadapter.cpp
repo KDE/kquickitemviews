@@ -116,7 +116,7 @@ public:
 const VisualTreeItem::State AbstractItemAdapterPrivate::m_fStateMap[7][7] = {
 /*              ATTACH ENTER_BUFFER ENTER_VIEW UPDATE    MOVE   LEAVE_BUFFER  DETACH  */
 /*POOLING */ { S POOLING, S BUFFER, S ERROR , S ERROR , S ERROR , S ERROR  , S DANGLING },
-/*POOLED  */ { S POOLED , S BUFFER, S ERROR , S ERROR , S ERROR , S ERROR  , S DANGLING },
+/*POOLED  */ { S POOLED , S BUFFER, S ACTIVE, S ERROR , S ERROR , S ERROR  , S DANGLING },
 /*BUFFER  */ { S ERROR  , S ERROR , S ACTIVE, S BUFFER, S ERROR , S POOLING, S DANGLING },
 /*ACTIVE  */ { S ERROR  , S BUFFER, S ERROR , S ACTIVE, S ACTIVE, S POOLING, S POOLING  },
 /*FAILED  */ { S ERROR  , S BUFFER, S ACTIVE, S ACTIVE, S ACTIVE, S POOLING, S DANGLING },
@@ -129,9 +129,9 @@ const VisualTreeItem::State AbstractItemAdapterPrivate::m_fStateMap[7][7] = {
 const AbstractItemAdapterPrivate::StateF AbstractItemAdapterPrivate::m_fStateMachine[7][7] = {
 /*             ATTACH  ENTER_BUFFER  ENTER_VIEW   UPDATE     MOVE   LEAVE_BUFFER  DETACH  */
 /*POOLING */ { A error  , A error  , A error  , A error  , A error  , A error  , A error   },
-/*POOLED  */ { A nothing, A attach , A error  , A error  , A error  , A error  , A destroy },
+/*POOLED  */ { A nothing, A attach , A move   , A error  , A error  , A error  , A destroy },
 /*BUFFER  */ { A error  , A error  , A move   , A refresh, A error  , A detach , A destroy },
-/*ACTIVE  */ { A error  , A nothing, A error  , A refresh, A move   , A detach , A detach  },
+/*ACTIVE  */ { A error  , A nothing, A nothing, A refresh, A move   , A detach , A detach  },
 /*FAILED  */ { A error  , A attach , A attach , A attach , A attach , A detach , A destroy },
 /*DANGLING*/ { A error  , A error  , A error  , A error  , A error  , A error  , A destroy },
 /*error   */ { A error  , A error  , A error  , A error  , A error  , A error  , A destroy },
@@ -182,27 +182,27 @@ QPersistentModelIndex AbstractItemAdapter::index() const
     return s_ptr->index();
 }
 
-AbstractItemAdapter* AbstractItemAdapter::up() const
+AbstractItemAdapter* AbstractItemAdapter::up(StateFlags flags) const
 {
-    const auto i = s_ptr->up();
+    const auto i = s_ptr->up(flags);
     return i ? i->d_ptr : nullptr;
 }
 
-AbstractItemAdapter* AbstractItemAdapter::down() const
+AbstractItemAdapter* AbstractItemAdapter::down(StateFlags flags) const
 {
-    const auto i = s_ptr->down();
+    const auto i = s_ptr->down(flags);
     return i ? i->d_ptr : nullptr;
 }
 
-AbstractItemAdapter* AbstractItemAdapter::left() const
+AbstractItemAdapter* AbstractItemAdapter::left(StateFlags flags) const
 {
-    const auto i = s_ptr->left();
+    const auto i = s_ptr->left(flags);
     return i ? i->d_ptr : nullptr;
 }
 
-AbstractItemAdapter* AbstractItemAdapter::right() const
+AbstractItemAdapter* AbstractItemAdapter::right(StateFlags flags) const
 {
-    const auto i = s_ptr->right();
+    const auto i = s_ptr->right(flags);
     return i ? i->d_ptr : nullptr;
 }
 
@@ -303,6 +303,7 @@ bool VisualTreeItem::performAction(VisualTreeItem::ViewAction a)
     //    m_pTTI->d_ptr->m_FailedCount--;
 
     const int s = (int)m_State;
+
     m_State     = d_ptr->d_ptr->m_fStateMap [s][(int)a];
     Q_ASSERT(m_State != VisualTreeItem::State::ERROR);
 
@@ -568,7 +569,7 @@ void VisualTreeItem::updateGeometry()
     if (sm && sm->selectionModel() && sm->selectionModel()->currentIndex() == index())
         sm->s_ptr->updateSelection(index());
 
-    m_pRange->s_ptr->geometryUpdated(this);
+    m_pRange->s_ptr->geometryUpdated(m_pGeometry);
 }
 
 void AbstractItemAdapter::setCollapsed(bool v)

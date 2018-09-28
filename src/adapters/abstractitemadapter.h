@@ -108,6 +108,12 @@ public:
         INVALID, /*!< You should not use this instance                        */
     };
 
+    enum StateFlags {
+        NORMAL       = 0x0 << 0, /*!< Will assert if it's not part of the viewport          */
+        FORCE_LOAD   = 0x1 << 0, /*!< Avoid at all cost, this will create the QQuiciItem    */
+        ALLOW_BUFFER = 0x1 << 1, /*!< If the item is part of the buffer, then get it anyway */
+    };
+
     /**
      * The item above this one when viewing the model as a Cartesian map.
      *
@@ -116,20 +122,20 @@ public:
      * sibling.
      *
      */
-    AbstractItemAdapter* up() const;
+    AbstractItemAdapter* up(StateFlags flags = StateFlags::NORMAL) const;
 
     /**
      * The item below this one when viewing the model as a Cartesian map.
      *
      * It can be a sibling or an item with a lower depth level.
      */
-    AbstractItemAdapter* down () const;
+    AbstractItemAdapter* down (StateFlags flags = StateFlags::NORMAL) const;
 
     ///TODO
-    AbstractItemAdapter* left () const;
+    AbstractItemAdapter* left (StateFlags flags = StateFlags::NORMAL) const;
 
     ///TODO
-    AbstractItemAdapter* right() const;
+    AbstractItemAdapter* right(StateFlags flags = StateFlags::NORMAL) const;
 
     /**
      * This method return the item representing the QModelIndex parent.

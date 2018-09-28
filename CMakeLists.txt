@@ -125,4 +125,6 @@ set_target_properties(kquickview PROPERTIES
     "${CMAKE_CURRENT_BINARY_DIR}/api;${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
 
+add_subdirectory(tests)
+
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/api/)

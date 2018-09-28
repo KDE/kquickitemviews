@@ -59,8 +59,27 @@ class TreeTraversalReflector final : public QObject
     friend struct TreeTraversalItems; // Internal representation
 public:
 
+    enum class TrackingState {
+        NO_MODEL , /*!< The model is not set, there is nothing to do                  */
+        PAUSED   , /*!< The model is set, but the reflector is not listening          */
+        POPULATED, /*!< The initial insertion has been done, it is ready for tracking */
+        TRACKING , /*!< The model is set and the reflector is listening to changes    */
+    };
+
+    enum class TrackingAction {
+        POPULATE, /*!< Fetch the model content and fill the view */
+        DISABLE , /*!< Disconnect the model tracking             */
+        ENABLE  , /*!< Connect the pending model                 */
+        RESET   , /*!< Remove everything, start over             */
+    };
+
     explicit TreeTraversalReflector(Viewport* parent = nullptr);
     virtual ~TreeTraversalReflector();
+
+    /**
+     * Manipulate the tracking state.
+     */
+    TrackingState performAction(TrackingAction);
 
     QAbstractItemModel* model() const;
     void setModel(QAbstractItemModel* m);
@@ -79,11 +98,6 @@ public:
      */
     bool detachUntil(Qt::Edge from, TreeTraversalItems *to);
     bool detachUntil(Qt::Edge from, VisualTreeItem *to);
-
-    /**
-     *
-     */
-    bool populate(Qt::Edge from);
 
     //TODO remove those temporary helpers once its encapsulated
     void moveEverything();

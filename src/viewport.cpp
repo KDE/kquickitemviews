@@ -51,6 +51,7 @@ public:
     QSizeF sizeHint(BlockMetadata* item) const;
     void updateEdges(BlockMetadata *item);
     QPair<Qt::Edge,Qt::Edge> fromGravity() const;
+    void updateAvailableEdges();
 
     BlockMetadata *m_lpLoadedEdges [4] {nullptr}; //top, left, right, bottom
     BlockMetadata *m_lpVisibleEdges[4] {nullptr}; //top, left, right, bottom //TODO
@@ -63,6 +64,12 @@ public Q_SLOTS:
     void slotViewportChanged(const QRectF &viewport);
     void slotDataChanged(const QModelIndex& tl, const QModelIndex& br);
 };
+
+enum Pos {Top, Left, Right, Bottom};
+static const Qt::Edge edgeMap[] = {
+    Qt::TopEdge, Qt::LeftEdge, Qt::RightEdge, Qt::BottomEdge
+};
+
 
 Viewport::Viewport(ModelAdapter* ma) : QObject(),
     d_ptr(new ViewportPrivate()), s_ptr(new ViewportSync())
@@ -222,8 +229,10 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m)
         connect(m, &QAbstractItemModel::dataChanged,
             this, &ViewportPrivate::slotDataChanged);
 
-    m_pReflector->populate(fromGravity().first);
-    //m_pReflector->populate(fromGravity().second); //TODO
+    if (m_ViewRect.isValid()) {
+        m_pReflector->performAction(TreeTraversalReflector::TrackingAction::POPULATE);
+        m_pReflector->performAction(TreeTraversalReflector::TrackingAction::ENABLE);
+    }
 }
 
 void ViewportPrivate::slotViewportChanged(const QRectF &viewport)
@@ -341,13 +350,8 @@ void ViewportPrivate::updateEdges(BlockMetadata *item)
         Q_ASSERT(item->m_pItem->m_State != VisualTreeItem::State::DANGLING);
     }
 
-    enum Pos {Top, Left, Right, Bottom};
 
     const auto geo = item->geometry();
-
-    static const Qt::Edge edgeMap[] = {
-        Qt::TopEdge, Qt::LeftEdge, Qt::RightEdge, Qt::BottomEdge
-    };
 
 #define CHECK_EDGE(code) [](const QRectF& old, const QRectF& self) {return code;}
     static const std::function<bool(const QRectF&, const QRectF&)> isEdge[] = {
@@ -364,8 +368,8 @@ void ViewportPrivate::updateEdges(BlockMetadata *item)
         if ((!m_lpLoadedEdges[i]) || m_lpLoadedEdges[i] == item || isEdge[i](m_lpLoadedEdges[i]->geometry(), geo)) {
             ret |= edgeMap[i];
 
-            // Unset the edge
-            if (m_lpLoadedEdges[i] != item) {
+            // Update the edge
+            if (m_lpLoadedEdges[i] != item && item->geometry().isValid()) {
                 if (m_lpLoadedEdges[i])
                     m_lpLoadedEdges[i]->m_IsEdge &= ~edgeMap[i];
 
@@ -389,14 +393,22 @@ void ViewportPrivate::updateEdges(BlockMetadata *item)
         item->performAction(BlockMetadata::Action::HIDE);
 
 //TODO update m_lpVisibleEdges
+    updateAvailableEdges();
+}
+
+void ViewportPrivate::updateAvailableEdges()
+{
     Qt::Edges available;
 
 //     qDebug() << "UPDATE EDGES2" << (int) item->m_pItem->m_State;
     for (int i = Pos::Top; i <= Pos::Bottom; i++) {
-        if ((!m_lpLoadedEdges[i]) || m_lpLoadedEdges[i]->geometry().contains(m_ViewRect)) {
+        Q_ASSERT((!m_lpLoadedEdges[i]) || m_lpLoadedEdges[i]->geometry().isValid());
+
+        if ((!m_lpLoadedEdges[i]) || m_ViewRect.contains(m_lpLoadedEdges[i]->geometry())) {
             available |= edgeMap[i];
         }
         else {
+//             Q_ASSERT(false);
             //TODO batch them instead of doing this over and over
             //m_pReflector->detachUntil(edgeMap[i], m_lpLoadedEdges[i]);
 //             m_lpLoadedEdges[i]->performAction(VisualTreeItem::ViewAction::LEAVE_BUFFER);
@@ -441,7 +453,16 @@ void ViewportSync::updateGeometry(BlockMetadata* item)
 
 void Viewport::resize(const QRectF& rect)
 {
+    const bool wasValid = d_ptr->m_ViewRect.isValid();
     d_ptr->m_ViewRect = rect;
+
+    d_ptr->updateAvailableEdges();
+
+    if (rect.isValid()) {
+        qDebug() << "\n\n CALL POPULATE!";
+        d_ptr->m_pReflector->performAction(TreeTraversalReflector::TrackingAction::POPULATE);
+        d_ptr->m_pReflector->performAction(TreeTraversalReflector::TrackingAction::ENABLE);
+    }
 }
 
 #include <viewport.moc>

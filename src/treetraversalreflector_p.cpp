@@ -128,9 +128,11 @@ public:
     /// All elements with loaded children
     QHash<QPersistentModelIndex, TreeTraversalItems*> m_hMapper;
     QAbstractItemModel* m_pModel {nullptr};
+    QAbstractItemModel* m_pTrackedModel {nullptr};
     std::function<AbstractItemAdapter*()> m_fFactory;
     Viewport *m_pViewport;
     Qt::Edges m_Edges {Qt::TopEdge|Qt::LeftEdge|Qt::RightEdge|Qt::BottomEdge};
+    TreeTraversalReflector::TrackingState m_TrackingState {TreeTraversalReflector::TrackingState::NO_MODEL};
 
     enum Pos {Top, Left, Right, Bottom};
 
@@ -138,6 +140,18 @@ public:
     int m_lEffectiveBuffer[Pos::Bottom+1] {0,0,0,0};
 
     TreeTraversalReflector* q_ptr;
+
+    // Actions, do not call directly
+    void connectModel();
+    void disconnectModel();
+    void nothing();
+    void reset();
+    void error();
+    void populate();
+
+    typedef void(TreeTraversalReflectorPrivate::*StateF)();
+    static const TreeTraversalReflector::TrackingState m_fStateMap[4][4];
+    static const StateF m_fStateMachine[4][4];
 
     // Tests
     void _test_validateTree(TreeTraversalItems* p);
@@ -154,6 +168,28 @@ public Q_SLOTS:
 };
 
 #include <treetraversalreflector_debug.h>
+
+#define S TreeTraversalReflector::TrackingState::
+const TreeTraversalReflector::TrackingState TreeTraversalReflectorPrivate::m_fStateMap[4][4] = {
+/*                POPULATE     DISABLE      ENABLE       RESET   */
+/*NO_MODEL */ { S NO_MODEL , S NO_MODEL , S NO_MODEL, S NO_MODEL },
+/*PAUSED   */ { S POPULATED, S PAUSED   , S TRACKING, S PAUSED   },
+/*POPULATED*/ { S TRACKING , S PAUSED   , S TRACKING, S PAUSED   },
+/*TRACKING */ { S TRACKING , S POPULATED, S TRACKING, S TRACKING },
+};
+#undef S
+
+// This state machine is self healing, error can be called in release mode
+// and it will only disable the view without further drama.
+#define A &TreeTraversalReflectorPrivate::
+const TreeTraversalReflectorPrivate::StateF TreeTraversalReflectorPrivate::m_fStateMachine[4][4] = {
+/*               POPULATE         DISABLE           ENABLE        RESET  */
+/*NO_MODEL */ { A nothing , A nothing        , A nothing     , A nothing },
+/*PAUSED   */ { A populate, A nothing        , A error       , A reset   },
+/*POPULATED*/ { A error   , A nothing        , A connectModel, A reset   },
+/*TRACKING */ { A nothing , A disconnectModel, A nothing     , A reset   },
+};
+#undef A
 
 #define S TreeTraversalItems::State::
 const TreeTraversalItems::State TreeTraversalItems::m_fStateMap[6][7] = {
@@ -242,7 +278,6 @@ TreeTraversalItems* TreeTraversalItems::right() const
     return nullptr; //TODO
 }
 
-
 bool BlockMetadata::performAction(BlockMetadata::Action a)
 {
     const int s     = (int)m_pTTI->m_State;
@@ -252,9 +287,18 @@ bool BlockMetadata::performAction(BlockMetadata::Action a)
     return ret;
 }
 
+TreeTraversalReflector::TrackingState TreeTraversalReflector::performAction(TreeTraversalReflector::TrackingAction a)
+{
+    const int s = (int)d_ptr->m_TrackingState;
+    d_ptr->m_TrackingState = d_ptr->m_fStateMap[s][(int)a];
+
+    (d_ptr->*TreeTraversalReflectorPrivate::m_fStateMachine[s][(int)a])();
+
+    return d_ptr->m_TrackingState;
+}
+
 bool TreeTraversalItems::nothing()
 { return true; }
-
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsuggest-attribute=noreturn"
@@ -506,14 +550,16 @@ void TreeTraversalReflector::setItemFactory(std::function<AbstractItemAdapter*()
 #include <unistd.h>
 void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, int first, int last)
 {
+    qDebug() << "\nINSERT!" << parent << first << last;
     Q_ASSERT((!parent.isValid()) || parent.model() == q_ptr->model());
 //     qDebug() << "\n\nADD" << first << last;
 
     if (!isInsertActive(parent, first, last)) {
-        Q_ASSERT(false); //FIXME so I can't forget when time comes
+//         Q_ASSERT(false); //FIXME so I can't forget when time comes
         return;
     }
 
+    qDebug() << "GO INSERT!" << parent << first << last;
 //     qDebug() << "\n\nADD2" << q_ptr->width() << q_ptr->height();
 
     auto pitem = parent.isValid() ? m_hMapper.value(parent) : m_pRoot;
@@ -554,6 +600,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
             pitem->m_tChildren[FIRST] = e;
         }
 
+        qDebug() << "ATTACH!" << e << (int)e->m_State;
         if (!e->m_Geometry.performAction(BlockMetadata::Action::ATTACH))
             return;
 
@@ -570,7 +617,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
                 ne->m_Geometry.performAction(BlockMetadata::Action::MOVE);
         }
 
-        if (auto rc = q_ptr->model()->rowCount(idx))
+        if (auto rc = q_ptr->model()->rowCount(idx) && m_Edges & Qt::BottomEdge)
             slotRowsInserted(idx, 0, rc-1);
 
         // Validate early to prevent propagating garbage that's nearly impossible
@@ -630,10 +677,10 @@ void TreeTraversalReflectorPrivate::slotRowsRemoved(const QModelIndex& parent, i
     for (int i = first; i <= last; i++) {
         auto idx = q_ptr->model()->index(i, 0, parent);
 
-        auto elem = pitem->m_hLookup.value(idx);
-        Q_ASSERT(elem);
+        if (auto elem = pitem->m_hLookup.value(idx)) {
+            elem->m_Geometry.performAction(BlockMetadata::Action::DETACH);
+        }
 
-        elem->m_Geometry.performAction(BlockMetadata::Action::DETACH);
     }
 
     if (!parent.isValid())
@@ -642,7 +689,7 @@ void TreeTraversalReflectorPrivate::slotRowsRemoved(const QModelIndex& parent, i
 
 void TreeTraversalReflectorPrivate::slotLayoutChanged()
 {
-
+    qDebug() << "LAYOUT CHANGED";
     if (auto rc = q_ptr->model()->rowCount())
         slotRowsInserted({}, 0, rc - 1);
 
@@ -1012,71 +1059,108 @@ QAbstractItemModel* TreeTraversalReflector::model() const
     return d_ptr->m_pModel;
 }
 
+void TreeTraversalReflectorPrivate::connectModel()
+{
+    Q_ASSERT(!m_pTrackedModel);
+    Q_ASSERT(m_pModel);
+
+    qDebug() << "\n\nCONNECT!" << m_pModel;
+
+    connect(m_pModel, &QAbstractItemModel::rowsInserted, this,
+        &TreeTraversalReflectorPrivate::slotRowsInserted );
+    connect(m_pModel, &QAbstractItemModel::rowsAboutToBeRemoved, this,
+        &TreeTraversalReflectorPrivate::slotRowsRemoved  );
+    connect(m_pModel, &QAbstractItemModel::layoutAboutToBeChanged, this,
+        &TreeTraversalReflectorPrivate::cleanup);
+    connect(m_pModel, &QAbstractItemModel::layoutChanged, this,
+        &TreeTraversalReflectorPrivate::slotLayoutChanged);
+    connect(m_pModel, &QAbstractItemModel::modelAboutToBeReset, this,
+        &TreeTraversalReflectorPrivate::cleanup);
+    connect(m_pModel, &QAbstractItemModel::modelReset, this,
+        &TreeTraversalReflectorPrivate::slotLayoutChanged);
+    connect(m_pModel, &QAbstractItemModel::rowsAboutToBeMoved, this,
+        &TreeTraversalReflectorPrivate::slotRowsMoved);
+    connect(m_pModel, &QAbstractItemModel::rowsMoved, this,
+        &TreeTraversalReflectorPrivate::slotRowsMoved2);
+
+    m_pTrackedModel = m_pModel;
+}
+
+void TreeTraversalReflectorPrivate::reset()
+{
+    if (m_pTrackedModel)
+        slotRowsRemoved({}, 0, m_pTrackedModel->rowCount()-1);
+
+    m_hMapper.clear();
+    delete m_pRoot;
+    m_pRoot = new TreeTraversalItems(nullptr, this);
+}
+
+void TreeTraversalReflectorPrivate::disconnectModel()
+{
+    Q_ASSERT(m_pTrackedModel);
+    if (!m_pTrackedModel)
+        return;
+
+    disconnect(m_pTrackedModel, &QAbstractItemModel::rowsInserted, this,
+        &TreeTraversalReflectorPrivate::slotRowsInserted);
+    disconnect(m_pTrackedModel, &QAbstractItemModel::rowsAboutToBeRemoved, this,
+        &TreeTraversalReflectorPrivate::slotRowsRemoved);
+    disconnect(m_pTrackedModel, &QAbstractItemModel::layoutAboutToBeChanged, this,
+        &TreeTraversalReflectorPrivate::cleanup);
+    disconnect(m_pTrackedModel, &QAbstractItemModel::layoutChanged, this,
+        &TreeTraversalReflectorPrivate::slotLayoutChanged);
+    disconnect(m_pTrackedModel, &QAbstractItemModel::modelAboutToBeReset, this,
+        &TreeTraversalReflectorPrivate::cleanup);
+    disconnect(m_pTrackedModel, &QAbstractItemModel::modelReset, this,
+        &TreeTraversalReflectorPrivate::slotLayoutChanged);
+    disconnect(m_pTrackedModel, &QAbstractItemModel::rowsAboutToBeMoved, this,
+        &TreeTraversalReflectorPrivate::slotRowsMoved);
+    disconnect(m_pTrackedModel, &QAbstractItemModel::rowsMoved, this,
+        &TreeTraversalReflectorPrivate::slotRowsMoved2);
+
+    m_pTrackedModel = nullptr;
+}
+
+void TreeTraversalReflectorPrivate::populate()
+{
+    Q_ASSERT(m_pModel);
+
+    qDebug() << "POPULATE" << m_pModel->rowCount();
+    if (auto rc = m_pModel->rowCount())
+        slotRowsInserted({}, 0, rc - 1);
+}
+
+void TreeTraversalReflectorPrivate::nothing()
+{}
+
+void TreeTraversalReflectorPrivate::error()
+{
+    Q_ASSERT(false);
+    q_ptr->performAction(TreeTraversalReflector::TrackingAction::DISABLE);
+    q_ptr->performAction(TreeTraversalReflector::TrackingAction::RESET);
+}
+
 void TreeTraversalReflector::setModel(QAbstractItemModel* m)
 {
     if (m == model())
         return;
 
-    if (auto oldM = model()) {
-        disconnect(oldM, &QAbstractItemModel::rowsInserted, d_ptr,
-            &TreeTraversalReflectorPrivate::slotRowsInserted);
-        disconnect(oldM, &QAbstractItemModel::rowsAboutToBeRemoved, d_ptr,
-            &TreeTraversalReflectorPrivate::slotRowsRemoved);
-        disconnect(oldM, &QAbstractItemModel::layoutAboutToBeChanged, d_ptr,
-            &TreeTraversalReflectorPrivate::cleanup);
-        disconnect(oldM, &QAbstractItemModel::layoutChanged, d_ptr,
-            &TreeTraversalReflectorPrivate::slotLayoutChanged);
-        disconnect(oldM, &QAbstractItemModel::modelAboutToBeReset, d_ptr,
-            &TreeTraversalReflectorPrivate::cleanup);
-        disconnect(oldM, &QAbstractItemModel::modelReset, d_ptr,
-            &TreeTraversalReflectorPrivate::slotLayoutChanged);
-        disconnect(oldM, &QAbstractItemModel::rowsAboutToBeMoved, d_ptr,
-            &TreeTraversalReflectorPrivate::slotRowsMoved);
-        disconnect(oldM, &QAbstractItemModel::rowsMoved, d_ptr,
-            &TreeTraversalReflectorPrivate::slotRowsMoved2);
+    performAction(TrackingAction::DISABLE);
+    performAction(TrackingAction::RESET);
 
-        d_ptr->slotRowsRemoved({}, 0, oldM->rowCount()-1);
-    }
+    //TODO don't set the state directly
+    if (d_ptr->m_TrackingState == TrackingState::NO_MODEL)
+        d_ptr->m_TrackingState = TrackingState::PAUSED;
 
-    d_ptr->m_hMapper.clear();
-    delete d_ptr->m_pRoot;
-    d_ptr->m_pRoot = new TreeTraversalItems(nullptr, d_ptr);
+    Q_ASSERT(!d_ptr->m_pTrackedModel);
 
     d_ptr->m_pModel = m;
 
     if (!m)
         return;
-
-    connect(model(), &QAbstractItemModel::rowsInserted, d_ptr,
-        &TreeTraversalReflectorPrivate::slotRowsInserted );
-    connect(model(), &QAbstractItemModel::rowsAboutToBeRemoved, d_ptr,
-        &TreeTraversalReflectorPrivate::slotRowsRemoved  );
-    connect(model(), &QAbstractItemModel::layoutAboutToBeChanged, d_ptr,
-        &TreeTraversalReflectorPrivate::cleanup);
-    connect(model(), &QAbstractItemModel::layoutChanged, d_ptr,
-        &TreeTraversalReflectorPrivate::slotLayoutChanged);
-    connect(model(), &QAbstractItemModel::modelAboutToBeReset, d_ptr,
-        &TreeTraversalReflectorPrivate::cleanup);
-    connect(model(), &QAbstractItemModel::modelReset, d_ptr,
-        &TreeTraversalReflectorPrivate::slotLayoutChanged);
-    connect(model(), &QAbstractItemModel::rowsAboutToBeMoved, d_ptr,
-        &TreeTraversalReflectorPrivate::slotRowsMoved);
-    connect(model(), &QAbstractItemModel::rowsMoved, d_ptr,
-        &TreeTraversalReflectorPrivate::slotRowsMoved2);
 }
 
-bool TreeTraversalReflector::populate(Qt::Edge from)
-{
-    Q_UNUSED(from)
-
-    if (!model())
-        return false;
-
-    if (auto rc = model()->rowCount())
-        d_ptr->slotRowsInserted({}, 0, rc - 1);
-
-    return true;
-}
 
 bool TreeTraversalReflector::detachUntil(Qt::Edge from, VisualTreeItem *to)
 {
@@ -1139,6 +1223,8 @@ TreeTraversalItems* TreeTraversalReflectorPrivate::addChildren(TreeTraversalItem
 
     const int oldSize(m_hMapper.size()), oldSize2(parent->m_hLookup.size());
 
+    Q_ASSERT(!m_hMapper.contains(index));
+
     m_hMapper [index] = e;
     parent->m_hLookup[index] = e;
 
@@ -1180,6 +1266,7 @@ AbstractItemAdapter* TreeTraversalReflector::itemForIndex(const QModelIndex& idx
 
 void TreeTraversalReflector::setAvailableEdges(Qt::Edges edges)
 {
+    qDebug() << "\nSET AVAIL" << (bool)(edges & Qt::TopEdge) << (bool)(edges & Qt::BottomEdge);
     d_ptr->m_Edges = edges;
 }
 

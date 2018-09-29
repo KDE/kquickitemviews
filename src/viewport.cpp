@@ -386,7 +386,7 @@ void ViewportPrivate::updateEdges(BlockMetadata *item)
     );
 
 //     qDebug() << "UPDATE EDGES1" << (int) item->m_pItem->m_State;
-    if (m_ViewRect.intersects(geo)) {
+    if (m_ViewRect.intersects(geo) || geo.height() == 0 || geo.width() == 0) {
         //item->performAction(BlockMetadata::Action::SHOW);
     }
     else

@@ -281,7 +281,15 @@ TreeTraversalItems* TreeTraversalItems::right() const
 bool BlockMetadata::performAction(BlockMetadata::Action a)
 {
     const int s     = (int)m_pTTI->m_State;
-    m_pTTI->m_State = m_pTTI->m_fStateMap            [s][(int)a];
+    m_pTTI->m_State = m_pTTI->m_fStateMap[s][(int)a];
+    Q_ASSERT(m_pTTI->m_State == m_pTTI->m_fStateMap[s][(int)a]);
+    qDebug() << "\n\n\nDDDD" << (int)m_pTTI->m_State << (int)a << s;
+    sync();
+    if ((int)a == 0 && s == 2)
+        Q_ASSERT(m_pTTI->m_State == TreeTraversalItems::State::VISIBLE);
+
+    volatile int back = (int)m_pTTI->m_State;
+    volatile auto ttl = m_pTTI;
     bool ret        = (this->m_pTTI->*TreeTraversalItems::m_fStateMachine[s][(int)a])();
 
     return ret;
@@ -375,12 +383,20 @@ bool TreeTraversalItems::attach()
     const auto upTTI   = up();
     const auto downTTI = down();
 
-    if ((!upTTI) || upTTI->m_State == State::BUFFER && upTTI->m_Geometry.m_BufferEdge == Qt::TopEdge)
+    if ((!upTTI) || upTTI->m_State == State::BUFFER && upTTI->m_Geometry.m_BufferEdge == Qt::TopEdge) {
+        qDebug() << "FOO " << m_Index.data();
         upTTI->m_Geometry.m_BufferEdge == Qt::TopEdge;
-    else if ((!downTTI) || downTTI->m_State == State::BUFFER && downTTI->m_Geometry.m_BufferEdge == Qt::BottomEdge)
-        upTTI->m_Geometry.m_BufferEdge == Qt::BottomEdge;
-    else
         return m_Geometry.performAction(BlockMetadata::Action::SHOW);
+    }
+    else if ((!downTTI) || downTTI->m_State == State::BUFFER && downTTI->m_Geometry.m_BufferEdge == Qt::BottomEdge) {
+        qDebug() << "BAR " << m_Index.data();
+        upTTI->m_Geometry.m_BufferEdge == Qt::BottomEdge;
+        return m_Geometry.performAction(BlockMetadata::Action::SHOW);
+    }
+    else {
+        qDebug() << "SHOW!";
+        return m_Geometry.performAction(BlockMetadata::Action::SHOW);
+    }
 
     return true;
 }
@@ -547,7 +563,7 @@ void TreeTraversalReflector::setItemFactory(std::function<AbstractItemAdapter*()
 {
     d_ptr->m_fFactory = factory;
 }
-#include <unistd.h>
+
 void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, int first, int last)
 {
     qDebug() << "\nINSERT!" << parent << first << last;
@@ -570,6 +586,13 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
     if (first && pitem)
         prev = pitem->m_hLookup.value(q_ptr->model()->index(first-1, 0, parent));
 
+    auto oldFirst = pitem->m_tChildren[FIRST];
+
+    // There is no choice here but to load a larger subset to avoid holes, in
+    // theory, m_Edges will prevent runaway loading
+    if (pitem->m_tChildren[FIRST])
+        last = std::max(last, pitem->m_tChildren[FIRST]->m_Index.row() - 1);
+
     //FIXME support smaller ranges
     for (int i = first; i <= last; i++) {
         auto idx = q_ptr->model()->index(i, 0, parent);
@@ -579,8 +602,10 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 
         if (!(m_Edges & Qt::BottomEdge)) {
             qDebug() << "NO SPACE LEFT";
-            return;
+            break;
         }
+        else
+            qDebug() << "GO AHEAD" << i;
 
         auto e = addChildren(pitem, idx);
 
@@ -595,6 +620,10 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
             bridgeGap(prev, e, true);
 
         // This is required before ::ATTACH because otherwise ::down() wont work
+
+        Q_ASSERT((!pitem->m_tChildren[FIRST]) || pitem->m_tChildren[FIRST]->m_MoveToRow == -1); //TODO
+
+        // The item is about the current parent first item
         if ((!pitem->m_tChildren[FIRST]) || e->m_Index.row() <= pitem->m_tChildren[FIRST]->m_Index.row()) {
             e->m_tSiblings[NEXT] = pitem->m_tChildren[FIRST];
             pitem->m_tChildren[FIRST] = e;
@@ -609,6 +638,8 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
             if (auto pe = e->up())
                 pe->m_Geometry.performAction(BlockMetadata::Action::MOVE);
         }
+
+        Q_ASSERT((!pitem->m_tChildren[LAST]) || pitem->m_tChildren[LAST]->m_MoveToRow == -1); //TODO
 
         if ((!pitem->m_tChildren[LAST]) || e->m_Index.row() > pitem->m_tChildren[LAST]->m_Index.row()) {
             Q_ASSERT(pitem != e);
@@ -631,6 +662,15 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 
     }
 
+    // Fix the linked list
+    if (oldFirst && prev && prev->m_Index.row() < oldFirst->m_Index.row()) {
+        Q_ASSERT(!oldFirst->m_tSiblings[PREVIOUS]);
+        Q_ASSERT(oldFirst->m_Index.row() == prev->m_Index.row() + 1);
+        Q_ASSERT(prev->m_tSiblings[NEXT] == oldFirst);
+
+        oldFirst->m_tSiblings[PREVIOUS] = prev;
+    }
+
     if ((!pitem->m_tChildren[LAST]) || last > pitem->m_tChildren[LAST]->m_Index.row())
         pitem->m_tChildren[LAST] = prev;
 
@@ -638,7 +678,11 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 
     //FIXME use down()
     if (q_ptr->model()->rowCount(parent) > last) {
-        if (auto i = pitem->m_hLookup.value(q_ptr->model()->index(last+1, 0, parent))) {
+        //detachUntil;
+        if (!prev) {
+
+        }
+        else if (auto i = pitem->m_hLookup.value(q_ptr->model()->index(last+1, 0, parent))) {
             i->m_tSiblings[PREVIOUS] = prev;
             prev->m_tSiblings[NEXT] = i;
         }
@@ -796,6 +840,16 @@ void TreeTraversalReflectorPrivate::bridgeGap(TreeTraversalItems* first, TreeTra
         Q_ASSERT(false); //Something went really wrong elsewhere
     }
 
+    if (second && first && second->m_pParent && second->m_pParent->m_tChildren[FIRST] == second && second->m_pParent == first->m_pParent) {
+        second->m_pParent->m_tChildren[FIRST] = first;
+    }
+
+    if ((!first) && second->m_MoveToRow != -1) {
+        Q_ASSERT(second->m_pParent->m_tChildren[FIRST]);
+        Q_ASSERT(second->m_pParent->m_tChildren[FIRST] == second ||
+            second->m_pParent->m_tChildren[FIRST]->m_Index.row() < second->m_MoveToRow);
+    }
+
     if (first)
         Q_ASSERT(first->m_pParent->m_tChildren[FIRST]);
     if (second)
@@ -877,8 +931,10 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
         return;
 
     // Whatever has to be done only affect a part that's not currently tracked.
-    if (q_ptr->isActive(destination, row, row))
+    if (!q_ptr->isActive(destination, row, row)) {
+        Q_ASSERT(false); //TODO so I don't forget
         return;
+    }
 
     setTemporaryIndices(parent, start, end, destination, row);
 
@@ -1013,6 +1069,11 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
         Q_ASSERT(startTTI->m_tSiblings[PREVIOUS]->m_pParent == startTTI->m_pParent);
         Q_ASSERT(startTTI->m_tSiblings[PREVIOUS]->m_tSiblings[NEXT] == startTTI);
     }
+
+    Q_ASSERT(newParentTTI->m_tChildren[FIRST]);
+    Q_ASSERT(startTTI == newParentTTI->m_tChildren[FIRST] ||
+        newParentTTI->m_tChildren[FIRST]->m_Index.row() <= startTTI->m_MoveToRow);
+    Q_ASSERT(row || newParentTTI->m_tChildren[FIRST] == startTTI);
 
 
 //     Q_ASSERT((!newNextVI) || newNextVI->m_pParent->m_tSiblings[PREVIOUS] == endVI->m_pParent);

@@ -350,7 +350,6 @@ void ViewportPrivate::updateEdges(BlockMetadata *item)
         Q_ASSERT(item->m_pItem->m_State != VisualTreeItem::State::DANGLING);
     }
 
-
     const auto geo = item->geometry();
 
 #define CHECK_EDGE(code) [](const QRectF& old, const QRectF& self) {return code;}
@@ -386,11 +385,13 @@ void ViewportPrivate::updateEdges(BlockMetadata *item)
     );
 
 //     qDebug() << "UPDATE EDGES1" << (int) item->m_pItem->m_State;
-    if (m_ViewRect.intersects(geo) || geo.height() == 0 || geo.width() == 0) {
+    if (m_ViewRect.intersects(geo) || geo.height() <= 0 || geo.width() <= 0) {
         //item->performAction(BlockMetadata::Action::SHOW);
     }
-    else
+    else {
+        Q_ASSERT(false);
         item->performAction(BlockMetadata::Action::HIDE);
+    }
 
 //TODO update m_lpVisibleEdges
     updateAvailableEdges();
@@ -448,13 +449,18 @@ void ViewportSync::updateGeometry(BlockMetadata* item)
     if (q_ptr->d_ptr->m_SizeStrategy != Viewport::SizeHintStrategy::JIT)
         q_ptr->d_ptr->sizeHint(item);
 
-    q_ptr->d_ptr->updateEdges(item);
+    q_ptr->d_ptr->updateEdges(  item);
 }
 
 void Viewport::resize(const QRectF& rect)
 {
     const bool wasValid = d_ptr->m_ViewRect.isValid();
-    d_ptr->m_ViewRect = rect;
+
+    Q_ASSERT(rect.x() == 0);
+
+    // The {x, y} may not be at {0, 0}, but given it is a relative viewport,
+    // then the content doesn't care about where it is on the screen.
+    d_ptr->m_ViewRect = QRectF(QPointF(0,0), rect.size());
 
     d_ptr->updateAvailableEdges();
 

@@ -18,6 +18,12 @@
 #include "modelviewtester.h"
 
 #include <QtCore/QDebug>
+#include <QMetaObject>
+#include <QMetaMethod>
+
+#include <functional>
+
+#define DO(slot) steps << QString(#slot) ;
 
 struct ModelViewTesterItem
 {
@@ -33,11 +39,57 @@ struct ModelViewTesterItem
 ModelViewTester::ModelViewTester(QObject* parent)
 {
     m_pRoot = new ModelViewTesterItem;
+
+    // Append
+    DO(appendSimpleRoot);
+    DO(appendSimpleRoot);
+    DO(appendSimpleRoot);
+    DO(appendSimpleRoot);
+    DO(appendSimpleRoot);
+
+    DO(appendRootChildren);
+    DO(appendRootChildren);
+    DO(appendRootChildren);
+    DO(appendRootChildren);
+
+    // Prepend
+    DO(prependSimpleRoot);
+
+    // Move
+    DO(moveRootToFront);
+    DO(moveChildByOne);
+    DO(moveChildByParent);
+    DO(moveToGrandChildren);
+
+    // Insert
+    DO(insertRoot);
+    DO(insertFirst);
+    DO(insertChild);
+
+    // Remove
+    DO(removeRoot);
+    DO(resetModel);
 }
 
 ModelViewTester::~ModelViewTester()
 {
 
+}
+
+void ModelViewTester::run() {
+    m_pTimer->setInterval(100);
+
+    QObject::connect(m_pTimer, &QTimer::timeout, this, [this]() {
+        int methodIndex = metaObject()->indexOfMethod((steps[count]+"()").toLatin1());
+        metaObject()->method(methodIndex).invoke(this, Qt::QueuedConnection);
+        count++;
+        if (count == steps.size()) {
+            m_pTimer->stop();
+            count = 0;
+        }
+    });
+
+    m_pTimer->start();
 }
 
 bool ModelViewTester::setData( const QModelIndex& index, const QVariant &value, int role   )

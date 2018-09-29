@@ -284,7 +284,7 @@ bool BlockMetadata::performAction(BlockMetadata::Action a)
     m_pTTI->m_State = m_pTTI->m_fStateMap[s][(int)a];
     Q_ASSERT(m_pTTI->m_State == m_pTTI->m_fStateMap[s][(int)a]);
     qDebug() << "\n\n\nDDDD" << (int)m_pTTI->m_State << (int)a << s;
-    sync();
+
     if ((int)a == 0 && s == 2)
         Q_ASSERT(m_pTTI->m_State == TreeTraversalItems::State::VISIBLE);
 
@@ -331,18 +331,22 @@ bool TreeTraversalItems::show()
 
         m_pTreeItem->performAction(VisualTreeItem::ViewAction::ATTACH);
         Q_ASSERT(m_pTreeItem->m_State == VisualTreeItem::State::POOLED);
+        Q_ASSERT(m_State == State::VISIBLE);
     }
 
     volatile auto s = m_pTreeItem->m_State;
     m_pTreeItem->performAction(VisualTreeItem::ViewAction::ENTER_BUFFER);
+    Q_ASSERT(m_State == State::VISIBLE);
     Q_ASSERT(m_pTreeItem->m_State == VisualTreeItem::State::BUFFER);
 
     m_pTreeItem->performAction(VisualTreeItem::ViewAction::ENTER_VIEW);
+    Q_ASSERT(m_State == State::VISIBLE);
 
     // For some reason creating the visual element failed, this can and will
     // happen and need to be recovered from.
     if (m_pTreeItem->hasFailed()) {
         m_pTreeItem->performAction(VisualTreeItem::ViewAction::LEAVE_BUFFER);
+        Q_ASSERT(m_State == State::VISIBLE);
         m_pTreeItem = nullptr;
     }
 

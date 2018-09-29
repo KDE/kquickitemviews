@@ -17,6 +17,7 @@
  **************************************************************************/
 
 #include <QAbstractItemModel>
+#include <QTimer>
 
 struct ModelViewTesterItem;
 
@@ -32,8 +33,16 @@ class ModelViewTester : public QAbstractItemModel
 Q_OBJECT
 
 public:
+    Q_PROPERTY(int interval READ interval WRITE setInterval)
+
+
     explicit ModelViewTester(QObject* parent = nullptr);
     virtual ~ModelViewTester();
+
+    Q_INVOKABLE void run();
+
+    int interval() const {return m_pTimer->interval(); }
+    void setInterval(int i) { m_pTimer->setInterval(i); }
 
     //Model implementation
     virtual bool          setData      ( const QModelIndex& index, const QVariant &value, int role   ) override;
@@ -67,4 +76,8 @@ public Q_SLOTS:
 
 private:
     ModelViewTesterItem* m_pRoot;
+
+    int count {0};
+    QStringList steps;
+    QTimer *m_pTimer {new QTimer(this)};
 };

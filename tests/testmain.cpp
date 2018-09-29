@@ -23,8 +23,8 @@
 #include <QQuickView>
 #include <QQmlEngine>
 #include <QQmlContext>
-#include <QMetaObject>
 #include <QSharedPointer>
+#include <QQmlApplicationEngine>
 
 #include "modelviewtester.h"
 
@@ -32,73 +32,29 @@
 #include <views/listview.h>
 #include <views/treeview.h>
 
-#include <functional>
-
-#define DO(slot) steps << QString(#slot) ;
-
 int main(int argc, char **argv)
 {
     QGuiApplication app(argc, argv);
 
-    auto m = new ModelViewTester(&app);
-    auto mptr= QSharedPointer<QAbstractItemModel>(m);
+    QQmlApplicationEngine engine;
 
-    QQuickView view;
-    view.engine()->rootContext()->setContextProperty("testmodel", QVariant::fromValue(mptr));
+    qmlRegisterType<ModelViewTester>("RingQmlWidgets", 1, 0, "ModelViewTester");
+    qmlRegisterType<HierarchyView  >("RingQmlWidgets", 1, 0, "HierarchyView");
+    qmlRegisterType<TreeView       >("RingQmlWidgets", 1, 0, "QuickTreeView");
+    qmlRegisterType<ListView       >("RingQmlWidgets", 1, 0, "QuickListView");
 
-    qmlRegisterType<HierarchyView>("RingQmlWidgets", 1, 0, "HierarchyView");
-    qmlRegisterType<TreeView     >("RingQmlWidgets", 1, 0, "QuickTreeView");
-    qmlRegisterType<ListView     >("RingQmlWidgets", 1, 0, "QuickListView");
+//     view.setResizeMode(QQuickView::SizeRootObjectToView);
+    engine.load(QUrl("qrc:///modeltest.qml"));
 
-    view.setResizeMode(QQuickView::SizeRootObjectToView);
-    view.setSource(QUrl("qrc:///modeltest.qml"));
+    if (engine.rootObjects().isEmpty()) {
+        qDebug() << "\n\nFAILED TO LOAD";
+        return -1;
+    }
 
-    QStringList steps;
 
-    // Append
-    DO(appendSimpleRoot);
-    DO(appendSimpleRoot);
-    DO(appendSimpleRoot);
-    DO(appendSimpleRoot);
-    DO(appendSimpleRoot);
 
-    DO(appendRootChildren);
-    DO(appendRootChildren);
-    DO(appendRootChildren);
-    DO(appendRootChildren);
-
-    // Prepend
-    DO(prependSimpleRoot);
-
-    // Move
-    DO(moveRootToFront);
-    DO(moveChildByOne);
-    DO(moveChildByParent);
-    DO(moveToGrandChildren);
-
-    // Insert
-    DO(insertRoot);
-    DO(insertFirst);
-    DO(insertChild);
-
-    // Remove
-    DO(removeRoot);
-    DO(resetModel);
-
-    int count = 0;
-
-    QTimer r(&app);
-    r.setInterval(100);
-
-    QObject::connect(&r, &QTimer::timeout, &app, [&r, m, steps, &count]() {
-        int methodIndex = m->metaObject()->indexOfMethod((steps[count]+"()").toLatin1());
-        m->metaObject()->method(methodIndex).invoke(m, Qt::QueuedConnection);
-        count++;
-        if (count == steps.size())
-            r.stop();
-    });
-
-    r.start();
 
     return app.exec();
 }
+
+#include <testmain.moc>

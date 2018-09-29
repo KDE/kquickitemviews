@@ -212,6 +212,13 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m)
 {
     m_pReflector->setModel(m);
 
+    // Reset the edges
+
+    for (int i = Pos::Top; i <= Pos::Bottom; i++) {
+        m_lpVisibleEdges[i] = nullptr;
+        m_lpLoadedEdges[i] = nullptr;
+    }
+
     // Check if the proxyModel is used
     m_ModelHasSizeHints = m && m->metaObject()->inherits(
         &SizeHintProxyModel::staticMetaObject
@@ -415,8 +422,6 @@ void ViewportPrivate::updateAvailableEdges()
 //             m_lpLoadedEdges[i]->performAction(VisualTreeItem::ViewAction::LEAVE_BUFFER);
         }
     }
-
-    qDebug() << "\n\nSET VAIL " << available;
 
     m_pReflector->setAvailableEdges(available);
 }

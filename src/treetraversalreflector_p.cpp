@@ -282,14 +282,6 @@ bool BlockMetadata::performAction(BlockMetadata::Action a)
 {
     const int s     = (int)m_pTTI->m_State;
     m_pTTI->m_State = m_pTTI->m_fStateMap[s][(int)a];
-    Q_ASSERT(m_pTTI->m_State == m_pTTI->m_fStateMap[s][(int)a]);
-    qDebug() << "\n\n\nDDDD" << (int)m_pTTI->m_State << (int)a << s;
-
-    if ((int)a == 0 && s == 2)
-        Q_ASSERT(m_pTTI->m_State == TreeTraversalItems::State::VISIBLE);
-
-    volatile int back = (int)m_pTTI->m_State;
-    volatile auto ttl = m_pTTI;
     bool ret        = (this->m_pTTI->*TreeTraversalItems::m_fStateMachine[s][(int)a])();
 
     return ret;
@@ -373,7 +365,6 @@ bool TreeTraversalItems::hide()
 bool TreeTraversalItems::attach()
 {
     Q_ASSERT(m_State != State::VISIBLE);
-    qDebug() << "EDGE" << d_ptr->m_Edges;
     // Attach can only be called when there is room in the viewport //FIXME and the buffer
     Q_ASSERT(d_ptr->m_Edges & (Qt::TopEdge|Qt::BottomEdge));
 
@@ -388,17 +379,14 @@ bool TreeTraversalItems::attach()
     const auto downTTI = down();
 
     if ((!upTTI) || upTTI->m_State == State::BUFFER && upTTI->m_Geometry.m_BufferEdge == Qt::TopEdge) {
-        qDebug() << "FOO " << m_Index.data();
         upTTI->m_Geometry.m_BufferEdge == Qt::TopEdge;
         return m_Geometry.performAction(BlockMetadata::Action::SHOW);
     }
     else if ((!downTTI) || downTTI->m_State == State::BUFFER && downTTI->m_Geometry.m_BufferEdge == Qt::BottomEdge) {
-        qDebug() << "BAR " << m_Index.data();
         upTTI->m_Geometry.m_BufferEdge == Qt::BottomEdge;
         return m_Geometry.performAction(BlockMetadata::Action::SHOW);
     }
     else {
-        qDebug() << "SHOW!";
         return m_Geometry.performAction(BlockMetadata::Action::SHOW);
     }
 
@@ -546,8 +534,9 @@ bool TreeTraversalItems::reset()
     m_Geometry.m_Size     = {};
     m_Geometry.m_Position = {};
 
-    return this == d_ptr->m_pRoot ?
-        true : m_Geometry.performAction(BlockMetadata::Action::UPDATE);
+    return true;
+    /*return this == d_ptr->m_pRoot ?
+        true : m_Geometry.performAction(BlockMetadata::Action::UPDATE);*/
 }
 
 TreeTraversalReflector::TreeTraversalReflector(Viewport* parent) : QObject(parent),
@@ -570,7 +559,7 @@ void TreeTraversalReflector::setItemFactory(std::function<AbstractItemAdapter*()
 
 void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, int first, int last)
 {
-    qDebug() << "\nINSERT!" << parent << first << last;
+    qDebug() << "INSERT!" << parent << first << last;
     Q_ASSERT((!parent.isValid()) || parent.model() == q_ptr->model());
 //     qDebug() << "\n\nADD" << first << last;
 
@@ -633,7 +622,6 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
             pitem->m_tChildren[FIRST] = e;
         }
 
-        qDebug() << "ATTACH!" << e << (int)e->m_State;
         if (!e->m_Geometry.performAction(BlockMetadata::Action::ATTACH))
             return;
 
@@ -737,7 +725,6 @@ void TreeTraversalReflectorPrivate::slotRowsRemoved(const QModelIndex& parent, i
 
 void TreeTraversalReflectorPrivate::slotLayoutChanged()
 {
-    qDebug() << "LAYOUT CHANGED";
     if (auto rc = q_ptr->model()->rowCount())
         slotRowsInserted({}, 0, rc - 1);
 
@@ -1129,8 +1116,6 @@ void TreeTraversalReflectorPrivate::connectModel()
     Q_ASSERT(!m_pTrackedModel);
     Q_ASSERT(m_pModel);
 
-    qDebug() << "\n\nCONNECT!" << m_pModel;
-
     connect(m_pModel, &QAbstractItemModel::rowsInserted, this,
         &TreeTraversalReflectorPrivate::slotRowsInserted );
     connect(m_pModel, &QAbstractItemModel::rowsAboutToBeRemoved, this,
@@ -1153,8 +1138,9 @@ void TreeTraversalReflectorPrivate::connectModel()
 
 void TreeTraversalReflectorPrivate::reset()
 {
-    if (m_pTrackedModel)
-        slotRowsRemoved({}, 0, m_pTrackedModel->rowCount()-1);
+    m_pRoot->m_Geometry.performAction(BlockMetadata::Action::RESET);
+
+    m_Edges = {Qt::TopEdge|Qt::LeftEdge|Qt::RightEdge|Qt::BottomEdge};
 
     m_hMapper.clear();
     delete m_pRoot;
@@ -1237,7 +1223,6 @@ bool TreeTraversalReflector::detachUntil(Qt::Edge from, TreeTraversalItems *to)
     if (!to)
         return false;
 
-    qDebug() << "HERE!" << to;
     if (to->m_pTreeItem)
         to->m_pTreeItem->performAction(VisualTreeItem::ViewAction::LEAVE_BUFFER);
 
@@ -1331,7 +1316,8 @@ AbstractItemAdapter* TreeTraversalReflector::itemForIndex(const QModelIndex& idx
 
 void TreeTraversalReflector::setAvailableEdges(Qt::Edges edges)
 {
-    qDebug() << "\nSET AVAIL" << (bool)(edges & Qt::TopEdge) << (bool)(edges & Qt::BottomEdge);
+    if (d_ptr->m_Edges != edges)
+        qDebug() << "SET AVAIL" << (bool)(edges & Qt::TopEdge) << (bool)(edges & Qt::BottomEdge);
     d_ptr->m_Edges = edges;
 }
 

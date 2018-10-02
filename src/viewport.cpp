@@ -72,7 +72,7 @@ static const Qt::Edge edgeMap[] = {
 
 
 Viewport::Viewport(ModelAdapter* ma) : QObject(),
-    d_ptr(new ViewportPrivate()), s_ptr(new ViewportSync())
+    s_ptr(new ViewportSync()), d_ptr(new ViewportPrivate())
 {
     d_ptr->q_ptr = this;
     s_ptr->q_ptr = this;
@@ -85,8 +85,11 @@ Viewport::Viewport(ModelAdapter* ma) : QObject(),
         d_ptr, &ViewportPrivate::slotModelChanged);
     connect(ma->view(), &Flickable::viewportChanged,
         d_ptr, &ViewportPrivate::slotViewportChanged);
-    connect(ma, &ModelAdapter::delegateChanged,
-        d_ptr->m_pReflector, &TreeTraversalReflector::resetEverything);
+    connect(ma, &ModelAdapter::delegateChanged, d_ptr->m_pReflector, [this]() {
+        d_ptr->m_pReflector->performAction(
+            TreeTraversalReflector::TrackingAction::RESET
+        );
+    });
 
     d_ptr->slotModelChanged(ma->rawModel());
 
@@ -176,11 +179,13 @@ QSizeF ViewportPrivate::sizeHint(BlockMetadata *item) const
             break;
     }
 
-    item->m_Size = ret;
+    item->setSize(ret);
 
     if (auto prev = item->up()) {
-        Q_ASSERT(prev->m_Position.y() != -1);
-        item->m_Position.setY(prev->m_Position.y());
+        const auto prevGeo = prev->geometry();
+        qDebug() << "SET Y" << prevGeo << item->geometry();;
+        Q_ASSERT(prevGeo.y() != -1);
+        item->setPosition(QPointF(0.0, prevGeo.y() + prevGeo.height()));
     }
 
     return ret;
@@ -203,6 +208,7 @@ void Viewport::setSizeHintRole(const QString& s)
 
 void ViewportPrivate::slotModelAboutToChange(QAbstractItemModel* m, QAbstractItemModel* o)
 {
+    Q_UNUSED(m)
     if (o)
         disconnect(o, &QAbstractItemModel::dataChanged,
             this, &ViewportPrivate::slotDataChanged);
@@ -244,7 +250,11 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m)
 
 void ViewportPrivate::slotViewportChanged(const QRectF &viewport)
 {
+    qDebug() << "VP" << viewport;
+
     m_UsedRect = viewport;
+    updateAvailableEdges();
+    m_pReflector->performAction(TreeTraversalReflector::TrackingAction::FILL);
 }
 
 ModelAdapter *Viewport::modelAdapter() const
@@ -269,7 +279,7 @@ Viewport::SizeHintStrategy Viewport::sizeHintStrategy() const
 
 void Viewport::setSizeHintStrategy(Viewport::SizeHintStrategy s)
 {
-    d_ptr->m_pReflector->resetGeometry();
+    d_ptr->m_pReflector->performAction(TreeTraversalReflector::TrackingAction::RESET);
     d_ptr->m_SizeStrategy = s;
 }
 
@@ -412,6 +422,8 @@ void ViewportPrivate::updateAvailableEdges()
     for (int i = Pos::Top; i <= Pos::Bottom; i++) {
         Q_ASSERT((!m_lpLoadedEdges[i]) || m_lpLoadedEdges[i]->geometry().isValid());
 
+        if (m_lpLoadedEdges[i])
+        qDebug() << "FOO!" << m_ViewRect << m_lpLoadedEdges[i]->geometry() << m_pModelAdapter->model();
         if ((!m_lpLoadedEdges[i]) || m_ViewRect.contains(m_lpLoadedEdges[i]->geometry())) {
             available |= edgeMap[i];
         }
@@ -423,6 +435,7 @@ void ViewportPrivate::updateAvailableEdges()
         }
     }
 
+    qDebug() << "SET EDGE" << available;
     m_pReflector->setAvailableEdges(available);
 }
 
@@ -433,7 +446,8 @@ void ViewportSync::geometryUpdated(BlockMetadata *item)
     auto geo = item->geometry();
 
     if (!geo.isValid()) {
-        geo = QRectF {item->m_Position, item->m_Size = q_ptr->d_ptr->sizeHint(item)};
+        item->setSize(q_ptr->d_ptr->sizeHint(item));
+        geo = item->geometry();
     }
 
 //     Q_ASSERT((!item->m_pItem) || item->m_pItem->geometry().size() == geo.size());
@@ -469,11 +483,24 @@ void Viewport::resize(const QRectF& rect)
 
     d_ptr->updateAvailableEdges();
 
-    if (rect.isValid()) {
+    if ((!wasValid) && rect.isValid()) {
         qDebug() << "\n\n CALL POPULATE!";
         d_ptr->m_pReflector->performAction(TreeTraversalReflector::TrackingAction::POPULATE);
         d_ptr->m_pReflector->performAction(TreeTraversalReflector::TrackingAction::ENABLE);
     }
+    else if (rect.isValid()) {
+        d_ptr->m_pReflector->performAction(TreeTraversalReflector::TrackingAction::FILL);
+    }
+}
+
+void BlockMetadata::setPosition(const QPointF& pos)
+{
+    m_Position = pos;
+}
+
+void BlockMetadata::setSize(const QSizeF& size)
+{
+    m_Size = size;
 }
 
 #include <viewport.moc>

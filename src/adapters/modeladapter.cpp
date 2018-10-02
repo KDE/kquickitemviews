@@ -111,6 +111,7 @@ QVariant ModelAdapter::model() const
 
 void ModelAdapterPrivate::setModelCommon(QAbstractItemModel* m, QAbstractItemModel* old)
 {
+    Q_UNUSED(old)
     q_ptr->selectionAdapter()->s_ptr->setModel(m);
 }
 

@@ -70,7 +70,9 @@ public:
         POPULATE, /*!< Fetch the model content and fill the view */
         DISABLE , /*!< Disconnect the model tracking             */
         ENABLE  , /*!< Connect the pending model                 */
-        RESET   , /*!< Remove everything, start over             */
+        RESET   , /*!< Remove the delegates but keep the trackers*/
+        FREE    , /*!< Free the whole tracking tree              */
+        FILL    , /*!< Try to fix the viewport with content      */
     };
 
     explicit TreeTraversalReflector(Viewport* parent = nullptr);
@@ -100,15 +102,15 @@ public:
     bool detachUntil(Qt::Edge from, VisualTreeItem *to);
 
     //TODO remove those temporary helpers once its encapsulated
-    void moveEverything();
+//     void moveEverything();sdfdsfdsf
 
-    void resetGeometry();
+//     void resetGeometry();sdfdsfds
 
     // Setters
     void setItemFactory(std::function<AbstractItemAdapter*()> factory);
 
-public Q_SLOTS:
-    void resetEverything();
+// public Q_SLOTS:
+//     void resetEverything();
 
 Q_SIGNALS:
     void contentChanged();

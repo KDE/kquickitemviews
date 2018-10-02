@@ -58,6 +58,7 @@ class ViewBase : public Flickable
 public:
     struct ItemFactoryBase {
         virtual AbstractItemAdapter* create(Viewport* r) const = 0;
+        virtual ~ItemFactoryBase() {}
     };
 
     template<typename T> struct ItemFactory final : public ItemFactoryBase {

@@ -83,8 +83,8 @@ public:
     // Spacial navigation
     VisualTreeItem* up   (StateFlags flags = StateFlags::NORMAL) const;
     VisualTreeItem* down (StateFlags flags = StateFlags::NORMAL) const;
-    VisualTreeItem* left (StateFlags flags = StateFlags::NORMAL) const { return nullptr ;}
-    VisualTreeItem* right(StateFlags flags = StateFlags::NORMAL) const { return nullptr ;}
+    VisualTreeItem* left (StateFlags flags = StateFlags::NORMAL) const { Q_UNUSED(flags); return nullptr ;}
+    VisualTreeItem* right(StateFlags flags = StateFlags::NORMAL) const { Q_UNUSED(flags); return nullptr ;}
     int row   () const;
     int column() const;
     int depth() const;

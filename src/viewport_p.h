@@ -53,6 +53,9 @@ struct BlockMetadata
     QRectF geometry() const { return QRectF(m_Position, m_Size); }
     QModelIndex index() const;
 
+    void setPosition(const QPointF& pos);
+    void setSize(const QSizeF& size);
+
     Qt::Edge m_BufferEdge {Qt::TopEdge};
     Qt::Edges m_IsEdge {};
 
@@ -60,8 +63,6 @@ struct BlockMetadata
 
     Source  m_Source  {Source::NONE};
     Mode    m_Mode    {Mode::SINGLE};
-    QPointF m_Position;
-    QSizeF  m_Size;
     TreeTraversalItems *m_pTTI  {nullptr};
     VisualTreeItem     *m_pItem {nullptr};
 
@@ -69,6 +70,10 @@ struct BlockMetadata
     BlockMetadata *down () const;
     BlockMetadata *left () const;
     BlockMetadata *right() const;
+
+private:
+    QPointF m_Position;
+    QSizeF  m_Size;
 };
 
 /**

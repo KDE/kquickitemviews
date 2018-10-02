@@ -142,16 +142,17 @@ public:
     TreeTraversalReflector* q_ptr;
 
     // Actions, do not call directly
-    void connectModel();
-    void disconnectModel();
+    void track();
+    void untrack();
     void nothing();
     void reset();
+    void free();
     void error();
     void populate();
 
     typedef void(TreeTraversalReflectorPrivate::*StateF)();
-    static const TreeTraversalReflector::TrackingState m_fStateMap[4][4];
-    static const StateF m_fStateMachine[4][4];
+    static const TreeTraversalReflector::TrackingState m_fStateMap[4][6];
+    static const StateF m_fStateMachine[4][6];
 
     // Tests
     void _test_validateTree(TreeTraversalItems* p);
@@ -170,24 +171,24 @@ public Q_SLOTS:
 #include <treetraversalreflector_debug.h>
 
 #define S TreeTraversalReflector::TrackingState::
-const TreeTraversalReflector::TrackingState TreeTraversalReflectorPrivate::m_fStateMap[4][4] = {
-/*                POPULATE     DISABLE      ENABLE       RESET   */
-/*NO_MODEL */ { S NO_MODEL , S NO_MODEL , S NO_MODEL, S NO_MODEL },
-/*PAUSED   */ { S POPULATED, S PAUSED   , S TRACKING, S PAUSED   },
-/*POPULATED*/ { S TRACKING , S PAUSED   , S TRACKING, S PAUSED   },
-/*TRACKING */ { S TRACKING , S POPULATED, S TRACKING, S TRACKING },
+const TreeTraversalReflector::TrackingState TreeTraversalReflectorPrivate::m_fStateMap[4][6] = {
+/*                POPULATE     DISABLE      ENABLE       RESET        FREE         MOVE   */
+/*NO_MODEL */ { S NO_MODEL , S NO_MODEL , S NO_MODEL, S NO_MODEL, S NO_MODEL , S NO_MODEL },
+/*PAUSED   */ { S POPULATED, S PAUSED   , S TRACKING, S PAUSED  , S PAUSED   , S PAUSED   },
+/*POPULATED*/ { S TRACKING , S PAUSED   , S TRACKING, S PAUSED  , S POPULATED, S POPULATED},
+/*TRACKING */ { S TRACKING , S POPULATED, S TRACKING, S TRACKING, S TRACKING , S TRACKING },
 };
 #undef S
 
 // This state machine is self healing, error can be called in release mode
 // and it will only disable the view without further drama.
 #define A &TreeTraversalReflectorPrivate::
-const TreeTraversalReflectorPrivate::StateF TreeTraversalReflectorPrivate::m_fStateMachine[4][4] = {
-/*               POPULATE         DISABLE           ENABLE        RESET  */
-/*NO_MODEL */ { A nothing , A nothing        , A nothing     , A nothing },
-/*PAUSED   */ { A populate, A nothing        , A error       , A reset   },
-/*POPULATED*/ { A error   , A nothing        , A connectModel, A reset   },
-/*TRACKING */ { A nothing , A disconnectModel, A nothing     , A reset   },
+const TreeTraversalReflectorPrivate::StateF TreeTraversalReflectorPrivate::m_fStateMachine[4][6] = {
+/*               POPULATE     DISABLE    ENABLE     RESET       FREE       MOVE   */
+/*NO_MODEL */ { A nothing , A nothing, A nothing, A nothing, A nothing, A nothing },
+/*PAUSED   */ { A populate, A nothing, A error  , A  reset , A  free  , A nothing },
+/*POPULATED*/ { A error   , A nothing, A track  , A  reset , A  free  , A populate},
+/*TRACKING */ { A nothing , A untrack, A nothing, A  reset , A  free  , A populate},
 };
 #undef A
 
@@ -326,7 +327,6 @@ bool TreeTraversalItems::show()
         Q_ASSERT(m_State == State::VISIBLE);
     }
 
-    volatile auto s = m_pTreeItem->m_State;
     m_pTreeItem->performAction(VisualTreeItem::ViewAction::ENTER_BUFFER);
     Q_ASSERT(m_State == State::VISIBLE);
     Q_ASSERT(m_pTreeItem->m_State == VisualTreeItem::State::BUFFER);
@@ -350,7 +350,7 @@ bool TreeTraversalItems::show()
         d_ptr->m_lpEdges[TreeTraversalReflectorPrivate::Pos::Top] = this;
 
     auto downTTI = down();
-    if ((!upTTI) || upTTI->m_State != State::VISIBLE)
+    if ((!downTTI) || downTTI->m_State != State::VISIBLE)
         d_ptr->m_lpEdges[TreeTraversalReflectorPrivate::Pos::Bottom] = this;
 
     return true;
@@ -378,11 +378,11 @@ bool TreeTraversalItems::attach()
     const auto upTTI   = up();
     const auto downTTI = down();
 
-    if ((!upTTI) || upTTI->m_State == State::BUFFER && upTTI->m_Geometry.m_BufferEdge == Qt::TopEdge) {
+    if ((!upTTI) || (upTTI->m_State == State::BUFFER && upTTI->m_Geometry.m_BufferEdge == Qt::TopEdge)) {
         upTTI->m_Geometry.m_BufferEdge == Qt::TopEdge;
         return m_Geometry.performAction(BlockMetadata::Action::SHOW);
     }
-    else if ((!downTTI) || downTTI->m_State == State::BUFFER && downTTI->m_Geometry.m_BufferEdge == Qt::BottomEdge) {
+    else if ((!downTTI) || (downTTI->m_State == State::BUFFER && downTTI->m_Geometry.m_BufferEdge == Qt::BottomEdge)) {
         upTTI->m_Geometry.m_BufferEdge == Qt::BottomEdge;
         return m_Geometry.performAction(BlockMetadata::Action::SHOW);
     }
@@ -531,8 +531,8 @@ bool TreeTraversalItems::reset()
         m_pTreeItem = nullptr;
     }
 
-    m_Geometry.m_Size     = {};
-    m_Geometry.m_Position = {};
+    m_Geometry.setSize({});
+    m_Geometry.setPosition({});
 
     return true;
     /*return this == d_ptr->m_pRoot ?
@@ -1097,21 +1097,21 @@ void TreeTraversalReflectorPrivate::slotRowsMoved2(const QModelIndex &parent, in
     _test_validateTree(m_pRoot);
 }
 
-void TreeTraversalReflector::resetEverything()
-{
-    // There is nothing to reset when there is no model
-    if (!model())
-        return;
-
-    d_ptr->m_pRoot->m_Geometry.performAction(BlockMetadata::Action::RESET);
-}
+// void TreeTraversalReflector::resetEverything()
+// {
+//     // There is nothing to reset when there is no model
+//     if (!model())
+//         return;
+//
+//     d_ptr->m_pRoot->m_Geometry.performAction(BlockMetadata::Action::RESET);
+// }
 
 QAbstractItemModel* TreeTraversalReflector::model() const
 {
     return d_ptr->m_pModel;
 }
 
-void TreeTraversalReflectorPrivate::connectModel()
+void TreeTraversalReflectorPrivate::track()
 {
     Q_ASSERT(!m_pTrackedModel);
     Q_ASSERT(m_pModel);
@@ -1136,7 +1136,7 @@ void TreeTraversalReflectorPrivate::connectModel()
     m_pTrackedModel = m_pModel;
 }
 
-void TreeTraversalReflectorPrivate::reset()
+void TreeTraversalReflectorPrivate::free()
 {
     m_pRoot->m_Geometry.performAction(BlockMetadata::Action::RESET);
 
@@ -1147,7 +1147,12 @@ void TreeTraversalReflectorPrivate::reset()
     m_pRoot = new TreeTraversalItems(nullptr, this);
 }
 
-void TreeTraversalReflectorPrivate::disconnectModel()
+void TreeTraversalReflectorPrivate::reset()
+{
+    m_pRoot->m_Geometry.performAction(BlockMetadata::Action::RESET);
+}
+
+void TreeTraversalReflectorPrivate::untrack()
 {
     Q_ASSERT(m_pTrackedModel);
     if (!m_pTrackedModel)
@@ -1178,8 +1183,14 @@ void TreeTraversalReflectorPrivate::populate()
     Q_ASSERT(m_pModel);
 
     qDebug() << "POPULATE" << m_pModel->rowCount();
-    if (auto rc = m_pModel->rowCount())
+
+    if (m_pRoot->m_tChildren[FIRST] && (m_Edges & (Qt::TopEdge|Qt::BottomEdge))) {
+        qDebug() << "\n\nFILL!";
+    }
+    else if (auto rc = m_pModel->rowCount()) {
+        //FIX support anchors
         slotRowsInserted({}, 0, rc - 1);
+    }
 }
 
 void TreeTraversalReflectorPrivate::nothing()
@@ -1220,6 +1231,7 @@ bool TreeTraversalReflector::detachUntil(Qt::Edge from, VisualTreeItem *to)
 
 bool TreeTraversalReflector::detachUntil(Qt::Edge from, TreeTraversalItems *to)
 {
+    Q_UNUSED(from)
     if (!to)
         return false;
 
@@ -1343,6 +1355,7 @@ QPersistentModelIndex VisualTreeItem::index() const
  */
 VisualTreeItem* VisualTreeItem::up(AbstractItemAdapter::StateFlags flags) const
 {
+    Q_UNUSED(flags)
     Q_ASSERT(m_State == State::ACTIVE
         || m_State == State::BUFFER
         || m_State == State::FAILED
@@ -1374,6 +1387,7 @@ VisualTreeItem* VisualTreeItem::up(AbstractItemAdapter::StateFlags flags) const
  */
 VisualTreeItem* VisualTreeItem::down(AbstractItemAdapter::StateFlags flags) const
 {
+    Q_UNUSED(flags)
     Q_ASSERT(m_State == State::ACTIVE
         || m_State == State::BUFFER
         || m_State == State::FAILED
@@ -1408,15 +1422,15 @@ int VisualTreeItem::column() const
 }
 
 //TODO remove
-void TreeTraversalReflector::moveEverything()
-{
-    d_ptr->m_pRoot->m_Geometry.performAction(BlockMetadata::Action::MOVE);
-}
+// void TreeTraversalReflector::moveEverything()
+// {
+//     d_ptr->m_pRoot->m_Geometry.performAction(BlockMetadata::Action::MOVE);
+// }
 
-void TreeTraversalReflector::resetGeometry()
-{
-    d_ptr->m_pRoot->m_Geometry.performAction(BlockMetadata::Action::RESET);
-}
+// void TreeTraversalReflector::resetGeometry()
+// {
+//     d_ptr->m_pRoot->m_Geometry.performAction(BlockMetadata::Action::RESET);
+// }
 
 BlockMetadata *BlockMetadata::up() const
 {

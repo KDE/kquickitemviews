@@ -1,6 +1,12 @@
 /**
  * While this module is under development and the autotests are lacking,
  * always run strict tests at runtime.
+ *
+ * This is 3 ways to look at the same data:
+ *
+ *  * As a tree
+ *  * As a linked list
+ *  * As a "sliding window" (viewport)
  */
 
 void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItems* p)
@@ -37,6 +43,7 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItems* p)
             //Q_ASSERT(i->m_Index.row() == idx.row()+1); //FIXME
             Q_ASSERT(i->m_tSiblings[PREVIOUS]->m_tSiblings[NEXT] == i);
             Q_ASSERT(i->m_tSiblings[PREVIOUS] == oldI);
+            Q_ASSERT((!oldI->m_Index.isValid()) || i->m_Index.row() == oldI->m_Index.row()+1);
             idx = i->m_Index;
             count++;
         }
@@ -92,12 +99,21 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItems* p)
 
             const auto next = prev->down();
             Q_ASSERT(next == i.value());
+
+            if (prev == i.value()->m_pParent) {
+                Q_ASSERT(i.value()->m_Index.row() == 0);
+                Q_ASSERT(i.value()->m_Index.parent() == prev->m_Index);
+            }
         }
 
         // Test the virtual linked list between the leafs and branches
         if(auto next = i.value()->down()) {
             Q_ASSERT(next->up() == i.value());
             Q_ASSERT(next != i.value());
+
+            if (next->m_Index.parent() == i.value()->m_Index.parent()) {
+                Q_ASSERT(!next->d_ptr->m_pModel->rowCount(i.value()->m_Index));
+            }
         }
         else {
             // There is always a next is those conditions are not met unless there
@@ -154,6 +170,42 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItems* p)
     Q_ASSERT(p->m_tChildren[FIRST] == newest);
     Q_ASSERT((!old) || !old->m_tSiblings[NEXT]);
     Q_ASSERT((!newest) || !newest->m_tSiblings[PREVIOUS]);
+}
+
+void TreeTraversalReflectorPrivate::_test_validateLinkedList()
+{
+    _test_validateTree(m_pRoot);
+
+    if (!m_pRoot->m_tChildren[FIRST]) {
+        Q_ASSERT(!m_pRoot->m_tChildren[LAST]);
+        Q_ASSERT(m_pRoot->m_hLookup.isEmpty());
+        Q_ASSERT(!m_pRoot->m_tSiblings[FIRST]);
+        Q_ASSERT(!m_pRoot->m_tSiblings[LAST]);
+        return;
+    }
+
+    Q_ASSERT(!m_pRoot->m_tChildren[FIRST]->up());
+
+    TreeTraversalItems *prev(nullptr), *cur(m_pRoot->m_tChildren[FIRST]);
+
+    while ((prev = cur) && (cur = cur->down())) {
+        qDebug() << "LO" << cur->m_Index.parent() << cur->m_Index.data();
+        Q_ASSERT(cur->up() == prev);
+
+        // Check the the previous sibling has no children
+        if (prev && cur->m_pParent == prev->m_pParent) {
+            Q_ASSERT(cur->m_Index.row() == prev->m_Index.row() + 1);
+            Q_ASSERT(!prev->d_ptr->m_pModel->rowCount(prev->m_Index));
+        }
+
+        // Check that there it no missing children from the previous
+        if ((!prev) || (cur->m_pParent != prev && cur->m_pParent != prev->m_pParent && prev->m_pParent != prev->d_ptr->m_pRoot)) {
+            Q_ASSERT(prev->m_pParent->m_Index.isValid());
+            const int prevParRc = prev->d_ptr->m_pModel->rowCount(prev->m_pParent->m_Index);
+            Q_ASSERT(prev->m_Index.row() == prevParRc - 1);
+        }
+    }
+
 }
 
 void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)

@@ -163,6 +163,7 @@ public:
     // Tests
     void _test_validateTree(TreeTraversalItems* p);
     void _test_validateViewport(bool skipVItemState = false);
+    void _test_validateLinkedList();
 
 public Q_SLOTS:
     void cleanup();
@@ -666,6 +667,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
     Q_ASSERT((!parent.isValid()) || parent.model() == q_ptr->model());
 
     if (!isInsertActive(parent, first, last)) {
+        _test_validateLinkedList();
 //         Q_ASSERT(false); //FIXME so I can't forget when time comes
         return;
     }
@@ -717,8 +719,10 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
             pitem->m_tChildren[FIRST] = e;
         }
 
-        if (!e->m_Geometry.performAction(BlockMetadata::Action::ATTACH))
+        if (!e->m_Geometry.performAction(BlockMetadata::Action::ATTACH)) {
+            _test_validateLinkedList();
             return;
+        }
 
         if ((!pitem->m_tChildren[FIRST]) || e->m_Index.row() <= pitem->m_tChildren[FIRST]->m_Index.row()) {
             Q_ASSERT(pitem != e);
@@ -735,7 +739,8 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
                 ne->m_Geometry.performAction(BlockMetadata::Action::MOVE);
         }
 
-        if (auto rc = q_ptr->model()->rowCount(idx) && m_Edges & Qt::BottomEdge)
+        int rc = q_ptr->model()->rowCount(idx);
+        if (rc && m_Edges & Qt::BottomEdge)
             slotRowsInserted(idx, 0, rc-1);
 
         // Validate early to prevent propagating garbage that's nearly impossible
@@ -777,7 +782,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 //             Q_ASSERT(false);
     }
 
-    _test_validateTree(m_pRoot);
+    _test_validateLinkedList();
 
     Q_EMIT q_ptr->contentChanged();
 
@@ -790,8 +795,10 @@ void TreeTraversalReflectorPrivate::slotRowsRemoved(const QModelIndex& parent, i
     Q_ASSERT((!parent.isValid()) || parent.model() == q_ptr->model());
     Q_EMIT q_ptr->contentChanged();
 
-    if (!q_ptr->isActive(parent, first, last))
+    if (!q_ptr->isActive(parent, first, last)) {
+        _test_validateLinkedList();
         return;
+    }
 
     auto pitem = parent.isValid() ? m_hMapper.value(parent) : m_pRoot;
 
@@ -816,6 +823,8 @@ void TreeTraversalReflectorPrivate::slotRowsRemoved(const QModelIndex& parent, i
 
     if (!parent.isValid())
         Q_EMIT q_ptr->countChanged();
+
+    _test_validateLinkedList();
 }
 
 void TreeTraversalReflectorPrivate::slotLayoutChanged()
@@ -1189,7 +1198,7 @@ void TreeTraversalReflectorPrivate::slotRowsMoved2(const QModelIndex &parent, in
     Q_UNUSED(row)
 
     // The test would fail if it was in aboutToBeMoved
-    _test_validateTree(m_pRoot);
+    _test_validateLinkedList();
 }
 
 // void TreeTraversalReflector::resetEverything()

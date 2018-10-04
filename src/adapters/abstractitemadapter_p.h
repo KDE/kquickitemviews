@@ -48,6 +48,7 @@ class VisualTreeItem
     friend class AbstractItemAdapterPrivate; //TODO remove
     friend class TreeTraversalReflector;
     friend class AbstractItemAdapter;
+    friend class TreeTraversalReflectorPrivate; //TODO remove. debug only
     friend class ViewportPrivate; //TODO remove
 public:
     using StateFlags = AbstractItemAdapter::StateFlags;
@@ -79,6 +80,9 @@ public:
 
     /// Call to notify that the geometry changed (for the selection delegate)
     void updateGeometry();
+
+    void setCollapsed(bool v);
+    bool isCollapsed() const;
 
     // Spacial navigation
     VisualTreeItem* up   (StateFlags flags = StateFlags::NORMAL) const;
@@ -115,9 +119,6 @@ public:
 
     Viewport      *m_pRange    {nullptr};
     BlockMetadata *m_pGeometry {nullptr};
-
-    // Managed by the Viewport
-    bool m_IsCollapsed {false}; //TODO change the default to true
 
     bool performAction(ViewAction); //FIXME make private, remove #include
 

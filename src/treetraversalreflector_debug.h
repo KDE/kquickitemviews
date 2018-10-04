@@ -155,3 +155,57 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItems* p)
     Q_ASSERT((!old) || !old->m_tSiblings[NEXT]);
     Q_ASSERT((!newest) || !newest->m_tSiblings[PREVIOUS]);
 }
+
+void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)
+{
+    int activeCount = 0;
+
+    Q_ASSERT(!((!m_lpEdges[Bottom]) ^ (!m_lpEdges[Top  ])));
+    Q_ASSERT(!((!m_lpEdges[Left  ]) ^ (!m_lpEdges[Right])));
+
+    if (!m_lpEdges[Top])
+        return;
+
+    if (m_lpEdges[Top] == m_lpEdges[Bottom]) {
+        auto u1 = m_lpEdges[Top]->up();
+        auto d1 = m_lpEdges[Top]->down();
+        auto u2 = m_lpEdges[Bottom]->up();
+        auto d2 = m_lpEdges[Bottom]->down();
+        Q_ASSERT((!u1) || u1->m_State != TreeTraversalItems::State::VISIBLE);
+        Q_ASSERT((!u2) || u2->m_State != TreeTraversalItems::State::VISIBLE);
+        Q_ASSERT((!d1) || d1->m_State != TreeTraversalItems::State::VISIBLE);
+        Q_ASSERT((!d2) || d2->m_State != TreeTraversalItems::State::VISIBLE);
+    }
+
+    auto item = m_lpEdges[Top];
+    TreeTraversalItems *old = nullptr;
+
+    QRectF oldGeo;
+
+    do {
+        Q_ASSERT(old != item);
+        Q_ASSERT(item->m_State == TreeTraversalItems::State::VISIBLE);
+        Q_ASSERT(item->m_pTreeItem);
+        if (!skipVItemState)
+            Q_ASSERT(item->m_pTreeItem->m_State == VisualTreeItem::State::ACTIVE);
+        Q_ASSERT(item->up() == old);
+
+        //FIXME don't do this, its temporary so I can add more tests to catch
+        // the cause of this failed (::move not updating the position)
+        if (old)
+            item->m_Geometry.setPosition(QPointF(0.0, oldGeo.y() + oldGeo.height()));
+
+        auto geo =  item->m_Geometry.geometry();
+
+        if (geo.width() || geo.height()) {
+            Q_ASSERT((!oldGeo.isValid()) || oldGeo.y() < geo.y());
+            Q_ASSERT((!oldGeo.isValid()) || oldGeo.y() + oldGeo.height() == geo.y());
+        }
+
+//         qDebug() << "TEST" << activeCount << geo;
+
+        activeCount++;
+        oldGeo = geo;
+        old = item;
+    } while (item = item->down());
+}

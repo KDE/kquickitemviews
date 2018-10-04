@@ -132,7 +132,7 @@ void ModelAdapter::setModel(const QVariant& var)
         d_ptr->m_pRawModel = nullptr;
         d_ptr->m_pModelPtr = nullptr;
         d_ptr->setModelCommon(nullptr, oldM);
-        emit modelChanged(nullptr);
+        emit modelChanged(nullptr, oldM);
     }
     else if (auto m = var.value<QSharedItemModel >()) {
         if (m == d_ptr->m_pModelPtr)
@@ -147,7 +147,7 @@ void ModelAdapter::setModel(const QVariant& var)
         d_ptr->m_pRawModel = nullptr;
         d_ptr->m_pModelPtr = m;
         d_ptr->setModelCommon(m.data(), oldM);
-        emit modelChanged(m.data());
+        emit modelChanged(m.data(), oldM);
 
     }
     else if (auto m = var.value<QAbstractItemModel*>()) {
@@ -159,7 +159,7 @@ void ModelAdapter::setModel(const QVariant& var)
         d_ptr->m_pRawModel = m;
         d_ptr->m_pModelPtr = nullptr;
         d_ptr->setModelCommon(m, oldPtr ? oldPtr.data() : oldM);
-        emit modelChanged(m);
+        emit modelChanged(m, oldM);
     }
     else {
         Q_ASSERT(false);

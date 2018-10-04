@@ -119,7 +119,7 @@ protected:
 
 Q_SIGNALS:
     void modelAboutToChange(QAbstractItemModel* m, QAbstractItemModel* old);
-    void modelChanged(QAbstractItemModel* m);
+    void modelChanged(QAbstractItemModel* m, QAbstractItemModel* old);
 //     void countChanged();
     void delegateChanged(QQmlComponent* delegate);
     void contentChanged();

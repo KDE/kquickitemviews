@@ -556,14 +556,6 @@ void VisualTreeItem::updateGeometry()
 
     //TODO handle up/left/right too
 
-    if (!down()) {
-        view()->contentItem()->setHeight(std::max(
-            geo.y()+geo.height(), view()->height()
-        ));
-
-        emit view()->contentHeightChanged(view()->contentItem()->height());
-    }
-
     const auto sm = m_pRange->modelAdapter()->selectionAdapter();
 
     if (sm && sm->selectionModel() && sm->selectionModel()->currentIndex() == index())
@@ -574,10 +566,10 @@ void VisualTreeItem::updateGeometry()
 
 void AbstractItemAdapter::setCollapsed(bool v)
 {
-    s_ptr->m_IsCollapsed = v;
+    s_ptr->setCollapsed(v);
 }
 
 bool AbstractItemAdapter::isCollapsed() const
 {
-    return s_ptr->m_IsCollapsed;
+    return s_ptr->isCollapsed();
 }

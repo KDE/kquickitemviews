@@ -305,6 +305,8 @@ TreeTraversalItems* TreeTraversalItems::loadUp() const
         return tti;
     }
 
+    Q_ASSERT(m_pParent == d_ptr->m_pRoot); //TODO recurse parent->rowCount..->last
+
     // In theory, the parent is always loaded, so there is no other case
     return m_pParent == d_ptr->m_pRoot ? nullptr : m_pParent;
 }
@@ -313,11 +315,15 @@ TreeTraversalItems* TreeTraversalItems::loadDown() const
 {
     Q_ASSERT(m_Index.model() == d_ptr->m_pModel);
 
-    if (auto tti = down())
+    if (auto tti = down()) {
+        if (tti->m_pParent == m_pParent)
+            Q_ASSERT(!d_ptr->m_pModel->rowCount(m_Index));
         return tti;
+    }
 
     // Check if there is children
     if (int childrenCount = d_ptr->m_pModel->rowCount(m_Index)) {
+        Q_UNUSED(childrenCount) //TODO load more than 1
         d_ptr->slotRowsInserted(m_Index, 0, 0);
         d_ptr->_test_validateViewport();
 
@@ -328,7 +334,7 @@ TreeTraversalItems* TreeTraversalItems::loadDown() const
     }
 
     //TODO load more than 1 at a time (probably std::max(remaining, buffer)
-    volatile const int rc = d_ptr->m_pModel->rowCount(m_Index.parent());
+    int rc = d_ptr->m_pModel->rowCount(m_Index.parent());
     if (m_Index.row() < rc-1) {
         d_ptr->slotRowsInserted(m_Index.parent(), m_Index.row()+1, m_Index.row()+1);
         d_ptr->_test_validateViewport();
@@ -338,16 +344,20 @@ TreeTraversalItems* TreeTraversalItems::loadDown() const
         return tti;
     }
 
+    auto i = this;
+
     // Rewind until a (grand)parent with more to load is found
-//     while(i) {
-//         if (i->m_tSiblings[NEXT] && (ret = i->m_tSiblings[NEXT]))
-//             return ret;
-//
-//         i = i->m_pParent;
-//     }
+    while ((i = i->m_pParent) != d_ptr->m_pRoot) {
+        Q_ASSERT(i);
+
+        if ((rc = d_ptr->m_pModel->rowCount(i->m_Index.parent())) && rc > i->m_Index.row() + 1) {
+            //TODO
+            Q_ASSERT(false);
+        }
+    }
 
     d_ptr->_test_validateViewport();
-    Q_ASSERT(false); //TODO
+    Q_ASSERT(i == d_ptr->m_pRoot);
     return nullptr;
 }
 
@@ -681,6 +691,9 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         Q_ASSERT(idx.isValid());
         Q_ASSERT(idx.parent() != idx);
         Q_ASSERT(idx.model() == q_ptr->model());
+
+        if (!(m_Edges & Qt::BottomEdge))
+            break;
 
         auto e = addChildren(pitem, idx);
 
@@ -1289,8 +1302,8 @@ void TreeTraversalReflectorPrivate::populate()
 
             auto u = m_lpEdges[Pos::Bottom]->loadDown();
 
-            Q_ASSERT(u || m_lpEdges[Pos::Bottom]->m_Index.row() == 0);
-            Q_ASSERT(u || !m_lpEdges[Pos::Bottom]->m_Index.parent().isValid());
+            //Q_ASSERT(u || m_lpEdges[Pos::Bottom]->m_Index.row() == 0);
+            //Q_ASSERT(u || !m_lpEdges[Pos::Bottom]->m_Index.parent().isValid());
 
             if (!u)
                 break;

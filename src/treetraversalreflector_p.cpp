@@ -352,8 +352,11 @@ TreeTraversalItems* TreeTraversalItems::loadDown() const
         Q_ASSERT(i);
 
         if ((rc = d_ptr->m_pModel->rowCount(i->m_Index.parent())) && rc > i->m_Index.row() + 1) {
-            //TODO
-            Q_ASSERT(false);
+            d_ptr->slotRowsInserted(i->m_Index.parent(), i->m_Index.row() + 1, i->m_Index.row()+1);
+            auto tti = down();
+            Q_ASSERT(tti);
+
+            return tti;
         }
     }
 
@@ -713,10 +716,23 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 
         Q_ASSERT((!pitem->m_tChildren[FIRST]) || pitem->m_tChildren[FIRST]->m_MoveToRow == -1); //TODO
 
+        const bool needDownMove = (!pitem->m_tChildren[LAST]) ||
+            e->m_Index.row() > pitem->m_tChildren[LAST]->m_Index.row();
+
+        const bool needUpMove = (!pitem->m_tChildren[FIRST]) ||
+            e->m_Index.row() <= pitem->m_tChildren[FIRST]->m_Index.row();
+
         // The item is about the current parent first item
-        if ((!pitem->m_tChildren[FIRST]) || e->m_Index.row() <= pitem->m_tChildren[FIRST]->m_Index.row()) {
+        if (needUpMove) {
             e->m_tSiblings[NEXT] = pitem->m_tChildren[FIRST];
             pitem->m_tChildren[FIRST] = e;
+        }
+
+        // Do this before ATTACH to make sure the daisy-chaining is valid in
+        // case it is used.
+        if (needDownMove) {
+            Q_ASSERT(pitem != e);
+            pitem->m_tChildren[LAST] = e;
         }
 
         if (!e->m_Geometry.performAction(BlockMetadata::Action::ATTACH)) {
@@ -724,7 +740,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
             return;
         }
 
-        if ((!pitem->m_tChildren[FIRST]) || e->m_Index.row() <= pitem->m_tChildren[FIRST]->m_Index.row()) {
+        if (needUpMove) {
             Q_ASSERT(pitem != e);
             if (auto pe = e->up())
                 pe->m_Geometry.performAction(BlockMetadata::Action::MOVE);
@@ -732,9 +748,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 
         Q_ASSERT((!pitem->m_tChildren[LAST]) || pitem->m_tChildren[LAST]->m_MoveToRow == -1); //TODO
 
-        if ((!pitem->m_tChildren[LAST]) || e->m_Index.row() > pitem->m_tChildren[LAST]->m_Index.row()) {
-            Q_ASSERT(pitem != e);
-            pitem->m_tChildren[LAST] = e;
+        if (needDownMove) {
             if (auto ne = e->down())
                 ne->m_Geometry.performAction(BlockMetadata::Action::MOVE);
         }

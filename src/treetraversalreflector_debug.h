@@ -48,6 +48,7 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItems* p)
             count++;
         }
 
+        Q_ASSERT(p->m_tChildren[LAST]);
         Q_ASSERT(p == p->m_tChildren[FIRST]->m_pParent);
         Q_ASSERT(p == p->m_tChildren[LAST]->m_pParent);
         Q_ASSERT(p->m_hLookup.size() == count);
@@ -188,9 +189,28 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList()
 
     TreeTraversalItems *prev(nullptr), *cur(m_pRoot->m_tChildren[FIRST]);
 
+    static const constexpr qreal maxReal = std::numeric_limits<qreal>::max();
+    qreal maxY(0), maxX(0), minY(maxReal), minX(maxReal);
+
+    bool hadVisible = false;
+    bool visibleFinished =  false;
+
     while ((prev = cur) && (cur = cur->down())) {
-        qDebug() << "LO" << cur->m_Index.parent() << cur->m_Index.data();
         Q_ASSERT(cur->up() == prev);
+        Q_ASSERT(cur->m_Index.isValid());
+        Q_ASSERT(cur->m_Index.model() == cur->d_ptr->m_pModel);
+
+        if (cur->m_State == TreeTraversalItems::State::VISIBLE && !hadVisible) {
+            hadVisible = true;
+            //Q_ASSERT(prev->m_Geometry.geometry().y() < m_pViewport->currentRect().y());
+        }
+        else if (hadVisible && cur->m_State != TreeTraversalItems::State::VISIBLE)
+            visibleFinished = true;
+
+        Q_ASSERT((!visibleFinished) || visibleFinished ^ cur->m_State == TreeTraversalItems::State::VISIBLE);
+
+        Q_ASSERT(cur->m_State == TreeTraversalItems::State::VISIBLE || !cur->m_pTreeItem);
+        Q_ASSERT((!visibleFinished) || !cur->m_pTreeItem);
 
         // Check the the previous sibling has no children
         if (prev && cur->m_pParent == prev->m_pParent) {
@@ -204,12 +224,31 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList()
             const int prevParRc = prev->d_ptr->m_pModel->rowCount(prev->m_pParent->m_Index);
             Q_ASSERT(prev->m_Index.row() == prevParRc - 1);
         }
+
+        if (cur->m_pTreeItem) {
+            auto geo = cur->m_Geometry.geometry();
+            minX = std::min(minX, geo.x());
+            minY = std::min(minY, geo.y());
+            maxX = std::max(maxX, geo.bottomLeft().x());
+            maxY = std::max(maxY, geo.bottomLeft().y());
+        }
     }
 
+    Q_ASSERT(maxY >= minY || !hadVisible);
+    Q_ASSERT(maxX >= minX || !hadVisible);
+    //TODO check buffer
+
+    if (prev) {
+        Q_ASSERT(prev->m_Geometry.geometry().y() <= m_pViewport->currentRect().bottomLeft().y());
+    }
+
+//     Q_ASSERT(maxY < m_pViewport->currentRect().bottomLeft().y() + 100);
+//     qDebug() << "SIZE" << maxX << maxY << m_pViewport->currentRect().bottomLeft().y();
 }
 
 void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)
 {
+    _test_validateLinkedList();
     int activeCount = 0;
 
     Q_ASSERT(!((!m_lpEdges[Bottom]) ^ (!m_lpEdges[Top  ])));
@@ -258,6 +297,5 @@ void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)
 
         activeCount++;
         oldGeo = geo;
-        old = item;
-    } while (item = item->down());
+    } while ((old = item) && (item = item->down()));
 }

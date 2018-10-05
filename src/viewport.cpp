@@ -111,7 +111,7 @@ Viewport::Viewport(ModelAdapter* ma) : QObject(),
 
 QRectF Viewport::currentRect() const
 {
-    return {};
+    return d_ptr->m_UsedRect;
 }
 
 QSizeF AbstractItemAdapter::sizeHint() const
@@ -263,7 +263,7 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel
         connect(m, &QAbstractItemModel::dataChanged,
             this, &ViewportPrivate::slotDataChanged);
 
-    if (m_ViewRect.isValid()) {
+    if (m_ViewRect.size().isValid()) {
         m_pReflector->performAction(TreeTraversalReflector::TrackingAction::POPULATE);
         m_pReflector->performAction(TreeTraversalReflector::TrackingAction::ENABLE);
     }
@@ -286,7 +286,8 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel
 
 void ViewportPrivate::slotViewportChanged(const QRectF &viewport)
 {
-    m_UsedRect = viewport;
+    m_ViewRect = viewport;
+    m_UsedRect = viewport; //FIXME remove wrong
     updateAvailableEdges();
     m_pReflector->performAction(TreeTraversalReflector::TrackingAction::FILL);
 }
@@ -462,13 +463,13 @@ void ViewportPrivate::updateEdges(BlockMetadata *item)
     }
 
     // Ensure that the m_ViewRect is in sync
-    Q_ASSERT(m_ViewRect.isValid() || (
+    Q_ASSERT(m_ViewRect.size().isValid() || (
             m_pModelAdapter->view()->width() == 0 &&
             m_pModelAdapter->view()->height() == 0
         )
     );
 
-    if (m_UsedRect.intersects(geo) || geo.height() <= 0 || geo.width() <= 0) {
+    if (m_ViewRect.intersects(geo) || geo.height() <= 0 || geo.width() <= 0) {
         //item->performAction(BlockMetadata::Action::SHOW);
     }
     else {
@@ -488,11 +489,11 @@ void ViewportPrivate::updateAvailableEdges()
         const auto geo = m_lpLoadedEdges[i] ? m_lpLoadedEdges[i]->geometry() : QRectF();
         Q_ASSERT((!m_lpLoadedEdges[i]) || geo.isValid());
 
-        const bool contains = (!m_lpLoadedEdges[i]) || m_UsedRect.contains(geo);
-        const bool isBelow = m_lpLoadedEdges[i] && geo.bottomLeft().y() > m_UsedRect.bottomLeft().y();
+        const bool contains = (!m_lpLoadedEdges[i]) || m_ViewRect.contains(geo);
+        const bool isBelow = m_lpLoadedEdges[i] && geo.bottomLeft().y() > m_ViewRect.bottomLeft().y();
 
         if (contains && geo.isValid()) {
-            Q_ASSERT(m_UsedRect.bottomLeft().y() >= geo.bottomLeft().y());
+            Q_ASSERT(m_ViewRect.bottomLeft().y() >= geo.bottomLeft().y());
         }
 
         if (contains && !isBelow) {
@@ -549,13 +550,10 @@ void ViewportSync::geometryUpdated(BlockMetadata *item)
 
 //     Q_ASSERT((!item->m_pItem) || item->m_pItem->geometry().size() == geo.size());
 
-    const auto old  = q_ptr->d_ptr->m_UsedRect;
-    const auto view = q_ptr->d_ptr->m_ViewRect;
-
     // Update the used rect
     const QRectF r = q_ptr->d_ptr->m_UsedRect = q_ptr->d_ptr->m_UsedRect.united(geo);
 
-    const bool hasSpaceOnTop = view.y();
+    const bool hasSpaceOnTop = q_ptr->d_ptr->m_ViewRect.y();
 
     if (q_ptr->d_ptr->m_SizeStrategy == Viewport::SizeHintStrategy::JIT)
         q_ptr->d_ptr->updateEdges(item);
@@ -571,17 +569,17 @@ void ViewportSync::updateGeometry(BlockMetadata* item)
 
 void Viewport::resize(const QRectF& rect)
 {
-    const bool wasValid = d_ptr->m_ViewRect.isValid();
+    const bool wasValid = d_ptr->m_ViewRect.size().isValid();
 
     Q_ASSERT(rect.x() == 0);
 
     // The {x, y} may not be at {0, 0}, but given it is a relative viewport,
     // then the content doesn't care about where it is on the screen.
-    d_ptr->m_ViewRect = QRectF(QPointF(0,0), rect.size());
+    d_ptr->m_ViewRect = rect;
 
     // For now ignore the case where the content is smaller, it doesn't change
     // anything. This could eventually change
-    d_ptr->m_UsedRect.setSize(rect.size());
+    d_ptr->m_UsedRect.setSize(rect.size()); //FIXME remove, wrong
 
     d_ptr->updateAvailableEdges();
 

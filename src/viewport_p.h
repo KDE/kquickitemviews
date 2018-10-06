@@ -16,7 +16,7 @@
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
 
-struct TreeTraversalItems;
+struct TreeTraversalItem;
 class TreeTraversalReflector;
 class VisualTreeItem;
 
@@ -29,6 +29,9 @@ class VisualTreeItem;
  */
 struct BlockMetadata
 {
+    explicit BlockMetadata(ViewportPrivate* p) : m_pViewport(p) {}
+    int removeMe = -1;
+
     enum class Mode {
         SINGLE,
         BLOCK
@@ -63,17 +66,22 @@ struct BlockMetadata
 
     Source  m_Source  {Source::NONE};
     Mode    m_Mode    {Mode::SINGLE};
-    TreeTraversalItems *m_pTTI  {nullptr};
-    VisualTreeItem     *m_pItem {nullptr};
+    TreeTraversalItem *m_pTTI  {nullptr};
 
     BlockMetadata *up   () const;
     BlockMetadata *down () const;
     BlockMetadata *left () const;
     BlockMetadata *right() const;
 
+    void setVisualItem(VisualTreeItem *i);
+
+    VisualTreeItem *visualItem() const;
+
 private:
     QPointF m_Position;
     QSizeF  m_Size;
+    ViewportPrivate *m_pViewport;
+    VisualTreeItem  *m_pItem {nullptr};
 };
 
 /**
@@ -86,7 +94,7 @@ class ViewportSync final
 public:
 
     /**
-     * From the model
+     * From the model or feedback loop
      */
     void updateGeometry(BlockMetadata* item);
 
@@ -94,6 +102,11 @@ public:
      * From the widget
      */
     void geometryUpdated(BlockMetadata* item);
+
+    /**
+     * From the model or feedback loop
+     */
+    void notifyRemoval(BlockMetadata* item);
 
     inline void updateSingleItem(const QModelIndex& index, BlockMetadata* b);
 

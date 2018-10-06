@@ -9,7 +9,7 @@
  *  * As a "sliding window" (viewport)
  */
 
-void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItems* p)
+void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItem* p)
 {
 #ifdef QT_NO_DEBUG_OUTPUT
     return;
@@ -24,8 +24,8 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItems* p)
         return;
     }*/
 
-//     if (p->m_pParent == m_pRoot && m_pRoot->m_tChildren[FIRST] == p && p->m_pTreeItem) {
-//         Q_ASSERT(!p->m_pTreeItem->up());
+//     if (p->m_pParent == m_pRoot && m_pRoot->m_tChildren[FIRST] == p && p->m_Geometry.visualItem()) {
+//         Q_ASSERT(!p->m_Geometry.visualItem()->up());
 //     }
 
     // First, let's check the linked list to avoid running more test on really
@@ -76,7 +76,7 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItems* p)
 
     //TODO remove once stable
     // Brute force recursive validations
-    TreeTraversalItems *old(nullptr), *newest(nullptr);
+    TreeTraversalItem *old(nullptr), *newest(nullptr);
     for (auto i = p->m_hLookup.constBegin(); i != p->m_hLookup.constEnd(); i++) {
         if ((!newest) || i.key().row() < newest->m_Index.row())
             newest = i.value();
@@ -85,7 +85,7 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItems* p)
             old = i.value();
 
         // Check that m_FailedCount is valid
-        //Q_ASSERT(!i.value()->m_pTreeItem->hasFailed());
+        //Q_ASSERT(!i.value()->m_Geometry.visualItem()->hasFailed());
 
         // Test the indices
         Q_ASSERT(p == m_pRoot || i.key().internalPointer() == i.value()->m_Index.internalPointer());
@@ -93,7 +93,7 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItems* p)
         //Q_ASSERT(old == i.value() || old->m_Index.row() > i.key().row()); //FIXME
         //Q_ASSERT(newest == i.value() || newest->m_Index.row() < i.key().row()); //FIXME
 
-        // Test that there is no trivial duplicate TreeTraversalItems for the same index
+        // Test that there is no trivial duplicate TreeTraversalItem for the same index
         if(i.value()->m_tSiblings[PREVIOUS] && i.value()->m_tSiblings[PREVIOUS]->m_hLookup.isEmpty()) {
             const auto prev = i.value()->up();
             Q_ASSERT(prev == i.value()->m_tSiblings[PREVIOUS]);
@@ -139,7 +139,7 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItems* p)
 
     // Traverse as a list
     if (p == m_pRoot) {
-        TreeTraversalItems* oldTTI(nullptr);
+        TreeTraversalItem* oldTTI(nullptr);
 
         int count(0), count2(0);
         for (auto i = m_pRoot->m_tChildren[FIRST]; i; i = i->down()) {
@@ -173,7 +173,7 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItems* p)
     Q_ASSERT((!newest) || !newest->m_tSiblings[PREVIOUS]);
 }
 
-void TreeTraversalReflectorPrivate::_test_validateLinkedList()
+void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState)
 {
     _test_validateTree(m_pRoot);
 
@@ -187,7 +187,7 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList()
 
     Q_ASSERT(!m_pRoot->m_tChildren[FIRST]->up());
 
-    TreeTraversalItems *prev(nullptr), *cur(m_pRoot->m_tChildren[FIRST]);
+    TreeTraversalItem *prev(nullptr), *cur(m_pRoot->m_tChildren[FIRST]);
 
     static const constexpr qreal maxReal = std::numeric_limits<qreal>::max();
     qreal maxY(0), maxX(0), minY(maxReal), minX(maxReal);
@@ -195,22 +195,29 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList()
     bool hadVisible = false;
     bool visibleFinished =  false;
 
+    TreeTraversalItem *firstVisible(nullptr), *lastVisible(nullptr);
+
     while ((prev = cur) && (cur = cur->down())) {
         Q_ASSERT(cur->up() == prev);
         Q_ASSERT(cur->m_Index.isValid());
         Q_ASSERT(cur->m_Index.model() == cur->d_ptr->m_pModel);
 
-        if (cur->m_State == TreeTraversalItems::State::VISIBLE && !hadVisible) {
+        if (cur->m_State == TreeTraversalItem::State::VISIBLE && !hadVisible) {
+            firstVisible = cur;
             hadVisible = true;
-            //Q_ASSERT(prev->m_Geometry.geometry().y() < m_pViewport->currentRect().y());
         }
-        else if (hadVisible && cur->m_State != TreeTraversalItems::State::VISIBLE)
+        else if (hadVisible && cur->m_State != TreeTraversalItem::State::VISIBLE) {
             visibleFinished = true;
+            lastVisible = prev;
+        }
 
-        Q_ASSERT((!visibleFinished) || visibleFinished ^ cur->m_State == TreeTraversalItems::State::VISIBLE);
+        Q_ASSERT((!visibleFinished) || visibleFinished ^ cur->m_State == TreeTraversalItem::State::VISIBLE);
 
-        Q_ASSERT(cur->m_State == TreeTraversalItems::State::VISIBLE || !cur->m_pTreeItem);
-        Q_ASSERT((!visibleFinished) || !cur->m_pTreeItem);
+        // skipVItemState is necessary to test some steps in between the tree and view
+        if (!skipVItemState) {
+            Q_ASSERT(cur->m_State == TreeTraversalItem::State::VISIBLE || !cur->m_Geometry.visualItem());
+            Q_ASSERT((!visibleFinished) || !cur->m_Geometry.visualItem());
+        }
 
         // Check the the previous sibling has no children
         if (prev && cur->m_pParent == prev->m_pParent) {
@@ -225,7 +232,7 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList()
             Q_ASSERT(prev->m_Index.row() == prevParRc - 1);
         }
 
-        if (cur->m_pTreeItem) {
+        if (cur->m_Geometry.visualItem()) {
             auto geo = cur->m_Geometry.geometry();
             minX = std::min(minX, geo.x());
             minY = std::min(minY, geo.y());
@@ -238,8 +245,12 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList()
     Q_ASSERT(maxX >= minX || !hadVisible);
     //TODO check buffer
 
-    if (prev) {
-        Q_ASSERT(prev->m_Geometry.geometry().y() <= m_pViewport->currentRect().bottomLeft().y());
+    if (firstVisible && !skipVItemState) {
+        //Q_ASSERT(prev->m_Geometry.geometry().y() < m_pViewport->currentRect().y());
+    }
+
+    if (lastVisible && !skipVItemState) {
+        Q_ASSERT(lastVisible->m_Geometry.geometry().y() <= m_pViewport->currentRect().bottomLeft().y());
     }
 
 //     Q_ASSERT(maxY < m_pViewport->currentRect().bottomLeft().y() + 100);
@@ -248,7 +259,7 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList()
 
 void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)
 {
-    _test_validateLinkedList();
+    _test_validateLinkedList(skipVItemState);
     int activeCount = 0;
 
     Q_ASSERT(!((!m_lpEdges[Bottom]) ^ (!m_lpEdges[Top  ])));
@@ -262,23 +273,26 @@ void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)
         auto d1 = m_lpEdges[Top]->down();
         auto u2 = m_lpEdges[Bottom]->up();
         auto d2 = m_lpEdges[Bottom]->down();
-        Q_ASSERT((!u1) || u1->m_State != TreeTraversalItems::State::VISIBLE);
-        Q_ASSERT((!u2) || u2->m_State != TreeTraversalItems::State::VISIBLE);
-        Q_ASSERT((!d1) || d1->m_State != TreeTraversalItems::State::VISIBLE);
-        Q_ASSERT((!d2) || d2->m_State != TreeTraversalItems::State::VISIBLE);
+        Q_ASSERT((!u1) || u1->m_State != TreeTraversalItem::State::VISIBLE);
+        Q_ASSERT((!u2) || u2->m_State != TreeTraversalItem::State::VISIBLE);
+        Q_ASSERT((!d1) || d1->m_State != TreeTraversalItem::State::VISIBLE);
+        Q_ASSERT((!d2) || d2->m_State != TreeTraversalItem::State::VISIBLE);
     }
 
     auto item = m_lpEdges[Top];
-    TreeTraversalItems *old = nullptr;
+    TreeTraversalItem *old = nullptr;
 
     QRectF oldGeo;
 
     do {
         Q_ASSERT(old != item);
-        Q_ASSERT(item->m_State == TreeTraversalItems::State::VISIBLE);
-        Q_ASSERT(item->m_pTreeItem);
-        if (!skipVItemState)
-            Q_ASSERT(item->m_pTreeItem->m_State == VisualTreeItem::State::ACTIVE);
+        Q_ASSERT(item->m_State == TreeTraversalItem::State::VISIBLE ||
+            (skipVItemState && item->m_State == TreeTraversalItem::State::BUFFER)
+        );
+        if (!skipVItemState) {
+            Q_ASSERT(item->m_Geometry.visualItem());
+            Q_ASSERT(item->m_Geometry.visualItem()->m_State == VisualTreeItem::State::ACTIVE);
+        }
         Q_ASSERT(item->up() == old);
 
         //FIXME don't do this, its temporary so I can add more tests to catch

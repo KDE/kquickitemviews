@@ -94,6 +94,5 @@ Q_SIGNALS:
 
 public:
     ViewportSync *s_ptr;
-private:
     ViewportPrivate *d_ptr;
 };

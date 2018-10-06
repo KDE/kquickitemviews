@@ -165,8 +165,8 @@ QSizeF ViewportPrivate::sizeHint(BlockMetadata *item) const
             Q_ASSERT(false);
             break;
         case Viewport::SizeHintStrategy::JIT:
-            if (item->m_pItem)
-                ret = item->m_pItem->geometry().size();
+            if (item->visualItem())
+                ret = item->visualItem()->geometry().size();
             else {
                 // JIT cannot be used past the loaded bounds, the value isn't known
                 Q_ASSERT(false);
@@ -289,7 +289,7 @@ void ViewportPrivate::slotViewportChanged(const QRectF &viewport)
     m_ViewRect = viewport;
     m_UsedRect = viewport; //FIXME remove wrong
     updateAvailableEdges();
-    m_pReflector->performAction(TreeTraversalReflector::TrackingAction::FILL);
+    m_pReflector->performAction(TreeTraversalReflector::TrackingAction::MOVE);
 }
 
 ModelAdapter *Viewport::modelAdapter() const
@@ -423,16 +423,18 @@ void Viewport::setItemFactory(ViewBase::ItemFactoryBase *factory)
 
 Qt::Edges Viewport::availableEdges() const
 {
-    return d_ptr->m_pReflector->availableEdges();
+    return d_ptr->m_pReflector->availableEdges(
+        TreeTraversalReflector::EdgeType::FREE
+    );
 }
 
 void ViewportPrivate::updateEdges(BlockMetadata *item)
 {
-    if (item->m_pItem) {
-        Q_ASSERT(item->m_pItem->m_State != VisualTreeItem::State::POOLING);
-        Q_ASSERT(item->m_pItem->m_State != VisualTreeItem::State::POOLED);
-        Q_ASSERT(item->m_pItem->m_State != VisualTreeItem::State::ERROR);
-        Q_ASSERT(item->m_pItem->m_State != VisualTreeItem::State::DANGLING);
+    if (item->visualItem()) {
+        Q_ASSERT(item->visualItem()->m_State != VisualTreeItem::State::POOLING);
+        Q_ASSERT(item->visualItem()->m_State != VisualTreeItem::State::POOLED);
+        Q_ASSERT(item->visualItem()->m_State != VisualTreeItem::State::ERROR);
+        Q_ASSERT(item->visualItem()->m_State != VisualTreeItem::State::DANGLING);
     }
 
     const auto geo = item->geometry();
@@ -474,7 +476,7 @@ void ViewportPrivate::updateEdges(BlockMetadata *item)
     }
     else {
 //         Q_ASSERT(false);
-        item->performAction(BlockMetadata::Action::HIDE);
+//         item->performAction(BlockMetadata::Action::HIDE);
     }
 
 //TODO update m_lpVisibleEdges
@@ -483,9 +485,13 @@ void ViewportPrivate::updateEdges(BlockMetadata *item)
 
 void ViewportPrivate::updateAvailableEdges()
 {
-    Qt::Edges available;
+    Qt::Edges available, hasInvisible;
 
     for (int i = Pos::Top; i <= Pos::Bottom; i++) {
+        //FIXME some elements of the pipeline are missing, ignore left and right
+        if (i == 1 || i == 2)
+            continue;
+
         const auto geo = m_lpLoadedEdges[i] ? m_lpLoadedEdges[i]->geometry() : QRectF();
         Q_ASSERT((!m_lpLoadedEdges[i]) || geo.isValid());
 
@@ -495,6 +501,20 @@ void ViewportPrivate::updateAvailableEdges()
         if (contains && geo.isValid()) {
             Q_ASSERT(m_ViewRect.bottomLeft().y() >= geo.bottomLeft().y());
         }
+
+        switch(i) {
+            case Pos::Top:
+            case Pos::Bottom:
+                if (geo.isValid() && (!contains) && !m_ViewRect.intersects(geo)) {
+                    hasInvisible |= edgeMap[i];
+                }
+                break;
+            case Pos::Left:
+            case Pos::Right:
+                //FIXME
+                break;
+        }
+
 
         if (contains && !isBelow) {
             available |= edgeMap[i];
@@ -534,7 +554,14 @@ void ViewportPrivate::updateAvailableEdges()
 //             100.0, v->height()
 //         ) + 200);
 
-    m_pReflector->setAvailableEdges(available);
+    m_pReflector->setAvailableEdges(
+        available, TreeTraversalReflector::EdgeType::FREE
+    );
+
+//     Q_ASSERT((~hasInvisible)&available == available || !available);
+    m_pReflector->setAvailableEdges(
+        (~hasInvisible)&15, TreeTraversalReflector::EdgeType::VISIBLE
+    );
 }
 
 void ViewportSync::geometryUpdated(BlockMetadata *item)
@@ -548,7 +575,7 @@ void ViewportSync::geometryUpdated(BlockMetadata *item)
         geo = item->geometry();
     }
 
-//     Q_ASSERT((!item->m_pItem) || item->m_pItem->geometry().size() == geo.size());
+//     Q_ASSERT((!item->visualItem()) || item->visualItem()->geometry().size() == geo.size());
 
     // Update the used rect
     const QRectF r = q_ptr->d_ptr->m_UsedRect = q_ptr->d_ptr->m_UsedRect.united(geo);
@@ -564,7 +591,47 @@ void ViewportSync::updateGeometry(BlockMetadata* item)
     if (q_ptr->d_ptr->m_SizeStrategy != Viewport::SizeHintStrategy::JIT)
         q_ptr->d_ptr->sizeHint(item);
 
-    q_ptr->d_ptr->updateEdges(  item);
+    q_ptr->d_ptr->updateEdges(item);
+}
+
+
+void ViewportSync::notifyRemoval(BlockMetadata* item)
+{
+    auto edges = q_ptr->d_ptr->m_lpLoadedEdges;
+
+    //TODO do something that's actually correct
+    while (edges[Pos::Top] && !edges[Pos::Top]->visualItem()) {
+        auto old = edges[Pos::Top];
+        edges[Pos::Top] = edges[Pos::Top]->down();
+        Q_ASSERT(edges[Pos::Top] != old);
+    }
+
+    Q_ASSERT((!edges[Pos::Top]) || edges[Pos::Top]->geometry().isValid());
+
+    while (edges[Pos::Bottom] && !edges[Pos::Bottom]->visualItem()) {
+        auto old = edges[Pos::Bottom];
+        edges[Pos::Bottom] = edges[Pos::Bottom]->up();
+        Q_ASSERT(edges[Pos::Bottom] != old);
+    }
+
+    Q_ASSERT((!edges[Pos::Bottom]) || edges[Pos::Bottom]->geometry().isValid());
+
+    q_ptr->d_ptr->updateAvailableEdges();
+
+    auto e = q_ptr->d_ptr->m_pReflector->availableEdges( TreeTraversalReflector::EdgeType::VISIBLE);
+
+    // Either both are edge have visible edges item or there is neither
+    Q_ASSERT((edges[Pos::Bottom] && edges[Pos::Top]) || !edges[Pos::Top]);
+
+    if (edges[Pos::Bottom]) {
+        Q_ASSERT(edges[Pos::Bottom]->visualItem());
+        auto geo = edges[Pos::Bottom]->geometry();
+        Q_ASSERT(q_ptr->d_ptr->m_ViewRect.intersects(geo) || geo.height() <= 0 || geo.width() <= 0);
+    }
+
+    // If that happens then something is broken above
+    Q_ASSERT(e & Qt::BottomEdge);
+    Q_ASSERT(e & Qt::TopEdge);
 }
 
 void Viewport::resize(const QRectF& rect)
@@ -588,7 +655,7 @@ void Viewport::resize(const QRectF& rect)
         d_ptr->m_pReflector->performAction(TreeTraversalReflector::TrackingAction::ENABLE);
     }
     else if (rect.isValid()) {
-        d_ptr->m_pReflector->performAction(TreeTraversalReflector::TrackingAction::FILL);
+        d_ptr->m_pReflector->performAction(TreeTraversalReflector::TrackingAction::MOVE);
     }
 }
 
@@ -686,6 +753,23 @@ void ViewportPrivate::slotReset()
         slotRowsInserted({}, 0, rc - 1);
     m_DisableApply = false;
     applyDelayedSize();
+}
+
+void BlockMetadata::setVisualItem(VisualTreeItem *i)
+{
+    Q_ASSERT((!i) || removeMe == 3);
+    if (m_pItem && !i)
+        m_pViewport->q_ptr->s_ptr->notifyRemoval(m_pItem->m_pGeometry);
+
+    m_pItem = i;
+
+    if (i)
+        i->m_pGeometry = this;
+}
+
+VisualTreeItem *BlockMetadata::visualItem() const
+{
+    return m_pItem;
 }
 
 #include <viewport.moc>

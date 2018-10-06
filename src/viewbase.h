@@ -51,7 +51,7 @@ class ViewBaseItemVariables;
 class ViewBase : public Flickable
 {
     Q_OBJECT
-    friend struct TreeTraversalItems;
+    friend struct TreeTraversalItem;
     friend class VisualTreeItem;
     friend class ViewBaseSync; // internal API
     friend class ModelAdapter; // call createItem

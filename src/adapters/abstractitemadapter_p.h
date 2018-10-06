@@ -20,7 +20,7 @@
 // KQuickItemViews
 #include "abstractitemadapter.h"
 class ViewBase;
-struct TreeTraversalItems;
+struct TreeTraversalItem;
 class ViewItemContextAdapter;
 class ContextAdapter;
 class Viewport;
@@ -43,7 +43,7 @@ class VisualTreeItem
 {
     //FIXME remove all that
     friend class ViewBase;
-    friend struct TreeTraversalItems;
+    friend struct TreeTraversalItem;
     friend class ViewBasePrivate;
     friend class AbstractItemAdapterPrivate; //TODO remove
     friend class TreeTraversalReflector;
@@ -124,7 +124,7 @@ public:
 
 private:
     State               m_State {State::POOLED};
-    TreeTraversalItems *m_pTTI  {   nullptr   };
+    TreeTraversalItem *m_pTTI  {   nullptr   };
     ViewBase           *m_pView {   nullptr   };
 
     AbstractItemAdapter* d_ptr;

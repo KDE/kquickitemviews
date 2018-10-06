@@ -64,7 +64,7 @@ class Viewport;
 class AbstractItemAdapter
 {
     friend class VisualTreeItem; //its internally shared properties
-    friend struct TreeTraversalItems; //state tracking
+    friend struct TreeTraversalItem; //state tracking
     friend class ViewBasePrivate; //notify when the view is resized
     friend class AbstractItemAdapterPrivate; // d_ptr (Q_DECLARE_PRIVATE)
     friend class ViewItemContextAdapter;

@@ -22,7 +22,7 @@
 #include <QtCore/QAbstractItemModel>
 
 // KQuickViews
-struct TreeTraversalItems;
+struct TreeTraversalItem;
 class VisualTreeItem;
 class TreeTraversalReflectorPrivate;
 class AbstractItemAdapter;
@@ -56,7 +56,7 @@ class Viewport;
 class TreeTraversalReflector final : public QObject
 {
     Q_OBJECT
-    friend struct TreeTraversalItems; // Internal representation
+    friend struct TreeTraversalItem; // Internal representation
 public:
 
     enum class TrackingState {
@@ -72,7 +72,14 @@ public:
         ENABLE  , /*!< Connect the pending model                 */
         RESET   , /*!< Remove the delegates but keep the trackers*/
         FREE    , /*!< Free the whole tracking tree              */
-        FILL    , /*!< Try to fix the viewport with content      */
+        MOVE    , /*!< Try to fix the viewport with content      */
+        TRIM    , /*!< Remove the elements until the edge is free*/
+    };
+
+    enum class EdgeType {
+        FREE    , /*!<  */
+        VISIBLE , /*!<  */
+        BUFFERED, /*!<  */
     };
 
     explicit TreeTraversalReflector(Viewport* parent = nullptr);
@@ -86,8 +93,8 @@ public:
     QAbstractItemModel* model() const;
     void setModel(QAbstractItemModel* m);
 
-    void setAvailableEdges(Qt::Edges edges);
-    Qt::Edges availableEdges() const;
+    void setAvailableEdges(Qt::Edges edges, EdgeType type);
+    Qt::Edges availableEdges(EdgeType type) const;
 
     // Getter
     AbstractItemAdapter* itemForIndex(const QModelIndex& idx) const; //TODO remove
@@ -98,8 +105,8 @@ public:
      * which may or may not be the same as the view. This method will detach
      * every element from the edge to the item)
      */
-    bool detachUntil(Qt::Edge from, TreeTraversalItems *to);
-    bool detachUntil(Qt::Edge from, VisualTreeItem *to);
+//     bool detachUntil(Qt::Edge from, TreeTraversalItem *to);
+//     bool detachUntil(Qt::Edge from, VisualTreeItem *to);
 
     //TODO remove those temporary helpers once its encapsulated
 //     void moveEverything();sdfdsfdsf

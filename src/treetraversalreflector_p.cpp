@@ -35,12 +35,9 @@
 /**
  * Hold the QPersistentModelIndex and the metadata associated with them.
  */
-struct TreeTraversalItems
+struct TreeTraversalItem
 {
-    explicit TreeTraversalItems(TreeTraversalItems* parent, TreeTraversalReflectorPrivate* d):
-        m_pParent(parent), d_ptr(d) {
-            m_Geometry.m_pTTI = this;
-        }
+    explicit TreeTraversalItem(TreeTraversalItem* parent, TreeTraversalReflectorPrivate* d);
 
     enum class State {
         BUFFER    = 0, /*!< Not in use by any visible indexes, but pre-loaded */
@@ -51,7 +48,7 @@ struct TreeTraversalItems
         DANGLING  = 5, /*!< Being destroyed                                   */
     };
 
-    typedef bool(TreeTraversalItems::*StateF)();
+    typedef bool(TreeTraversalItem::*StateF)();
 
     static const State  m_fStateMap    [6][7];
     static const StateF m_fStateMachine[6][7];
@@ -68,25 +65,25 @@ struct TreeTraversalItems
     bool reset  ();
 
     // Geometric navigation
-    TreeTraversalItems* up   () const;
-    TreeTraversalItems* down () const;
-    TreeTraversalItems* left () const;
-    TreeTraversalItems* right() const;
+    TreeTraversalItem* up   () const;
+    TreeTraversalItem* down () const;
+    TreeTraversalItem* left () const;
+    TreeTraversalItem* right() const;
 
-    TreeTraversalItems* loadUp  () const;
-    TreeTraversalItems* loadDown() const;
+    TreeTraversalItem* loadUp  () const;
+    TreeTraversalItem* loadDown() const;
 
     //TODO use a btree, not an hash
-    QHash<QPersistentModelIndex, TreeTraversalItems*> m_hLookup;
+    QHash<QPersistentModelIndex, TreeTraversalItem*> m_hLookup;
 
     uint m_Depth {0};
     State m_State {State::BUFFER};
 
     // Keep the parent to be able to get back to the root
-    TreeTraversalItems* m_pParent;
+    TreeTraversalItem* m_pParent;
 
-    TreeTraversalItems* m_tSiblings[2] = {nullptr, nullptr};
-    TreeTraversalItems* m_tChildren[2] = {nullptr, nullptr};
+    TreeTraversalItem* m_tSiblings[2] = {nullptr, nullptr};
+    TreeTraversalItem* m_tChildren[2] = {nullptr, nullptr};
 
     // Because slotRowsMoved is called before the change take effect, cache
     // the "new real row and column" since the current index()->row() is now
@@ -98,12 +95,39 @@ struct TreeTraversalItems
     bool m_IsCollapsed {false}; //TODO change the default to true
 
     QPersistentModelIndex m_Index;
-    VisualTreeItem* m_pTreeItem {nullptr};
     BlockMetadata   m_Geometry;
 
     //TODO keep the absolute index of the GC circular buffer
 
     TreeTraversalReflectorPrivate* d_ptr;
+};
+
+/// Allows more efficient batching of actions related to consecutive items
+class TreeTraversalItemRange //TODO
+{
+public:
+    //TODO
+    explicit TreeTraversalItemRange(TreeTraversalItem* topLeft, TreeTraversalItem* bottomRight);
+    explicit TreeTraversalItemRange(
+        Qt::Edge e, TreeTraversalReflector::EdgeType t, TreeTraversalItem* u
+    );
+
+    enum class Action {
+        //TODO
+    };
+
+    bool apply();
+};
+
+class ModelRect
+{
+    //TODO
+};
+
+/// Allow recycling of VisualTreeItem
+class VisualTreeItemPool
+{
+    //TODO
 };
 
 class TreeTraversalReflectorPrivate : public QObject
@@ -112,10 +136,10 @@ class TreeTraversalReflectorPrivate : public QObject
 public:
 
     // Helpers
-    TreeTraversalItems* addChildren(TreeTraversalItems* parent, const QModelIndex& index);
-    void bridgeGap(TreeTraversalItems* first, TreeTraversalItems* second, bool insert = false);
-    void createGap(TreeTraversalItems* first, TreeTraversalItems* last  );
-    TreeTraversalItems* ttiForIndex(const QModelIndex& idx) const;
+    TreeTraversalItem* addChildren(TreeTraversalItem* parent, const QModelIndex& index);
+    void bridgeGap(TreeTraversalItem* first, TreeTraversalItem* second, bool insert = false);
+    void createGap(TreeTraversalItem* first, TreeTraversalItem* last  );
+    TreeTraversalItem* ttiForIndex(const QModelIndex& idx) const;
 
     bool isInsertActive(const QModelIndex& p, int first, int last) const;
 
@@ -124,25 +148,27 @@ public:
     void resetTemporaryIndices(const QModelIndex &parent, int start, int end,
                                const QModelIndex &destination, int row);
 
-    TreeTraversalItems* m_pRoot {new TreeTraversalItems(nullptr, this)};
+    TreeTraversalItem* m_pRoot {new TreeTraversalItem(nullptr, this)};
 
     //TODO add a circular buffer to GC the items
     // * relative index: when to trigger GC
-    // * absolute array index: kept in the TreeTraversalItems so it can
+    // * absolute array index: kept in the TreeTraversalItem so it can
     //   remove itself
 
     /// All elements with loaded children
-    QHash<QPersistentModelIndex, TreeTraversalItems*> m_hMapper;
+    QHash<QPersistentModelIndex, TreeTraversalItem*> m_hMapper;
     QAbstractItemModel* m_pModel {nullptr};
     QAbstractItemModel* m_pTrackedModel {nullptr};
     std::function<AbstractItemAdapter*()> m_fFactory;
     Viewport *m_pViewport;
-    Qt::Edges m_Edges {Qt::TopEdge|Qt::LeftEdge|Qt::RightEdge|Qt::BottomEdge};
+    Qt::Edges m_Edges        {Qt::TopEdge|Qt::LeftEdge|Qt::RightEdge|Qt::BottomEdge};
+    Qt::Edges m_VisibleEdges {Qt::TopEdge|Qt::LeftEdge|Qt::RightEdge|Qt::BottomEdge};
+    Qt::Edges m_BufferEdges  {Qt::TopEdge|Qt::LeftEdge|Qt::RightEdge|Qt::BottomEdge};
     TreeTraversalReflector::TrackingState m_TrackingState {TreeTraversalReflector::TrackingState::NO_MODEL};
 
     enum Pos {Top, Left, Right, Bottom};
 
-    TreeTraversalItems *m_lpEdges[Pos::Bottom+1];
+    TreeTraversalItem *m_lpEdges[Pos::Bottom+1]; //TODO port to ModelRect
     int m_lEffectiveBuffer[Pos::Bottom+1] {0,0,0,0};
 
     TreeTraversalReflector* q_ptr;
@@ -155,15 +181,17 @@ public:
     void free();
     void error();
     void populate();
+    void fill();
+    void trim();
 
     typedef void(TreeTraversalReflectorPrivate::*StateF)();
-    static const TreeTraversalReflector::TrackingState m_fStateMap[4][6];
-    static const StateF m_fStateMachine[4][6];
+    static const TreeTraversalReflector::TrackingState m_fStateMap[4][7];
+    static const StateF m_fStateMachine[4][7];
 
     // Tests
-    void _test_validateTree(TreeTraversalItems* p);
+    void _test_validateTree(TreeTraversalItem* p);
     void _test_validateViewport(bool skipVItemState = false);
-    void _test_validateLinkedList();
+    void _test_validateLinkedList(bool skipVItemState = false);
 
 public Q_SLOTS:
     void cleanup();
@@ -179,29 +207,29 @@ public Q_SLOTS:
 #include <treetraversalreflector_debug.h>
 
 #define S TreeTraversalReflector::TrackingState::
-const TreeTraversalReflector::TrackingState TreeTraversalReflectorPrivate::m_fStateMap[4][6] = {
-/*                POPULATE     DISABLE      ENABLE       RESET        FREE         MOVE   */
-/*NO_MODEL */ { S NO_MODEL , S NO_MODEL , S NO_MODEL, S NO_MODEL, S NO_MODEL , S NO_MODEL },
-/*PAUSED   */ { S POPULATED, S PAUSED   , S TRACKING, S PAUSED  , S PAUSED   , S PAUSED   },
-/*POPULATED*/ { S TRACKING , S PAUSED   , S TRACKING, S PAUSED  , S POPULATED, S POPULATED},
-/*TRACKING */ { S TRACKING , S POPULATED, S TRACKING, S TRACKING, S TRACKING , S TRACKING },
+const TreeTraversalReflector::TrackingState TreeTraversalReflectorPrivate::m_fStateMap[4][7] = {
+/*                POPULATE     DISABLE      ENABLE       RESET        FREE         MOVE         TRIM   */
+/*NO_MODEL */ { S NO_MODEL , S NO_MODEL , S NO_MODEL, S NO_MODEL, S NO_MODEL , S NO_MODEL , S NO_MODEL },
+/*PAUSED   */ { S POPULATED, S PAUSED   , S TRACKING, S PAUSED  , S PAUSED   , S PAUSED   , S PAUSED   },
+/*POPULATED*/ { S TRACKING , S PAUSED   , S TRACKING, S PAUSED  , S POPULATED, S POPULATED, S POPULATED},
+/*TRACKING */ { S TRACKING , S POPULATED, S TRACKING, S TRACKING, S TRACKING , S TRACKING , S TRACKING },
 };
 #undef S
 
 // This state machine is self healing, error can be called in release mode
 // and it will only disable the view without further drama.
 #define A &TreeTraversalReflectorPrivate::
-const TreeTraversalReflectorPrivate::StateF TreeTraversalReflectorPrivate::m_fStateMachine[4][6] = {
-/*               POPULATE     DISABLE    ENABLE     RESET       FREE       MOVE   */
-/*NO_MODEL */ { A nothing , A nothing, A nothing, A nothing, A nothing, A nothing },
-/*PAUSED   */ { A populate, A nothing, A error  , A  reset , A  free  , A nothing },
-/*POPULATED*/ { A error   , A nothing, A track  , A  reset , A  free  , A populate},
-/*TRACKING */ { A nothing , A untrack, A nothing, A  reset , A  free  , A populate},
+const TreeTraversalReflectorPrivate::StateF TreeTraversalReflectorPrivate::m_fStateMachine[4][7] = {
+/*               POPULATE     DISABLE    ENABLE     RESET       FREE       MOVE   ,   TRIM */
+/*NO_MODEL */ { A nothing , A nothing, A nothing, A nothing, A nothing, A nothing , A error },
+/*PAUSED   */ { A populate, A nothing, A error  , A  reset , A  free  , A nothing , A trim  },
+/*POPULATED*/ { A error   , A nothing, A track  , A  reset , A  free  , A fill    , A trim  },
+/*TRACKING */ { A nothing , A untrack, A nothing, A  reset , A  free  , A fill    , A trim  },
 };
 #undef A
 
-#define S TreeTraversalItems::State::
-const TreeTraversalItems::State TreeTraversalItems::m_fStateMap[6][7] = {
+#define S TreeTraversalItem::State::
+const TreeTraversalItem::State TreeTraversalItem::m_fStateMap[6][7] = {
 /*                 SHOW         HIDE        ATTACH     DETACH      UPDATE       MOVE         RESET    */
 /*BUFFER   */ { S ERROR  , S BUFFER   , S REACHABLE, S DANGLING , S BUFFER , S BUFFER   , S BUFFER    },
 /*REMOVED  */ { S ERROR  , S ERROR    , S ERROR    , S BUFFER   , S ERROR  , S ERROR    , S ERROR     },
@@ -212,8 +240,8 @@ const TreeTraversalItems::State TreeTraversalItems::m_fStateMap[6][7] = {
 };
 #undef S
 
-#define A &TreeTraversalItems::
-const TreeTraversalItems::StateF TreeTraversalItems::m_fStateMachine[6][7] = {
+#define A &TreeTraversalItem::
+const TreeTraversalItem::StateF TreeTraversalItem::m_fStateMachine[6][7] = {
 /*                 SHOW       HIDE      ATTACH    DETACH      UPDATE    MOVE     RESET  */
 /*BUFFER   */ { A error  , A nothing, A attach, A destroy , A refresh, A index, A reset },
 /*REMOVED  */ { A error  , A error  , A error , A detach  , A error  , A error, A reset },
@@ -224,9 +252,15 @@ const TreeTraversalItems::StateF TreeTraversalItems::m_fStateMachine[6][7] = {
 };
 #undef A
 
-TreeTraversalItems* TreeTraversalItems::up() const
+TreeTraversalItem::TreeTraversalItem(TreeTraversalItem* parent, TreeTraversalReflectorPrivate* d):
+  m_pParent(parent), d_ptr(d), m_Geometry(d->m_pViewport ? d->m_pViewport->d_ptr : nullptr)
 {
-    TreeTraversalItems* ret = nullptr;
+    m_Geometry.m_pTTI = this;
+}
+
+TreeTraversalItem* TreeTraversalItem::up() const
+{
+    TreeTraversalItem* ret = nullptr;
 
     // Another simple case, there is no parent
     if (!m_pParent) {
@@ -247,9 +281,9 @@ TreeTraversalItems* TreeTraversalItems::up() const
     return ret;
 }
 
-TreeTraversalItems* TreeTraversalItems::down() const
+TreeTraversalItem* TreeTraversalItem::down() const
 {
-    TreeTraversalItems* ret = nullptr;
+    TreeTraversalItem* ret = nullptr;
     auto i = this;
 
     if (m_tChildren[FIRST]) {
@@ -277,18 +311,18 @@ TreeTraversalItems* TreeTraversalItems::down() const
     return ret;
 }
 
-TreeTraversalItems* TreeTraversalItems::left() const
+TreeTraversalItem* TreeTraversalItem::left() const
 {
     return nullptr; //TODO
 }
 
-TreeTraversalItems* TreeTraversalItems::right() const
+TreeTraversalItem* TreeTraversalItem::right() const
 {
     return nullptr; //TODO
 }
 
 
-TreeTraversalItems* TreeTraversalItems::loadUp() const
+TreeTraversalItem* TreeTraversalItem::loadUp() const
 {
     Q_ASSERT(m_Index.model() == d_ptr->m_pModel);
 
@@ -312,7 +346,7 @@ TreeTraversalItems* TreeTraversalItems::loadUp() const
     return m_pParent == d_ptr->m_pRoot ? nullptr : m_pParent;
 }
 
-TreeTraversalItems* TreeTraversalItems::loadDown() const
+TreeTraversalItem* TreeTraversalItem::loadDown() const
 {
     Q_ASSERT(m_Index.model() == d_ptr->m_pModel);
 
@@ -369,8 +403,9 @@ bool BlockMetadata::performAction(BlockMetadata::Action a)
 {
     const int s     = (int)m_pTTI->m_State;
     m_pTTI->m_State = m_pTTI->m_fStateMap[s][(int)a];
-    bool ret        = (this->m_pTTI->*TreeTraversalItems::m_fStateMachine[s][(int)a])();
-
+    m_pTTI->m_Geometry.removeMe = (int) m_pTTI->m_State;
+    bool ret        = (this->m_pTTI->*TreeTraversalItem::m_fStateMachine[s][(int)a])();
+    Q_ASSERT((!m_pTTI->m_Geometry.visualItem()) ||  m_pTTI->m_State == TreeTraversalItem::State::VISIBLE);
     return ret;
 }
 
@@ -384,19 +419,19 @@ TreeTraversalReflector::TrackingState TreeTraversalReflector::performAction(Tree
     return d_ptr->m_TrackingState;
 }
 
-bool TreeTraversalItems::nothing()
+bool TreeTraversalItem::nothing()
 { return true; }
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsuggest-attribute=noreturn"
-bool TreeTraversalItems::error()
+bool TreeTraversalItem::error()
 {
     Q_ASSERT(false);
     return false;
 }
 #pragma GCC diagnostic pop
 
-bool TreeTraversalItems::show()
+bool TreeTraversalItem::show()
 {
 //     qDebug() << "SHOW";
     Q_ASSERT(m_State == State::VISIBLE);
@@ -410,35 +445,34 @@ bool TreeTraversalItems::show()
     if ((!downTTI) || downTTI->m_State != State::VISIBLE)
         d_ptr->m_lpEdges[TreeTraversalReflectorPrivate::Pos::Bottom] = this;
 
-    if (!m_pTreeItem) {
-        m_pTreeItem = d_ptr->q_ptr->d_ptr->m_fFactory()->s_ptr;
-        m_pTreeItem->m_pGeometry = &m_Geometry;
-        m_Geometry.m_pItem = m_pTreeItem;
-        Q_ASSERT(m_pTreeItem);
-        m_pTreeItem->m_pTTI = this;
+    if (!m_Geometry.visualItem()) {
+        qDebug() << "\n\nASSIGN" << this;
+        m_Geometry.setVisualItem(d_ptr->q_ptr->d_ptr->m_fFactory()->s_ptr);
+        Q_ASSERT(m_Geometry.visualItem());
+        m_Geometry.visualItem()->m_pTTI = this;
 
-        m_pTreeItem->performAction(VisualTreeItem::ViewAction::ATTACH);
-        Q_ASSERT(m_pTreeItem->m_State == VisualTreeItem::State::POOLED);
+        m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::ATTACH);
+        Q_ASSERT(m_Geometry.visualItem()->m_State == VisualTreeItem::State::POOLED);
         Q_ASSERT(m_State == State::VISIBLE);
     }
 
     d_ptr->_test_validateViewport(true);
-    m_pTreeItem->performAction(VisualTreeItem::ViewAction::ENTER_BUFFER);
+    m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::ENTER_BUFFER);
     Q_ASSERT(m_State == State::VISIBLE);
     d_ptr->_test_validateViewport(true);
-    Q_ASSERT(m_pTreeItem->m_State == VisualTreeItem::State::BUFFER);
+    Q_ASSERT(m_Geometry.visualItem()->m_State == VisualTreeItem::State::BUFFER);
 
     d_ptr->_test_validateViewport(true);
-    m_pTreeItem->performAction(VisualTreeItem::ViewAction::ENTER_VIEW);
+    m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::ENTER_VIEW);
     Q_ASSERT(m_State == State::VISIBLE);
     d_ptr->_test_validateViewport();
 
     // For some reason creating the visual element failed, this can and will
     // happen and need to be recovered from.
-    if (m_pTreeItem->hasFailed()) {
-        m_pTreeItem->performAction(VisualTreeItem::ViewAction::LEAVE_BUFFER);
+    if (m_Geometry.visualItem()->hasFailed()) {
+        m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::LEAVE_BUFFER);
         Q_ASSERT(m_State == State::VISIBLE);
-        m_pTreeItem = nullptr;
+        m_Geometry.setVisualItem(nullptr);
     }
 
     Q_ASSERT(m_State == State::VISIBLE);
@@ -447,13 +481,34 @@ bool TreeTraversalItems::show()
     return true;
 }
 
-bool TreeTraversalItems::hide()
+bool TreeTraversalItem::hide()
 {
+
+    if (m_Geometry.visualItem()) {
+
+        // If the item was active (due, for example, of a full reset), then
+        // it has to be removed from view then deleted.
+        if (m_Geometry.visualItem()->m_State == VisualTreeItem::State::ACTIVE) {
+            m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::DETACH);
+
+            // It should still exists, it may crash otherwise, so make sure early
+            Q_ASSERT(m_Geometry.visualItem()->m_State == VisualTreeItem::State::POOLED);
+
+            m_Geometry.visualItem()->m_State = VisualTreeItem::State::POOLED;
+            //FIXME ^^ add a new action for finish pooling or call
+            // VisualTreeItem::detach from a new action method (instead of directly)
+        }
+
+        m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::DETACH);
+        m_Geometry.setVisualItem(nullptr);
+        qDebug() << "\n\nREMOVE!!!" << this;
+    }
+
 //     qDebug() << "HIDE";
     return true;
 }
 
-bool TreeTraversalItems::attach()
+bool TreeTraversalItem::attach()
 {
     Q_ASSERT(m_State != State::VISIBLE);
     // Attach can only be called when there is room in the viewport //FIXME and the buffer
@@ -461,10 +516,10 @@ bool TreeTraversalItems::attach()
 
     d_ptr->m_pViewport->s_ptr->updateGeometry(&m_Geometry);
 
-    Q_ASSERT(!m_pTreeItem);
+    Q_ASSERT(!m_Geometry.visualItem());
 
-//     if (m_pTreeItem)
-//         m_pTreeItem->performAction(VisualTreeItem::ViewAction::ATTACH);
+//     if (m_Geometry.visualItem())
+//         m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::ATTACH);
 
     const auto upTTI   = up();
     const auto downTTI = down();
@@ -484,7 +539,7 @@ bool TreeTraversalItems::attach()
     return true;
 }
 
-bool TreeTraversalItems::detach()
+bool TreeTraversalItem::detach()
 {
     using Pos = TreeTraversalReflectorPrivate::Pos;
 
@@ -494,36 +549,21 @@ bool TreeTraversalItems::detach()
         i.value()->m_Geometry.performAction(BlockMetadata::Action::DETACH);
     Q_ASSERT(m_hLookup.isEmpty());
 
+    Q_ASSERT(!((!d_ptr->m_lpEdges[Pos::Bottom]) ^ (!d_ptr->m_lpEdges[Pos::Top  ])));
+    Q_ASSERT(!((!d_ptr->m_lpEdges[Pos::Left  ]) ^ (!d_ptr->m_lpEdges[Pos::Right])));
+
     // Update the viewport
     if (d_ptr->m_lpEdges[Pos::Top] == this)
-        d_ptr->m_lpEdges[Pos::Top] = up();
+        d_ptr->m_lpEdges[Pos::Top] = up() ? up() : down();
 
     if (d_ptr->m_lpEdges[Pos::Bottom] == this)
-        d_ptr->m_lpEdges[Pos::Bottom] = down();
+        d_ptr->m_lpEdges[Pos::Bottom] = down() ? down() : up();
 
-    d_ptr->_test_validateViewport();
+    d_ptr->_test_validateViewport(true);
 
-    if (m_pTreeItem) {
+    hide();
 
-        // If the item was active (due, for example, of a full reset), then
-        // it has to be removed from view then deleted.
-        if (m_pTreeItem->m_State == VisualTreeItem::State::ACTIVE) {
-            m_pTreeItem->performAction(VisualTreeItem::ViewAction::DETACH);
-
-            // It should still exists, it may crash otherwise, so make sure early
-            Q_ASSERT(m_pTreeItem->m_State == VisualTreeItem::State::POOLED);
-
-            m_pTreeItem->m_State = VisualTreeItem::State::POOLED;
-            //FIXME ^^ add a new action for finish pooling or call
-            // VisualTreeItem::detach from a new action method (instead of directly)
-        }
-
-        m_pTreeItem->performAction(VisualTreeItem::ViewAction::DETACH);
-        m_pTreeItem = nullptr;
-    }
-
-
-    d_ptr->_test_validateViewport();
+    //d_ptr->_test_validateViewport(true);
 
     if (m_pParent) {
         const int size = m_pParent->m_hLookup.size();
@@ -532,10 +572,30 @@ bool TreeTraversalItems::detach()
     }
 
     if (m_tSiblings[PREVIOUS] || m_tSiblings[NEXT]) {
+
         if (m_tSiblings[PREVIOUS])
             m_tSiblings[PREVIOUS]->m_tSiblings[NEXT] = m_tSiblings[NEXT];
+
         if (m_tSiblings[NEXT])
             m_tSiblings[NEXT]->m_tSiblings[PREVIOUS] = m_tSiblings[PREVIOUS];
+
+        if (m_pParent->m_tChildren[FIRST] == this)
+            m_pParent->m_tChildren[FIRST] = m_tSiblings[NEXT];
+
+        if (m_pParent->m_tChildren[LAST] == this)
+            m_pParent->m_tChildren[LAST] = m_tSiblings[PREVIOUS];
+
+        auto i = m_pParent->m_tChildren[FIRST];
+        TreeTraversalItem *prev = nullptr;
+        while(i) {
+            Q_ASSERT(i->m_tSiblings[PREVIOUS] == prev);
+
+            Q_ASSERT((!prev) || i->m_Index.row() == prev->m_Index.row()+1);
+
+            prev = i;
+            i = i->m_tSiblings[NEXT];
+        }
+
     }
     else if (m_pParent) { //FIXME very wrong
         Q_ASSERT(m_pParent->m_hLookup.isEmpty());
@@ -548,10 +608,13 @@ bool TreeTraversalItems::detach()
     //FIXME set the parent m_tChildren[FIRST] correctly and add an insert()/move() method
     // then drop bridgeGap
 
+    Q_ASSERT(!m_Geometry.visualItem());
+    qDebug() << "\n\nDETACHED!";
+
     return true;
 }
 
-bool TreeTraversalItems::refresh()
+bool TreeTraversalItem::refresh()
 {
     //
 //     qDebug() << "REFRESH";
@@ -567,12 +630,12 @@ bool TreeTraversalItems::refresh()
             break;
     }
 
-    Q_ASSERT(m_pTreeItem); //FIXME
+    Q_ASSERT(m_Geometry.visualItem()); //FIXME
 
     return true;
 }
 
-bool TreeTraversalItems::index()
+bool TreeTraversalItem::index()
 {
     //TODO remove this implementation and use the one below
 
@@ -588,32 +651,32 @@ bool TreeTraversalItems::index()
 
     //FIXME this if should not exists, this should be handled by the state
     // machine.
-    if (m_pTreeItem) {
-        m_pTreeItem->performAction(VisualTreeItem::ViewAction::MOVE); //FIXME don't
+    if (m_Geometry.visualItem()) {
+        m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::MOVE); //FIXME don't
     }
     //TODO update m_Geometry
 
     return true;
 
-//     if (!m_pTreeItem)
+//     if (!m_Geometry.visualItem())
 //         return true;
 
 //FIXME this is better, but require having createItem() called earlier
-//     if (m_pTreeItem)
-//         m_pTreeItem->performAction(VisualTreeItem::ViewAction::MOVE); //FIXME don't
+//     if (m_Geometry.visualItem())
+//         m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::MOVE); //FIXME don't
 //
-//     if (oldGeo != m_pTreeItem->geometry())
-//         if (auto n = m_pTreeItem->down())
+//     if (oldGeo != m_Geometry.visualItem()->geometry())
+//         if (auto n = m_Geometry.visualItem()->down())
 //             n->m_pParent->performAction(BlockMetadata::Action::MOVE);
 
 //     return true;
 }
 
-bool TreeTraversalItems::destroy()
+bool TreeTraversalItem::destroy()
 {
     detach();
 
-    m_pTreeItem = nullptr;
+    m_Geometry.setVisualItem(nullptr);
 
     Q_ASSERT(m_hLookup.isEmpty());
 
@@ -621,7 +684,7 @@ bool TreeTraversalItems::destroy()
     return true;
 }
 
-bool TreeTraversalItems::reset()
+bool TreeTraversalItem::reset()
 {
     for (auto i = m_tChildren[FIRST]; i; i = i->m_tSiblings[NEXT]) {
         Q_ASSERT(i);
@@ -632,11 +695,11 @@ bool TreeTraversalItems::reset()
             break;
     }
 
-    if (m_pTreeItem) {
+    if (m_Geometry.visualItem()) {
         Q_ASSERT(this != d_ptr->m_pRoot);
-        m_pTreeItem->performAction(VisualTreeItem::ViewAction::LEAVE_BUFFER);
-        m_pTreeItem->performAction(VisualTreeItem::ViewAction::DETACH);
-        m_pTreeItem = nullptr;
+        m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::LEAVE_BUFFER);
+        m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::DETACH);
+        m_Geometry.setVisualItem(nullptr);
     }
 
     m_Geometry.setSize({});
@@ -677,7 +740,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 
     auto pitem = parent.isValid() ? m_hMapper.value(parent) : m_pRoot;
 
-    TreeTraversalItems *prev(nullptr);
+    TreeTraversalItem *prev(nullptr);
 
     //FIXME use up()
     if (first && pitem)
@@ -817,7 +880,7 @@ void TreeTraversalReflectorPrivate::slotRowsRemoved(const QModelIndex& parent, i
     auto pitem = parent.isValid() ? m_hMapper.value(parent) : m_pRoot;
 
     //TODO make sure the state machine support them
-    //TreeTraversalItems *prev(nullptr), *next(nullptr);
+    //TreeTraversalItem *prev(nullptr), *next(nullptr);
 
     //FIXME use up()
     //if (first && pitem)
@@ -851,7 +914,7 @@ void TreeTraversalReflectorPrivate::slotLayoutChanged()
     Q_EMIT q_ptr->countChanged();
 }
 
-void TreeTraversalReflectorPrivate::createGap(TreeTraversalItems* first, TreeTraversalItems* last)
+void TreeTraversalReflectorPrivate::createGap(TreeTraversalItem* first, TreeTraversalItem* last)
 {
     Q_ASSERT(first->m_pParent == last->m_pParent);
 
@@ -883,7 +946,7 @@ void TreeTraversalReflectorPrivate::createGap(TreeTraversalItems* first, TreeTra
 }
 
 /// Fix the issues introduced by createGap (does not update m_pParent and m_hLookup)
-void TreeTraversalReflectorPrivate::bridgeGap(TreeTraversalItems* first, TreeTraversalItems* second, bool insert)
+void TreeTraversalReflectorPrivate::bridgeGap(TreeTraversalItem* first, TreeTraversalItem* second, bool insert)
 {
     // 3 possible case: siblings, first child or last child
 
@@ -1048,7 +1111,7 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
     setTemporaryIndices(parent, start, end, destination, row);
 
     // As the actual view is implemented as a daisy chained list, only moving
-    // the edges is necessary for the TreeTraversalItems. Each VisualTreeItem
+    // the edges is necessary for the TreeTraversalItem. Each VisualTreeItem
     // need to be moved.
 
     const auto idxStart = q_ptr->model()->index(start, 0, parent);
@@ -1077,7 +1140,7 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
     // You cannot move things into an empty model
     Q_ASSERT((!row) || newNextIdx.isValid());
 
-    TreeTraversalItems *newNextTTI(nullptr), *newPrevTTI(nullptr);
+    TreeTraversalItem *newNextTTI(nullptr), *newPrevTTI(nullptr);
 
     // Rewind until a next element is found, this happens when destination is empty
     if (!newNextIdx.isValid() && destination.parent().isValid()) {
@@ -1118,7 +1181,7 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
     Q_ASSERT((newPrevTTI || startTTI) && newPrevTTI != startTTI);
     Q_ASSERT((newNextTTI || endTTI  ) && newNextTTI != endTTI  );
 
-    TreeTraversalItems* newParentTTI = ttiForIndex(destination);
+    TreeTraversalItem* newParentTTI = ttiForIndex(destination);
     newParentTTI = newParentTTI ? newParentTTI : m_pRoot;
     auto oldParentTTI = startTTI->m_pParent;
 
@@ -1265,7 +1328,7 @@ void TreeTraversalReflectorPrivate::free()
 
     m_hMapper.clear();
     delete m_pRoot;
-    m_pRoot = new TreeTraversalItems(nullptr, this);
+    m_pRoot = new TreeTraversalItem(nullptr, this);
 }
 
 void TreeTraversalReflectorPrivate::reset()
@@ -1340,6 +1403,37 @@ void TreeTraversalReflectorPrivate::populate()
     }
 }
 
+void TreeTraversalReflectorPrivate::trim()
+{
+    qDebug() << "TRIM" << m_VisibleEdges;
+    if (!m_lpEdges[Pos::Top]) {
+        Q_ASSERT(!m_lpEdges[Pos::Bottom]);
+        return;
+    }
+
+    while ((!m_VisibleEdges & Qt::TopEdge)) {
+        Q_ASSERT(m_lpEdges[Pos::Top]);
+        Q_ASSERT(!m_pViewport->currentRect().intersects(m_lpEdges[Pos::Top]->m_Geometry.geometry()));
+//         Q_ASSERT(false);
+        m_lpEdges[Pos::Top]->m_Geometry.performAction(BlockMetadata::Action::HIDE);
+    }
+
+    auto elem = m_lpEdges[Pos::Bottom]; //FIXME have a visual and reacheable rect
+    while (!(m_VisibleEdges & Qt::BottomEdge)) {
+        Q_ASSERT(elem);
+        Q_ASSERT(!m_pViewport->currentRect().intersects(elem->m_Geometry.geometry()));
+//         Q_ASSERT(false);
+        elem->m_Geometry.performAction(BlockMetadata::Action::HIDE);
+        elem = elem->up();
+    }
+}
+
+void TreeTraversalReflectorPrivate::fill()
+{
+    trim();
+    populate();
+}
+
 void TreeTraversalReflectorPrivate::nothing()
 {}
 
@@ -1372,22 +1466,22 @@ void TreeTraversalReflector::setModel(QAbstractItemModel* m)
 }
 
 
-bool TreeTraversalReflector::detachUntil(Qt::Edge from, VisualTreeItem *to)
-{
-    return detachUntil(from, to ? to->m_pTTI : nullptr);
-}
-
-bool TreeTraversalReflector::detachUntil(Qt::Edge from, TreeTraversalItems *to)
-{
-    Q_UNUSED(from)
-    if (!to)
-        return false;
-
-    if (to->m_pTreeItem)
-        to->m_pTreeItem->performAction(VisualTreeItem::ViewAction::LEAVE_BUFFER);
-
-    return false;
-}
+// bool TreeTraversalReflector::detachUntil(Qt::Edge from, VisualTreeItem *to)
+// {
+//     return detachUntil(from, to ? to->m_pTTI : nullptr);
+// }
+//
+// bool TreeTraversalReflector::detachUntil(Qt::Edge from, TreeTraversalItem *to)
+// {
+//     Q_UNUSED(from)
+//     if (!to)
+//         return false;
+//
+//     if (to->m_Geometry.visualItem())
+//         to->m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::LEAVE_BUFFER);
+//
+//     return false;
+// }
 
 bool TreeTraversalReflectorPrivate::isInsertActive(const QModelIndex& p, int first, int last) const
 {
@@ -1423,12 +1517,12 @@ bool TreeTraversalReflector::isActive(const QModelIndex& parent, int first, int 
 }
 
 /// Add new entries to the mapping
-TreeTraversalItems* TreeTraversalReflectorPrivate::addChildren(TreeTraversalItems* parent, const QModelIndex& index)
+TreeTraversalItem* TreeTraversalReflectorPrivate::addChildren(TreeTraversalItem* parent, const QModelIndex& index)
 {
     Q_ASSERT(index.isValid());
     Q_ASSERT(index.parent() != index);
 
-    auto e = new TreeTraversalItems(parent, this);
+    auto e = new TreeTraversalItem(parent, this);
     e->m_Index = index;
 
     const int oldSize(m_hMapper.size()), oldSize2(parent->m_hLookup.size());
@@ -1450,11 +1544,11 @@ void TreeTraversalReflectorPrivate::cleanup()
     m_pRoot->m_Geometry.performAction(BlockMetadata::Action::DETACH);
 
     m_hMapper.clear();
-    m_pRoot = new TreeTraversalItems(nullptr, this);
+    m_pRoot = new TreeTraversalItem(nullptr, this);
     //m_FailedCount = 0;
 }
 
-TreeTraversalItems* TreeTraversalReflectorPrivate::ttiForIndex(const QModelIndex& idx) const
+TreeTraversalItem* TreeTraversalReflectorPrivate::ttiForIndex(const QModelIndex& idx) const
 {
     if (!idx.isValid())
         return nullptr;
@@ -1471,17 +1565,39 @@ TreeTraversalItems* TreeTraversalReflectorPrivate::ttiForIndex(const QModelIndex
 AbstractItemAdapter* TreeTraversalReflector::itemForIndex(const QModelIndex& idx) const
 {
     const auto tti = d_ptr->ttiForIndex(idx);
-    return tti && tti->m_pTreeItem ? tti->m_pTreeItem->d_ptr : nullptr;
+    return tti && tti->m_Geometry.visualItem() ? tti->m_Geometry.visualItem()->d_ptr : nullptr;
 }
 
-void TreeTraversalReflector::setAvailableEdges(Qt::Edges edges)
+void TreeTraversalReflector::setAvailableEdges(Qt::Edges edges, TreeTraversalReflector::EdgeType t)
 {
-    d_ptr->m_Edges = edges;
+    switch(t) {
+        case TreeTraversalReflector::EdgeType::FREE:
+            d_ptr->m_Edges = edges;
+            break;
+        case TreeTraversalReflector::EdgeType::VISIBLE:
+            d_ptr->m_VisibleEdges = edges;
+            break;
+        case TreeTraversalReflector::EdgeType::BUFFERED:
+            d_ptr->m_BufferEdges = edges;
+            break;
+        default:
+            Q_ASSERT(false);
+    }
+
 }
 
-Qt::Edges TreeTraversalReflector::availableEdges() const
+Qt::Edges TreeTraversalReflector::availableEdges(TreeTraversalReflector::EdgeType  t) const
 {
-    return d_ptr->m_Edges;
+    switch(t) {
+        case TreeTraversalReflector::EdgeType::FREE:
+            return d_ptr->m_Edges;
+        case TreeTraversalReflector::EdgeType::VISIBLE:
+            return d_ptr->m_VisibleEdges;
+        case TreeTraversalReflector::EdgeType::BUFFERED:
+            return d_ptr->m_BufferEdges;
+    }
+    Q_ASSERT(false);
+    return {};
 }
 
 QModelIndex BlockMetadata::index() const
@@ -1517,13 +1633,13 @@ VisualTreeItem* VisualTreeItem::up(AbstractItemAdapter::StateFlags flags) const
     // that implement this (abstract) class to work without having to always
     // check if some of their item failed to load. This is non-fatal in the
     // other Qt views, so it isn't fatal here either.
-    while (ret && !ret->m_pTreeItem)
+    while (ret && !ret->m_Geometry.visualItem())
         ret = ret->up();
 
-    if (ret && ret->m_pTreeItem)
-        Q_ASSERT(ret->m_pTreeItem->m_State != State::POOLING && ret->m_pTreeItem->m_State != State::DANGLING);
+    if (ret && ret->m_Geometry.visualItem())
+        Q_ASSERT(ret->m_Geometry.visualItem()->m_State != State::POOLING && ret->m_Geometry.visualItem()->m_State != State::DANGLING);
 
-    return ret ? ret->m_pTreeItem : nullptr;
+    return ret ? ret->m_Geometry.visualItem() : nullptr;
 }
 
 /**
@@ -1549,10 +1665,10 @@ VisualTreeItem* VisualTreeItem::down(AbstractItemAdapter::StateFlags flags) cons
     // that implement this (abstract) class to work without having to always
     // check if some of their item failed to load. This is non-fatal in the
     // other Qt views, so it isn't fatal here either.
-    while (ret && !ret->m_pTreeItem)
+    while (ret && !ret->m_Geometry.visualItem())
         ret = ret->down();
 
-    return ret ? ret->m_pTreeItem : nullptr;
+    return ret ? ret->m_Geometry.visualItem() : nullptr;
 }
 
 int VisualTreeItem::row() const

@@ -554,6 +554,18 @@ void ViewportPrivate::updateAvailableEdges()
 //             100.0, v->height()
 //         ) + 200);
 
+
+    auto tve = m_pReflector->getEdge(
+        TreeTraversalReflector::EdgeType::VISIBLE, Qt::TopEdge
+    );
+
+
+    auto bve = m_pReflector->getEdge(
+        TreeTraversalReflector::EdgeType::VISIBLE, Qt::BottomEdge
+    );
+
+    qDebug() << "CHECK TOP" << bve << (bve ? bve->geometry() : QRectF()) << (bve ? m_ViewRect.intersects(bve->geometry()) : true);
+
     m_pReflector->setAvailableEdges(
         available, TreeTraversalReflector::EdgeType::FREE
     );

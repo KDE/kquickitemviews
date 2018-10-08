@@ -157,6 +157,10 @@ public:
     void createGap(TreeTraversalItem* first, TreeTraversalItem* last  );
     TreeTraversalItem* ttiForIndex(const QModelIndex& idx) const;
 
+    void insertBefore(TreeTraversalItem* self, TreeTraversalItem* other, TreeTraversalItem* parent);
+    void afterBefore(TreeTraversalItem* self, TreeTraversalItem* other, TreeTraversalItem* parent);
+
+
     bool isInsertActive(const QModelIndex& p, int first, int last) const;
 
     void setTemporaryIndices(const QModelIndex &parent, int start, int end,
@@ -211,6 +215,7 @@ public:
     void _test_validateTree(TreeTraversalItem* p);
     void _test_validateViewport(bool skipVItemState = false);
     void _test_validateLinkedList(bool skipVItemState = false);
+    void _test_validate_chain(TreeTraversalItem* p);
 
 public Q_SLOTS:
     void cleanup();
@@ -625,32 +630,22 @@ bool TreeTraversalItem::detach()
         Q_ASSERT(size == m_pParent->m_hLookup.size()+1);
     }
 
-    if (m_tSiblings[PREVIOUS] || m_tSiblings[NEXT]) {
+    Q_ASSERT(!this->m_tChildren[FIRST]);
+    Q_ASSERT(this->m_hLookup.isEmpty());
 
-        if (m_tSiblings[PREVIOUS])
-            m_tSiblings[PREVIOUS]->m_tSiblings[NEXT] = m_tSiblings[NEXT];
+    if (m_pParent->m_tChildren[FIRST] == this)
+        m_pParent->m_tChildren[FIRST] = m_tSiblings[NEXT] ?
+            m_tSiblings[NEXT] : m_tSiblings[PREVIOUS];
 
-        if (m_tSiblings[NEXT])
-            m_tSiblings[NEXT]->m_tSiblings[PREVIOUS] = m_tSiblings[PREVIOUS];
+    if (m_pParent->m_tChildren[LAST] == this) {
+        m_pParent->m_tChildren[LAST] = m_tSiblings[PREVIOUS] ?
+            m_tSiblings[PREVIOUS] : m_tSiblings[NEXT];
 
-        if (m_pParent->m_tChildren[FIRST] == this)
-            m_pParent->m_tChildren[FIRST] = m_tSiblings[NEXT];
-
-        if (m_pParent->m_tChildren[LAST] == this)
-            m_pParent->m_tChildren[LAST] = m_tSiblings[PREVIOUS];
-
-        auto i = m_pParent->m_tChildren[FIRST];
-        TreeTraversalItem *prev = nullptr;
-        while(i) {
-            Q_ASSERT(i->m_tSiblings[PREVIOUS] == prev);
-
-            Q_ASSERT((!prev) || i->m_Index.row() == prev->m_Index.row()+1);
-
-            prev = i;
-            i = i->m_tSiblings[NEXT];
-        }
-
+//         Q_ASSERT(!m_pParent->m_tChildren[LAST]->m_tSiblings[NEXT]);
     }
+
+    if (this->m_tSiblings[PREVIOUS] || this->m_tSiblings[NEXT])
+        d_ptr->bridgeGap(this->m_tSiblings[PREVIOUS], this->m_tSiblings[NEXT]);
     else if (m_pParent) { //FIXME very wrong
         Q_ASSERT(m_pParent->m_hLookup.isEmpty());
         m_pParent->m_tChildren[FIRST] = nullptr;
@@ -782,6 +777,61 @@ void TreeTraversalReflector::setItemFactory(std::function<AbstractItemAdapter*()
     d_ptr->m_fFactory = factory;
 }
 
+void TreeTraversalReflectorPrivate::afterBefore(TreeTraversalItem* self, TreeTraversalItem* other, TreeTraversalItem* parent)
+{
+    if (parent->m_tChildren[FIRST] && !other) {
+        Q_ASSERT(false);
+    }
+
+    _test_validate_chain(parent);
+}
+
+void TreeTraversalReflectorPrivate::insertBefore(TreeTraversalItem* self, TreeTraversalItem* other, TreeTraversalItem* parent)
+{
+    Q_ASSERT(parent);
+
+    if (!parent->m_tChildren[FIRST]) {
+        Q_ASSERT(!parent->m_tChildren[LAST]);
+        parent->m_tChildren[FIRST] = parent->m_tChildren[LAST] = self;
+        Q_ASSERT(!self->m_tSiblings[NEXT]);
+        Q_ASSERT(!self->m_tSiblings[PREVIOUS]);
+        _test_validate_chain(parent);
+        return;
+    }
+
+    Q_ASSERT(!self->m_tSiblings[NEXT]);
+    Q_ASSERT(parent == self->m_pParent);
+
+    if (!other) {
+        if (auto f = parent->m_tChildren[FIRST])
+            f->m_tSiblings[PREVIOUS] = self;
+
+        self->m_tSiblings[NEXT] = parent->m_tChildren[FIRST];
+        parent->m_tChildren[FIRST] = self;
+
+        _test_validate_chain(parent);
+        return;
+    }
+
+    Q_ASSERT(other);
+    Q_ASSERT(other->m_pParent == parent);
+
+    if (other == parent->m_tChildren[FIRST]) {
+        Q_ASSERT(!other->m_tSiblings[PREVIOUS]);
+        Q_ASSERT(other->m_tSiblings[NEXT] || other == parent->m_tChildren[LAST]);
+        parent->m_tChildren[FIRST] = self;
+        self->m_tSiblings[NEXT] = other;
+        other->m_tSiblings[PREVIOUS] = self;
+    }
+    else {
+        Q_ASSERT(other->m_tSiblings[PREVIOUS]);
+        self->m_tSiblings[NEXT] = other->m_tSiblings[NEXT];
+        other->m_tSiblings[PREVIOUS] = self;
+    }
+
+    _test_validate_chain(parent);
+}
+
 void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, int first, int last)
 {
     Q_ASSERT((!parent.isValid()) || parent.model() == q_ptr->model());
@@ -819,6 +869,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 
         auto e = addChildren(pitem, idx);
 
+        _test_validate_chain(e->m_pParent);
         // Keep a dual chained linked list between the visual elements
         e->m_tSiblings[PREVIOUS] = prev ? prev : nullptr; //FIXME incorrect
 
@@ -839,23 +890,27 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         const bool needUpMove = (!pitem->m_tChildren[FIRST]) ||
             e->m_Index.row() <= pitem->m_tChildren[FIRST]->m_Index.row();
 
+        _test_validate_chain(e->m_pParent);
         // The item is about the current parent first item
         if (needUpMove) {
-            e->m_tSiblings[NEXT] = pitem->m_tChildren[FIRST];
-            pitem->m_tChildren[FIRST] = e;
+            insertBefore(e, nullptr, pitem);
         }
+        _test_validate_chain(e->m_pParent);
 
         // Do this before ATTACH to make sure the daisy-chaining is valid in
         // case it is used.
         if (needDownMove) {
             Q_ASSERT(pitem != e);
             pitem->m_tChildren[LAST] = e;
+            Q_ASSERT(!e->m_tSiblings[NEXT]);
         }
+
+        _test_validate_chain(e->m_pParent);
 
         // NEW -> REACHABLE, this should never fail
         if (!e->m_Geometry.performAction(BlockMetadata::Action::ATTACH)) {
             _test_validateLinkedList();
-            return;
+            break;
         }
 
         if (needUpMove) {
@@ -887,16 +942,20 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
     }
 
     // Fix the linked list
-    if (oldFirst && prev && prev->m_Index.row() < oldFirst->m_Index.row()) {
-        Q_ASSERT(!oldFirst->m_tSiblings[PREVIOUS]);
-        Q_ASSERT(oldFirst->m_Index.row() == prev->m_Index.row() + 1);
-        Q_ASSERT(prev->m_tSiblings[NEXT] == oldFirst);
+//     if (oldFirst && prev && prev->m_Index.row() < oldFirst->m_Index.row()) {
+//         Q_ASSERT(!oldFirst->m_tSiblings[PREVIOUS]);
+//         Q_ASSERT(oldFirst->m_Index.row() == prev->m_Index.row() + 1);
+//         Q_ASSERT(prev->m_tSiblings[NEXT] == oldFirst);
+//
+//         oldFirst->m_tSiblings[PREVIOUS] = prev;
+//     }
 
-        oldFirst->m_tSiblings[PREVIOUS] = prev;
+    if ((!pitem->m_tChildren[LAST]) || last > pitem->m_tChildren[LAST]->m_Index.row()) {
+        pitem->m_tChildren[LAST] = prev;
+        Q_ASSERT(!prev->m_tSiblings[NEXT]);
     }
 
-    if ((!pitem->m_tChildren[LAST]) || last > pitem->m_tChildren[LAST]->m_Index.row())
-        pitem->m_tChildren[LAST] = prev;
+    _test_validate_chain(pitem);
 
     Q_ASSERT(pitem->m_tChildren[LAST]);
 
@@ -984,8 +1043,11 @@ void TreeTraversalReflectorPrivate::createGap(TreeTraversalItem* first, TreeTrav
     if (first->m_pParent->m_tChildren[FIRST] == first)
         first->m_pParent->m_tChildren[FIRST] = last->m_tSiblings[NEXT];
 
-    if (last->m_pParent->m_tChildren[LAST] == last)
+    if (last->m_pParent->m_tChildren[LAST] == last) {
         last->m_pParent->m_tChildren[LAST] = first->m_tSiblings[PREVIOUS];
+
+        Q_ASSERT((!last->m_pParent->m_tChildren[LAST]) || !last->m_pParent->m_tChildren[LAST]->m_tSiblings[NEXT]);
+    }
 
     Q_ASSERT((!first->m_tSiblings[PREVIOUS]) ||
         first->m_tSiblings[PREVIOUS]->down() != first);
@@ -998,11 +1060,16 @@ void TreeTraversalReflectorPrivate::createGap(TreeTraversalItem* first, TreeTrav
     // Do not leave invalid pointers for easier debugging
     last->m_tSiblings[NEXT]      = nullptr;
     first->m_tSiblings[PREVIOUS] = nullptr;
+
+    _test_validate_chain(first->m_pParent);
 }
 
 /// Fix the issues introduced by createGap (does not update m_pParent and m_hLookup)
 void TreeTraversalReflectorPrivate::bridgeGap(TreeTraversalItem* first, TreeTraversalItem* second, bool insert)
 {
+    if (first && second && first->m_pParent == second->m_pParent)
+        _test_validate_chain(first->m_pParent);
+
     // 3 possible case: siblings, first child or last child
 
     if (first && second && first->m_pParent == second->m_pParent) {
@@ -1021,21 +1088,31 @@ void TreeTraversalReflectorPrivate::bridgeGap(TreeTraversalItem* first, TreeTrav
 
         first->m_tSiblings[NEXT] = second;
         second->m_tSiblings[PREVIOUS] = first;
+
+//         Q_ASSERT(!second->m_pParent->m_tChildren[LAST] == second);
+
+    if (first && second && first->m_pParent == second->m_pParent)
+        _test_validate_chain(first->m_pParent);
     }
     else if (second && ((!first) || first == second->m_pParent)) {
         // The `second` is `first` first child or it's the new root
         second->m_tSiblings[PREVIOUS] = nullptr;
 
-        if (!second->m_pParent->m_tChildren[LAST])
-            second->m_pParent->m_tChildren[LAST] = second;
-
         second->m_tSiblings[NEXT] = second->m_pParent->m_tChildren[FIRST];
+
+        if (!second->m_pParent->m_tChildren[LAST]) {
+            second->m_pParent->m_tChildren[LAST] = second;
+            Q_ASSERT(!second->m_tSiblings[NEXT]);
+        }
+
 
         if (second->m_pParent->m_tChildren[FIRST]) {
             second->m_pParent->m_tChildren[FIRST]->m_tSiblings[PREVIOUS] = second;
         }
 
         second->m_pParent->m_tChildren[FIRST] = second;
+    if (first && second && first->m_pParent == second->m_pParent)
+        _test_validate_chain(first->m_pParent);
 
         //BEGIN test
         /*int count =0;
@@ -1045,32 +1122,40 @@ void TreeTraversalReflectorPrivate::bridgeGap(TreeTraversalItem* first, TreeTrav
         //END test
     }
     else if (first) {
-        // It's the last element or the second is a last leaf and first is unrelated
-        first->m_tSiblings[NEXT] = nullptr;
+        Q_ASSERT(!second);
 
-        if (!first->m_pParent->m_tChildren[FIRST])
-            first->m_pParent->m_tChildren[FIRST] = first;
+        insertBefore(first, nullptr, first->m_pParent);
+    if (first && second && first->m_pParent == second->m_pParent)
+        _test_validate_chain(first->m_pParent);
 
-        if (first->m_pParent->m_tChildren[LAST] && first->m_pParent->m_tChildren[LAST] != first) {
-            first->m_pParent->m_tChildren[LAST]->m_tSiblings[NEXT] = first;
-            first->m_tSiblings[PREVIOUS] = first->m_pParent->m_tChildren[LAST];
-        }
-
-        first->m_pParent->m_tChildren[LAST] = first;
-
-        //BEGIN test
-        int count =0;
-        for (auto c = first->m_pParent->m_tChildren[LAST]; c; c = c->m_tSiblings[PREVIOUS])
-            count++;
-
-        Q_ASSERT(first->m_pParent->m_tChildren[FIRST]);
-
-        Q_ASSERT(count == first->m_pParent->m_hLookup.size());
-        //END test
+//         // It's the last element or the second is a last leaf and first is unrelated
+//         first->m_tSiblings[NEXT] = nullptr;
+//
+//         if (!first->m_pParent->m_tChildren[FIRST])
+//             first->m_pParent->m_tChildren[FIRST] = first;
+//
+//         if (first->m_pParent->m_tChildren[LAST] && first->m_pParent->m_tChildren[LAST] != first) {
+//             first->m_pParent->m_tChildren[LAST]->m_tSiblings[NEXT] = first;
+//             first->m_tSiblings[PREVIOUS] = first->m_pParent->m_tChildren[LAST];
+//         }
+//
+//         first->m_pParent->m_tChildren[LAST] = first;
+//
+//         //BEGIN test
+//         int count =0;
+//         for (auto c = first->m_pParent->m_tChildren[LAST]; c; c = c->m_tSiblings[PREVIOUS])
+//             count++;
+//
+//         Q_ASSERT(first->m_pParent->m_tChildren[FIRST]);
+//
+//         Q_ASSERT(count == first->m_pParent->m_hLookup.size());
+//         //END test
     }
     else {
         Q_ASSERT(false); //Something went really wrong elsewhere
     }
+    if (first && second && first->m_pParent == second->m_pParent)
+        _test_validate_chain(first->m_pParent);
 
     if (second && first && second->m_pParent && second->m_pParent->m_tChildren[FIRST] == second && second->m_pParent == first->m_pParent) {
         second->m_pParent->m_tChildren[FIRST] = first;
@@ -1091,6 +1176,9 @@ void TreeTraversalReflectorPrivate::bridgeGap(TreeTraversalItem* first, TreeTrav
         Q_ASSERT(first->m_pParent->m_tChildren[LAST]);
     if (second)
         Q_ASSERT(second->m_pParent->m_tChildren[LAST]);
+
+    if (first && second && first->m_pParent == second->m_pParent)
+        _test_validate_chain(first->m_pParent);
 
 //     if (first && second) { //Need to disable other asserts in down()
 //         Q_ASSERT(first->down() == second);

@@ -313,3 +313,27 @@ void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)
         oldGeo = geo;
     } while ((old = item) && (item = item->down()));
 }
+
+
+void TreeTraversalReflectorPrivate::_test_validate_chain(TreeTraversalItem* p)
+{
+    Q_ASSERT((!p->m_tChildren[FIRST]) || p->m_tChildren[LAST]);
+    Q_ASSERT((!p->m_tChildren[FIRST]) || !p->m_tChildren[FIRST]->m_tSiblings[PREVIOUS]);
+    Q_ASSERT((!p->m_tChildren[LAST ]) || !p->m_tChildren[LAST]->m_tSiblings[NEXT]);
+    auto i = p->m_tChildren[FIRST];
+    TreeTraversalItem *prev = nullptr;
+    while(i) {
+        Q_ASSERT(i->m_tSiblings[PREVIOUS] == prev);
+        Q_ASSERT(i->m_pParent == p);
+
+        //Q_ASSERT((!prev) || i->m_Index.row() == prev->m_Index.row()+1);
+
+        prev = i;
+        i = i->m_tSiblings[NEXT];
+    }
+
+    if (!prev)
+        Q_ASSERT(p->m_tChildren[FIRST] == p->m_tChildren[LAST]);
+    else
+        Q_ASSERT(prev == p->m_tChildren[LAST]);
+}

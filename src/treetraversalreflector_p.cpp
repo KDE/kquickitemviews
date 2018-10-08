@@ -32,6 +32,9 @@
 #define NEXT 1
 #define FIRST 0
 #define LAST 1
+
+using EdgeType = TreeTraversalReflector::EdgeType;
+
 /**
  * Hold the QPersistentModelIndex and the metadata associated with them.
  */
@@ -119,9 +122,20 @@ public:
     bool apply();
 };
 
-class ModelRect
+/**
+ * Keep track of state "edges".
+ */
+class ModelRect final
 {
-    //TODO
+public:
+    TreeTraversalItem* getEdge(Qt::Edge e) const;
+    void setEdge(TreeTraversalItem* tti, Qt::Edge e);
+
+    Qt::Edges m_Edges {Qt::TopEdge|Qt::LeftEdge|Qt::RightEdge|Qt::BottomEdge};
+private:
+    enum Pos {Top, Left, Right, Bottom};
+    int edgeToIndex(Qt::Edge e) const;
+    TreeTraversalItem *m_lpEdges2[Pos::Bottom+1] {nullptr, nullptr, nullptr, nullptr}; //TODO port to ModelRect
 };
 
 /// Allow recycling of VisualTreeItem
@@ -161,15 +175,11 @@ public:
     QAbstractItemModel* m_pTrackedModel {nullptr};
     std::function<AbstractItemAdapter*()> m_fFactory;
     Viewport *m_pViewport;
-    Qt::Edges m_Edges        {Qt::TopEdge|Qt::LeftEdge|Qt::RightEdge|Qt::BottomEdge};
-    Qt::Edges m_VisibleEdges {Qt::TopEdge|Qt::LeftEdge|Qt::RightEdge|Qt::BottomEdge};
-    Qt::Edges m_BufferEdges  {Qt::TopEdge|Qt::LeftEdge|Qt::RightEdge|Qt::BottomEdge};
+
     TreeTraversalReflector::TrackingState m_TrackingState {TreeTraversalReflector::TrackingState::NO_MODEL};
 
-    enum Pos {Top, Left, Right, Bottom};
-
-    TreeTraversalItem *m_lpEdges[Pos::Bottom+1]; //TODO port to ModelRect
-    int m_lEffectiveBuffer[Pos::Bottom+1] {0,0,0,0};
+    ModelRect m_lRects[3];
+    ModelRect* edges(TreeTraversalReflector::EdgeType e) const;
 
     TreeTraversalReflector* q_ptr;
 
@@ -439,11 +449,11 @@ bool TreeTraversalItem::show()
     // Update the viewport first since the state is already to visible
     auto upTTI = up();
     if ((!upTTI) || upTTI->m_State != State::VISIBLE)
-        d_ptr->m_lpEdges[TreeTraversalReflectorPrivate::Pos::Top] = this;
+        d_ptr->edges(EdgeType::FREE)->setEdge(this, Qt::TopEdge);
 
     auto downTTI = down();
     if ((!downTTI) || downTTI->m_State != State::VISIBLE)
-        d_ptr->m_lpEdges[TreeTraversalReflectorPrivate::Pos::Bottom] = this;
+        d_ptr->edges(EdgeType::FREE)->setEdge(this, Qt::BottomEdge);
 
     if (!m_Geometry.visualItem()) {
         qDebug() << "\n\nASSIGN" << this;
@@ -512,7 +522,7 @@ bool TreeTraversalItem::attach()
 {
     Q_ASSERT(m_State != State::VISIBLE);
     // Attach can only be called when there is room in the viewport //FIXME and the buffer
-    Q_ASSERT(d_ptr->m_Edges & (Qt::TopEdge|Qt::BottomEdge));
+    Q_ASSERT(d_ptr->edges(EdgeType::FREE)->m_Edges & (Qt::TopEdge|Qt::BottomEdge));
 
     d_ptr->m_pViewport->s_ptr->updateGeometry(&m_Geometry);
 
@@ -541,23 +551,23 @@ bool TreeTraversalItem::attach()
 
 bool TreeTraversalItem::detach()
 {
-    using Pos = TreeTraversalReflectorPrivate::Pos;
-
     // First, detach any remaining children
     auto i = m_hLookup.begin();
     while ((i = m_hLookup.begin()) != m_hLookup.end())
         i.value()->m_Geometry.performAction(BlockMetadata::Action::DETACH);
     Q_ASSERT(m_hLookup.isEmpty());
 
-    Q_ASSERT(!((!d_ptr->m_lpEdges[Pos::Bottom]) ^ (!d_ptr->m_lpEdges[Pos::Top  ])));
-    Q_ASSERT(!((!d_ptr->m_lpEdges[Pos::Left  ]) ^ (!d_ptr->m_lpEdges[Pos::Right])));
+    auto e = d_ptr->edges(EdgeType::FREE);
+
+    Q_ASSERT(!((!e->getEdge(Qt::BottomEdge)) ^ (!e->getEdge(Qt::TopEdge  ))));
+    Q_ASSERT(!((!e->getEdge(Qt::LeftEdge  )) ^ (!e->getEdge(Qt::RightEdge))));
 
     // Update the viewport
-    if (d_ptr->m_lpEdges[Pos::Top] == this)
-        d_ptr->m_lpEdges[Pos::Top] = up() ? up() : down();
+    if (e->getEdge(Qt::TopEdge) == this)
+        e->setEdge(up() ? up() : down(), Qt::TopEdge);
 
-    if (d_ptr->m_lpEdges[Pos::Bottom] == this)
-        d_ptr->m_lpEdges[Pos::Bottom] = down() ? down() : up();
+    if (e->getEdge(Qt::BottomEdge) == this)
+        e->setEdge(down() ? down() : up(), Qt::BottomEdge);
 
     d_ptr->_test_validateViewport(true);
 
@@ -749,7 +759,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
     auto oldFirst = pitem->m_tChildren[FIRST];
 
     // There is no choice here but to load a larger subset to avoid holes, in
-    // theory, m_Edges will prevent runaway loading
+    // theory, edges(EdgeType::FREE)->m_Edges will prevent runaway loading
     if (pitem->m_tChildren[FIRST])
         last = std::max(last, pitem->m_tChildren[FIRST]->m_Index.row() - 1);
 
@@ -760,7 +770,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         Q_ASSERT(idx.parent() != idx);
         Q_ASSERT(idx.model() == q_ptr->model());
 
-        if (!(m_Edges & Qt::BottomEdge))
+        if (!(edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge))
             break;
 
         auto e = addChildren(pitem, idx);
@@ -817,7 +827,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         }
 
         int rc = q_ptr->model()->rowCount(idx);
-        if (rc && m_Edges & Qt::BottomEdge)
+        if (rc && edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge)
             slotRowsInserted(idx, 0, rc-1);
 
         // Validate early to prevent propagating garbage that's nearly impossible
@@ -1321,10 +1331,8 @@ void TreeTraversalReflectorPrivate::free()
 {
     m_pRoot->m_Geometry.performAction(BlockMetadata::Action::RESET);
 
-    m_Edges = {Qt::TopEdge|Qt::LeftEdge|Qt::RightEdge|Qt::BottomEdge};
-
-    for (int i = Pos::Top; i <= Pos::Bottom; i++)
-        m_lpEdges[i] = nullptr;
+    for (int i = 0; i < 3; i++)
+        m_lRects[i] = {};
 
     m_hMapper.clear();
     delete m_pRoot;
@@ -1367,15 +1375,15 @@ void TreeTraversalReflectorPrivate::populate()
     Q_ASSERT(m_pModel);
 
 
-    if (m_pRoot->m_tChildren[FIRST] && (m_Edges & (Qt::TopEdge|Qt::BottomEdge))) {
-        Q_ASSERT(m_lpEdges[Pos::Top]);
-        while (m_Edges & Qt::TopEdge) {
-            const auto was = m_lpEdges[Pos::Top];
+    if (m_pRoot->m_tChildren[FIRST] && (edges(EdgeType::FREE)->m_Edges & (Qt::TopEdge|Qt::BottomEdge))) {
+        Q_ASSERT(edges(EdgeType::FREE)->getEdge(Qt::TopEdge));
+        while (edges(EdgeType::FREE)->m_Edges & Qt::TopEdge) {
+            const auto was = edges(EdgeType::FREE)->getEdge(Qt::TopEdge);
 
-            auto u = m_lpEdges[Pos::Top]->loadUp();
+            auto u = edges(EdgeType::FREE)->getEdge(Qt::TopEdge)->loadUp();
 
-            Q_ASSERT(u || m_lpEdges[Pos::Top]->m_Index.row() == 0);
-            Q_ASSERT(u || !m_lpEdges[Pos::Top]->m_Index.parent().isValid());
+            Q_ASSERT(u || edges(EdgeType::FREE)->getEdge(Qt::TopEdge)->m_Index.row() == 0);
+            Q_ASSERT(u || !edges(EdgeType::FREE)->getEdge(Qt::TopEdge)->m_Index.parent().isValid());
 
             if (!u)
                 break;
@@ -1383,13 +1391,13 @@ void TreeTraversalReflectorPrivate::populate()
             u->m_Geometry.performAction(BlockMetadata::Action::SHOW);
         }
 
-        while (m_Edges & Qt::BottomEdge) {
-            const auto was = m_lpEdges[Pos::Bottom];
+        while (edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge) {
+            const auto was = edges(EdgeType::FREE)->getEdge(Qt::BottomEdge);
 
-            auto u = m_lpEdges[Pos::Bottom]->loadDown();
+            auto u = edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)->loadDown();
 
-            //Q_ASSERT(u || m_lpEdges[Pos::Bottom]->m_Index.row() == 0);
-            //Q_ASSERT(u || !m_lpEdges[Pos::Bottom]->m_Index.parent().isValid());
+            //Q_ASSERT(u || edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)->m_Index.row() == 0);
+            //Q_ASSERT(u || !edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)->m_Index.parent().isValid());
 
             if (!u)
                 break;
@@ -1405,21 +1413,21 @@ void TreeTraversalReflectorPrivate::populate()
 
 void TreeTraversalReflectorPrivate::trim()
 {
-    qDebug() << "TRIM" << m_VisibleEdges;
-    if (!m_lpEdges[Pos::Top]) {
-        Q_ASSERT(!m_lpEdges[Pos::Bottom]);
+    qDebug() << "TRIM" << edges(EdgeType::VISIBLE)->m_Edges;
+    if (!edges(EdgeType::FREE)->getEdge(Qt::TopEdge)) {
+        Q_ASSERT(!edges(EdgeType::FREE)->getEdge(Qt::BottomEdge));
         return;
     }
 
-    while ((!m_VisibleEdges & Qt::TopEdge)) {
-        Q_ASSERT(m_lpEdges[Pos::Top]);
-        Q_ASSERT(!m_pViewport->currentRect().intersects(m_lpEdges[Pos::Top]->m_Geometry.geometry()));
+    while ((!edges(EdgeType::VISIBLE)->m_Edges & Qt::TopEdge)) {
+        Q_ASSERT(edges(EdgeType::FREE)->getEdge(Qt::TopEdge));
+        Q_ASSERT(!m_pViewport->currentRect().intersects(edges(EdgeType::FREE)->getEdge(Qt::TopEdge)->m_Geometry.geometry()));
 //         Q_ASSERT(false);
-        m_lpEdges[Pos::Top]->m_Geometry.performAction(BlockMetadata::Action::HIDE);
+        edges(EdgeType::FREE)->getEdge(Qt::TopEdge)->m_Geometry.performAction(BlockMetadata::Action::HIDE);
     }
 
-    auto elem = m_lpEdges[Pos::Bottom]; //FIXME have a visual and reacheable rect
-    while (!(m_VisibleEdges & Qt::BottomEdge)) {
+    auto elem = edges(EdgeType::FREE)->getEdge(Qt::BottomEdge); //FIXME have a visual and reacheable rect
+    while (!(edges(EdgeType::VISIBLE)->m_Edges & Qt::BottomEdge)) {
         Q_ASSERT(elem);
         Q_ASSERT(!m_pViewport->currentRect().intersects(elem->m_Geometry.geometry()));
 //         Q_ASSERT(false);
@@ -1465,27 +1473,9 @@ void TreeTraversalReflector::setModel(QAbstractItemModel* m)
         return;
 }
 
-
-// bool TreeTraversalReflector::detachUntil(Qt::Edge from, VisualTreeItem *to)
-// {
-//     return detachUntil(from, to ? to->m_pTTI : nullptr);
-// }
-//
-// bool TreeTraversalReflector::detachUntil(Qt::Edge from, TreeTraversalItem *to)
-// {
-//     Q_UNUSED(from)
-//     if (!to)
-//         return false;
-//
-//     if (to->m_Geometry.visualItem())
-//         to->m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::LEAVE_BUFFER);
-//
-//     return false;
-// }
-
 bool TreeTraversalReflectorPrivate::isInsertActive(const QModelIndex& p, int first, int last) const
 {
-    if (m_Edges & (Qt::TopEdge|Qt::BottomEdge))
+    if (edges(EdgeType::FREE)->m_Edges & (Qt::TopEdge|Qt::BottomEdge))
         return true;
 
     auto parent = p.isValid() ? ttiForIndex(p) : m_pRoot;
@@ -1570,34 +1560,12 @@ AbstractItemAdapter* TreeTraversalReflector::itemForIndex(const QModelIndex& idx
 
 void TreeTraversalReflector::setAvailableEdges(Qt::Edges edges, TreeTraversalReflector::EdgeType t)
 {
-    switch(t) {
-        case TreeTraversalReflector::EdgeType::FREE:
-            d_ptr->m_Edges = edges;
-            break;
-        case TreeTraversalReflector::EdgeType::VISIBLE:
-            d_ptr->m_VisibleEdges = edges;
-            break;
-        case TreeTraversalReflector::EdgeType::BUFFERED:
-            d_ptr->m_BufferEdges = edges;
-            break;
-        default:
-            Q_ASSERT(false);
-    }
-
+    d_ptr->edges(t)->m_Edges = edges;
 }
 
 Qt::Edges TreeTraversalReflector::availableEdges(TreeTraversalReflector::EdgeType  t) const
 {
-    switch(t) {
-        case TreeTraversalReflector::EdgeType::FREE:
-            return d_ptr->m_Edges;
-        case TreeTraversalReflector::EdgeType::VISIBLE:
-            return d_ptr->m_VisibleEdges;
-        case TreeTraversalReflector::EdgeType::BUFFERED:
-            return d_ptr->m_BufferEdges;
-    }
-    Q_ASSERT(false);
-    return {};
+    return d_ptr->edges(t)->m_Edges;
 }
 
 QModelIndex BlockMetadata::index() const
@@ -1715,6 +1683,39 @@ void VisualTreeItem::setCollapsed(bool v)
 bool VisualTreeItem::isCollapsed() const
 {
     return m_pTTI->m_IsCollapsed;
+}
+
+int ModelRect::edgeToIndex(Qt::Edge e) const
+{
+    switch(e) {
+        case Qt::TopEdge:
+            return Pos::Top;
+        case Qt::LeftEdge:
+            return Pos::Left;
+        case Qt::RightEdge:
+            return Pos::Right;
+        case Qt::BottomEdge:
+            return Pos::Bottom;
+    }
+
+    Q_ASSERT(false);
+    return Pos::Top;
+}
+
+void ModelRect::setEdge(TreeTraversalItem* tti, Qt::Edge e)
+{
+    m_lpEdges2[edgeToIndex(e)] = tti;
+}
+
+TreeTraversalItem* ModelRect::getEdge(Qt::Edge e) const
+{
+    return m_lpEdges2[edgeToIndex(e)];
+}
+
+ModelRect* TreeTraversalReflectorPrivate::edges(TreeTraversalReflector::EdgeType e) const
+{
+    Q_ASSERT((int) e >= 0 && (int)e <= 2);
+    return (ModelRect*) &m_lRects[(int)e]; //FIXME use reference, not ptr
 }
 
 #undef PREVIOUS

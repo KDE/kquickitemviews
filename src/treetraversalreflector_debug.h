@@ -262,24 +262,24 @@ void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)
     _test_validateLinkedList(skipVItemState);
     int activeCount = 0;
 
-    Q_ASSERT(!((!m_lpEdges[Bottom]) ^ (!m_lpEdges[Top  ])));
-    Q_ASSERT(!((!m_lpEdges[Left  ]) ^ (!m_lpEdges[Right])));
+    Q_ASSERT(!((!edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)) ^ (!edges(EdgeType::FREE)->getEdge(Qt::TopEdge))));
+    Q_ASSERT(!((!edges(EdgeType::FREE)->getEdge(Qt::LeftEdge)) ^ (!edges(EdgeType::FREE)->getEdge(Qt::RightEdge))));
 
-    if (!m_lpEdges[Top])
+    if (!edges(EdgeType::FREE)->getEdge(Qt::TopEdge))
         return;
 
-    if (m_lpEdges[Top] == m_lpEdges[Bottom]) {
-        auto u1 = m_lpEdges[Top]->up();
-        auto d1 = m_lpEdges[Top]->down();
-        auto u2 = m_lpEdges[Bottom]->up();
-        auto d2 = m_lpEdges[Bottom]->down();
+    if (edges(EdgeType::FREE)->getEdge(Qt::TopEdge) == edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)) {
+        auto u1 = edges(EdgeType::FREE)->getEdge(Qt::TopEdge)->up();
+        auto d1 = edges(EdgeType::FREE)->getEdge(Qt::TopEdge)->down();
+        auto u2 = edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)->up();
+        auto d2 = edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)->down();
         Q_ASSERT((!u1) || u1->m_State != TreeTraversalItem::State::VISIBLE);
         Q_ASSERT((!u2) || u2->m_State != TreeTraversalItem::State::VISIBLE);
         Q_ASSERT((!d1) || d1->m_State != TreeTraversalItem::State::VISIBLE);
         Q_ASSERT((!d2) || d2->m_State != TreeTraversalItem::State::VISIBLE);
     }
 
-    auto item = m_lpEdges[Top];
+    auto item = edges(EdgeType::FREE)->getEdge(Qt::TopEdge);
     TreeTraversalItem *old = nullptr;
 
     QRectF oldGeo;

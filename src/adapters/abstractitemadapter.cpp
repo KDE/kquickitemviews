@@ -67,6 +67,7 @@ public:
     bool error  ();
     bool destroy();
     bool detach ();
+    bool hide   ();
 
     static const VisualTreeItem::State  m_fStateMap    [7][7];
     static const StateF                 m_fStateMachine[7][7];
@@ -117,9 +118,9 @@ const VisualTreeItem::State AbstractItemAdapterPrivate::m_fStateMap[7][7] = {
 /*              ATTACH ENTER_BUFFER ENTER_VIEW UPDATE    MOVE   LEAVE_BUFFER  DETACH  */
 /*POOLING */ { S POOLING, S BUFFER, S ERROR , S ERROR , S ERROR , S ERROR  , S DANGLING },
 /*POOLED  */ { S POOLED , S BUFFER, S ACTIVE, S ERROR , S ERROR , S ERROR  , S DANGLING },
-/*BUFFER  */ { S ERROR  , S ERROR , S ACTIVE, S BUFFER, S ERROR , S POOLING, S DANGLING },
-/*ACTIVE  */ { S ERROR  , S BUFFER, S ERROR , S ACTIVE, S ACTIVE, S POOLING, S POOLING  },
-/*FAILED  */ { S ERROR  , S BUFFER, S ACTIVE, S ACTIVE, S ACTIVE, S POOLING, S DANGLING },
+/*BUFFER  */ { S ERROR  , S ERROR , S ACTIVE, S BUFFER, S ERROR , S POOLED , S DANGLING },
+/*ACTIVE  */ { S ERROR  , S BUFFER, S ERROR , S ACTIVE, S ACTIVE, S POOLED , S POOLED  },
+/*FAILED  */ { S ERROR  , S BUFFER, S ACTIVE, S ACTIVE, S ACTIVE, S POOLED , S DANGLING },
 /*DANGLING*/ { S ERROR  , S ERROR , S ERROR , S ERROR , S ERROR , S ERROR  , S DANGLING },
 /*ERROR   */ { S ERROR  , S ERROR , S ERROR , S ERROR , S ERROR , S ERROR  , S DANGLING },
 };
@@ -131,7 +132,7 @@ const AbstractItemAdapterPrivate::StateF AbstractItemAdapterPrivate::m_fStateMac
 /*POOLING */ { A error  , A error  , A error  , A error  , A error  , A error  , A error   },
 /*POOLED  */ { A nothing, A attach , A move   , A error  , A error  , A error  , A destroy },
 /*BUFFER  */ { A error  , A error  , A move   , A refresh, A error  , A detach , A destroy },
-/*ACTIVE  */ { A error  , A nothing, A nothing, A refresh, A move   , A detach , A detach  },
+/*ACTIVE  */ { A error  , A nothing, A nothing, A refresh, A move   , A hide   , A detach  },
 /*FAILED  */ { A error  , A attach , A attach , A attach , A attach , A detach , A destroy },
 /*DANGLING*/ { A error  , A error  , A error  , A error  , A error  , A error  , A destroy },
 /*error   */ { A error  , A error  , A error  , A error  , A error  , A error  , A destroy },
@@ -233,6 +234,9 @@ QQuickItem* VisualTreeItem::item() const
 
 bool AbstractItemAdapterPrivate::attach()
 {
+    if (m_pItem)
+        m_pItem->setVisible(true);
+
     return q_ptr->attach();
 }
 
@@ -254,6 +258,17 @@ bool AbstractItemAdapterPrivate::flush()
 bool AbstractItemAdapterPrivate::remove()
 {
     return q_ptr->remove();
+}
+
+bool AbstractItemAdapterPrivate::hide()
+{
+    Q_ASSERT(m_pItem);
+    if (!m_pItem)
+        return false;
+
+    m_pItem->setVisible(false);
+
+    return true;
 }
 
 // This methodwrap the removal of the element from the view
@@ -415,6 +430,7 @@ bool AbstractItemAdapter::refresh()
 bool AbstractItemAdapter::attach()
 {
     Q_ASSERT(index().isValid());
+
     return item() && move();
 }
 

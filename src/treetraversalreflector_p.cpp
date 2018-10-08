@@ -43,23 +43,25 @@ struct TreeTraversalItem
     explicit TreeTraversalItem(TreeTraversalItem* parent, TreeTraversalReflectorPrivate* d);
 
     enum class State {
-        BUFFER    = 0, /*!< Not in use by any visible indexes, but pre-loaded */
-        REMOVED   = 1, /*!< Currently in a removal transaction                */
-        REACHABLE = 2, /*!< The [grand]parent of visible indexes              */
-        VISIBLE   = 3, /*!< The element is visible on screen                  */
-        ERROR     = 4, /*!< Something went wrong                              */
-        DANGLING  = 5, /*!< Being destroyed                                   */
+        NEW       = 0, /*!< During creation, not part of the tree yet         */
+        BUFFER    = 1, /*!< Not in the viewport, but close                    */
+        REMOVED   = 2, /*!< Currently in a removal transaction                */
+        REACHABLE = 3, /*!< The [grand]parent of visible indexes              */
+        VISIBLE   = 4, /*!< The element is visible on screen                  */
+        ERROR     = 5, /*!< Something went wrong                              */
+        DANGLING  = 6, /*!< Being destroyed                                   */
     };
 
     typedef bool(TreeTraversalItem::*StateF)();
 
-    static const State  m_fStateMap    [6][7];
-    static const StateF m_fStateMachine[6][7];
+    static const State  m_fStateMap    [7][7];
+    static const StateF m_fStateMachine[7][7];
 
     bool nothing();
     bool error  ();
     bool show   ();
     bool hide   ();
+    bool remove ();
     bool attach ();
     bool detach ();
     bool refresh();
@@ -135,7 +137,7 @@ public:
 private:
     enum Pos {Top, Left, Right, Bottom};
     int edgeToIndex(Qt::Edge e) const;
-    TreeTraversalItem *m_lpEdges2[Pos::Bottom+1] {nullptr, nullptr, nullptr, nullptr}; //TODO port to ModelRect
+    TreeTraversalItem *m_lpEdges[Pos::Bottom+1] {nullptr, nullptr, nullptr, nullptr}; //TODO port to ModelRect
 };
 
 /// Allow recycling of VisualTreeItem
@@ -194,9 +196,16 @@ public:
     void fill();
     void trim();
 
+    // Update the ModelRect
+    void enterState(TreeTraversalItem*, TreeTraversalItem::State);
+    void leaveState(TreeTraversalItem*, TreeTraversalItem::State);
+    void error     (TreeTraversalItem*, TreeTraversalItem::State);
+
     typedef void(TreeTraversalReflectorPrivate::*StateF)();
+    typedef void(TreeTraversalReflectorPrivate::*StateFS)(TreeTraversalItem*, TreeTraversalItem::State);
     static const TreeTraversalReflector::TrackingState m_fStateMap[4][7];
     static const StateF m_fStateMachine[4][7];
+    static const StateFS m_fStateLogging[7][2];
 
     // Tests
     void _test_validateTree(TreeTraversalItem* p);
@@ -236,29 +245,43 @@ const TreeTraversalReflectorPrivate::StateF TreeTraversalReflectorPrivate::m_fSt
 /*POPULATED*/ { A error   , A nothing, A track  , A  reset , A  free  , A fill    , A trim  },
 /*TRACKING */ { A nothing , A untrack, A nothing, A  reset , A  free  , A fill    , A trim  },
 };
+
+// Keep track of the number of instances per state
+const TreeTraversalReflectorPrivate::StateFS TreeTraversalReflectorPrivate::m_fStateLogging[7][2] = {
+/*                ENTER           LEAVE    */
+/*NEW      */ { A error     , A leaveState },
+/*BUFFER   */ { A enterState, A leaveState },
+/*REMOVED  */ { A enterState, A leaveState },
+/*REACHABLE*/ { A enterState, A leaveState },
+/*VISIBLE  */ { A enterState, A leaveState },
+/*ERROR    */ { A enterState, A leaveState },
+/*DANGLING */ { A enterState, A error      },
+};
 #undef A
 
 #define S TreeTraversalItem::State::
-const TreeTraversalItem::State TreeTraversalItem::m_fStateMap[6][7] = {
+const TreeTraversalItem::State TreeTraversalItem::m_fStateMap[7][7] = {
 /*                 SHOW         HIDE        ATTACH     DETACH      UPDATE       MOVE         RESET    */
-/*BUFFER   */ { S ERROR  , S BUFFER   , S REACHABLE, S DANGLING , S BUFFER , S BUFFER   , S BUFFER    },
+/*NEW      */ { S ERROR  , S ERROR    , S REACHABLE, S ERROR    , S ERROR  , S ERROR    , S ERROR     },
+/*BUFFER   */ { S VISIBLE, S BUFFER   , S BUFFER   , S DANGLING , S BUFFER , S BUFFER   , S BUFFER    },
 /*REMOVED  */ { S ERROR  , S ERROR    , S ERROR    , S BUFFER   , S ERROR  , S ERROR    , S ERROR     },
 /*REACHABLE*/ { S VISIBLE, S REACHABLE, S ERROR    , S BUFFER   , S ERROR  , S REACHABLE, S REACHABLE },
-/*VISIBLE  */ { S VISIBLE, S REACHABLE, S ERROR    , S BUFFER   , S VISIBLE, S VISIBLE  , S VISIBLE   },
+/*VISIBLE  */ { S VISIBLE, S BUFFER   , S ERROR    , S BUFFER   , S VISIBLE, S VISIBLE  , S VISIBLE   },
 /*ERROR    */ { S ERROR  , S ERROR    , S ERROR    , S ERROR    , S ERROR  , S ERROR    , S ERROR     },
 /*DANGLING */ { S ERROR  , S ERROR    , S ERROR    , S ERROR    , S ERROR  , S ERROR    , S ERROR     },
 };
 #undef S
 
 #define A &TreeTraversalItem::
-const TreeTraversalItem::StateF TreeTraversalItem::m_fStateMachine[6][7] = {
-/*                 SHOW       HIDE      ATTACH    DETACH      UPDATE    MOVE     RESET  */
-/*BUFFER   */ { A error  , A nothing, A attach, A destroy , A refresh, A index, A reset },
-/*REMOVED  */ { A error  , A error  , A error , A detach  , A error  , A error, A reset },
-/*REACHABLE*/ { A show   , A nothing, A error , A detach  , A error  , A index, A reset },
-/*VISIBLE  */ { A nothing, A hide   , A error , A detach  , A refresh, A index, A reset },
-/*ERROR    */ { A error  , A error  , A error , A error   , A error  , A error, A error },
-/*DANGLING */ { A error  , A error  , A error , A error   , A error  , A error, A error },
+const TreeTraversalItem::StateF TreeTraversalItem::m_fStateMachine[7][7] = {
+/*                 SHOW       HIDE      ATTACH     DETACH      UPDATE    MOVE     RESET  */
+/*NEW      */ { A error  , A nothing, A nothing, A error   , A error  , A error, A error },
+/*BUFFER   */ { A show   , A remove , A attach , A destroy , A refresh, A index, A reset },
+/*REMOVED  */ { A error  , A error  , A error  , A detach  , A error  , A error, A reset },
+/*REACHABLE*/ { A show   , A nothing, A error  , A detach  , A error  , A index, A reset },
+/*VISIBLE  */ { A nothing, A hide   , A error  , A detach  , A refresh, A index, A reset },
+/*ERROR    */ { A error  , A error  , A error  , A error   , A error  , A error, A error },
+/*DANGLING */ { A error  , A error  , A error  , A error   , A error  , A error, A error },
 };
 #undef A
 
@@ -413,7 +436,9 @@ bool BlockMetadata::performAction(BlockMetadata::Action a)
 {
     const int s     = (int)m_pTTI->m_State;
     m_pTTI->m_State = m_pTTI->m_fStateMap[s][(int)a];
-    m_pTTI->m_Geometry.removeMe = (int) m_pTTI->m_State;
+    Q_ASSERT(m_pTTI->m_State != TreeTraversalItem::State::ERROR);
+
+    m_pTTI->m_Geometry.removeMe = (int) m_pTTI->m_State; //FIXME remove
     bool ret        = (this->m_pTTI->*TreeTraversalItem::m_fStateMachine[s][(int)a])();
     Q_ASSERT((!m_pTTI->m_Geometry.visualItem()) ||  m_pTTI->m_State == TreeTraversalItem::State::VISIBLE);
     return ret;
@@ -455,7 +480,10 @@ bool TreeTraversalItem::show()
     if ((!downTTI) || downTTI->m_State != State::VISIBLE)
         d_ptr->edges(EdgeType::FREE)->setEdge(this, Qt::BottomEdge);
 
-    if (!m_Geometry.visualItem()) {
+    if (auto item = m_Geometry.visualItem()) {
+        //item->setVisible(true);
+    }
+    else {
         qDebug() << "\n\nASSIGN" << this;
         m_Geometry.setVisualItem(d_ptr->q_ptr->d_ptr->m_fFactory()->s_ptr);
         Q_ASSERT(m_Geometry.visualItem());
@@ -492,6 +520,16 @@ bool TreeTraversalItem::show()
 }
 
 bool TreeTraversalItem::hide()
+{
+    if (auto item = m_Geometry.visualItem()) {
+        //item->setVisible(false);
+        m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::LEAVE_BUFFER);
+    }
+
+    return true;
+}
+
+bool TreeTraversalItem::remove()
 {
 
     if (m_Geometry.visualItem()) {
@@ -571,7 +609,7 @@ bool TreeTraversalItem::detach()
 
     d_ptr->_test_validateViewport(true);
 
-    hide();
+    remove();
 
     //d_ptr->_test_validateViewport(true);
 
@@ -808,6 +846,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
             pitem->m_tChildren[LAST] = e;
         }
 
+        // NEW -> REACHABLE, this should never fail
         if (!e->m_Geometry.performAction(BlockMetadata::Action::ATTACH)) {
             _test_validateLinkedList();
             return;
@@ -1452,6 +1491,22 @@ void TreeTraversalReflectorPrivate::error()
     q_ptr->performAction(TreeTraversalReflector::TrackingAction::RESET);
 }
 
+
+void TreeTraversalReflectorPrivate::enterState(TreeTraversalItem*, TreeTraversalItem::State)
+{
+
+}
+
+void TreeTraversalReflectorPrivate::leaveState(TreeTraversalItem*, TreeTraversalItem::State)
+{
+
+}
+
+void TreeTraversalReflectorPrivate::error(TreeTraversalItem*, TreeTraversalItem::State)
+{
+    Q_ASSERT(false);
+}
+
 void TreeTraversalReflector::setModel(QAbstractItemModel* m)
 {
     if (m == model())
@@ -1675,6 +1730,12 @@ BlockMetadata *BlockMetadata::right() const
     return i ? &i->m_Geometry : nullptr;
 }
 
+BlockMetadata *TreeTraversalReflector::getEdge(EdgeType t, Qt::Edge e) const
+{
+    auto ret = d_ptr->edges(t)->getEdge(e);
+    return ret ? &ret->m_Geometry : nullptr;
+}
+
 void VisualTreeItem::setCollapsed(bool v)
 {
     m_pTTI->m_IsCollapsed = v;
@@ -1704,12 +1765,12 @@ int ModelRect::edgeToIndex(Qt::Edge e) const
 
 void ModelRect::setEdge(TreeTraversalItem* tti, Qt::Edge e)
 {
-    m_lpEdges2[edgeToIndex(e)] = tti;
+    m_lpEdges[edgeToIndex(e)] = tti;
 }
 
 TreeTraversalItem* ModelRect::getEdge(Qt::Edge e) const
 {
-    return m_lpEdges2[edgeToIndex(e)];
+    return m_lpEdges[edgeToIndex(e)];
 }
 
 ModelRect* TreeTraversalReflectorPrivate::edges(TreeTraversalReflector::EdgeType e) const
@@ -1717,6 +1778,8 @@ ModelRect* TreeTraversalReflectorPrivate::edges(TreeTraversalReflector::EdgeType
     Q_ASSERT((int) e >= 0 && (int)e <= 2);
     return (ModelRect*) &m_lRects[(int)e]; //FIXME use reference, not ptr
 }
+
+
 
 #undef PREVIOUS
 #undef NEXT

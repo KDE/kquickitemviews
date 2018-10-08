@@ -61,7 +61,6 @@ public:
     qreal getSectionHeight(const QModelIndex& parent, int first, int last);
     void applyDelayedSize();
 
-
     BlockMetadata *m_lpLoadedEdges [4] {nullptr}; //top, left, right, bottom
     BlockMetadata *m_lpVisibleEdges[4] {nullptr}; //top, left, right, bottom //TODO
 
@@ -78,7 +77,7 @@ public Q_SLOTS:
 };
 
 enum Pos {Top, Left, Right, Bottom};
-static const Qt::Edge edgeMap[] = {
+static constexpr const Qt::Edge edgeMap[] = {
     Qt::TopEdge, Qt::LeftEdge, Qt::RightEdge, Qt::BottomEdge
 };
 
@@ -239,12 +238,13 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel
 
     m_pReflector->setModel(m);
 
-    // Reset the edges
+//     // Reset the edges
+//
+//     for (int i = Pos::Top; i <= Pos::Bottom; i++) {
+//         m_lpVisibleEdges[i] = nullptr;
+//         m_lpLoadedEdges[i] = nullptr;
+//     }
 
-    for (int i = Pos::Top; i <= Pos::Bottom; i++) {
-        m_lpVisibleEdges[i] = nullptr;
-        m_lpLoadedEdges[i] = nullptr;
-    }
 
     // Check if the proxyModel is used
     m_ModelHasSizeHints = m && m->metaObject()->inherits(
@@ -757,7 +757,7 @@ void ViewportPrivate::slotReset()
 
 void BlockMetadata::setVisualItem(VisualTreeItem *i)
 {
-    Q_ASSERT((!i) || removeMe == 3);
+    Q_ASSERT((!i) || removeMe == 4);
     if (m_pItem && !i)
         m_pViewport->q_ptr->s_ptr->notifyRemoval(m_pItem->m_pGeometry);
 

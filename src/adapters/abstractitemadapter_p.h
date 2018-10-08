@@ -115,6 +115,8 @@ public:
     ContextAdapter* contextAdapter() const;
     void updateContext();
 
+    void setVisible(bool) {Q_ASSERT(false);}
+
     mutable ViewItemContextAdapter* m_pContextAdapter {nullptr};
 
     Viewport      *m_pRange    {nullptr};

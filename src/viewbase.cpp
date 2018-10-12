@@ -137,7 +137,9 @@ void ViewBase::geometryChanged(const QRectF& newGeometry, const QRectF& oldGeome
     for (auto ma : qAsConst(d_ptr->m_lAdapters)) {
         const auto vps = ma->viewports();
         for (auto vp : qAsConst(vps))
-            vp->resize(newGeometry);
+            vp->resize(
+                QRectF {0.0, 0.0, newGeometry.width(), newGeometry.height()}
+            );
     }
 }
 

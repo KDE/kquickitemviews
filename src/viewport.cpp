@@ -61,9 +61,6 @@ public:
     qreal getSectionHeight(const QModelIndex& parent, int first, int last);
     void applyDelayedSize();
 
-    BlockMetadata *m_lpLoadedEdges [4] {nullptr}; //top, left, right, bottom
-    BlockMetadata *m_lpVisibleEdges[4] {nullptr}; //top, left, right, bottom //TODO
-
     Viewport *q_ptr;
 
 public Q_SLOTS:
@@ -241,7 +238,6 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel
 //     // Reset the edges
 //
 //     for (int i = Pos::Top; i <= Pos::Bottom; i++) {
-//         m_lpVisibleEdges[i] = nullptr;
 //         m_lpLoadedEdges[i] = nullptr;
 //     }
 
@@ -286,6 +282,7 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel
 
 void ViewportPrivate::slotViewportChanged(const QRectF &viewport)
 {
+    Q_ASSERT(viewport.y() == 0); //FIXME I broke it
     m_ViewRect = viewport;
     m_UsedRect = viewport; //FIXME remove wrong
     updateAvailableEdges();
@@ -448,21 +445,23 @@ void ViewportPrivate::updateEdges(BlockMetadata *item)
     };
 #undef CHECK_EDGE
 
-    Qt::Edges ret;
+//     Qt::Edges ret;
 
-    for (int i = Pos::Top; i <= Pos::Bottom; i++) {
-        if ((!m_lpLoadedEdges[i]) || m_lpLoadedEdges[i] == item || isEdge[i](m_lpLoadedEdges[i]->geometry(), geo)) {
-            ret |= edgeMap[i];
 
-            // Update the edge
-            if (m_lpLoadedEdges[i] != item && item->geometry().isValid()) {
-                if (m_lpLoadedEdges[i])
-                    m_lpLoadedEdges[i]->m_IsEdge &= ~edgeMap[i];
 
-                m_lpLoadedEdges[i] = item;
-            }
-        }
-    }
+//     for (int i = Pos::Top; i <= Pos::Bottom; i++) {
+//         if ((!m_lpLoadedEdges[i]) || m_lpLoadedEdges[i] == item || isEdge[i](m_lpLoadedEdges[i]->geometry(), geo)) {
+//             ret |= edgeMap[i];
+//
+//             // Update the edge
+//             if (m_lpLoadedEdges[i] != item && item->geometry().isValid()) {
+//                 if (m_lpLoadedEdges[i])
+//                     m_lpLoadedEdges[i]->m_IsEdge &= ~edgeMap[i];
+//
+//                 m_lpLoadedEdges[i] = item;
+//             }
+//         }
+//     }
 
     // Ensure that the m_ViewRect is in sync
     Q_ASSERT(m_ViewRect.size().isValid() || (
@@ -479,69 +478,22 @@ void ViewportPrivate::updateEdges(BlockMetadata *item)
 //         item->performAction(BlockMetadata::Action::HIDE);
     }
 
-//TODO update m_lpVisibleEdges
     updateAvailableEdges();
 }
 
 void ViewportPrivate::updateAvailableEdges()
 {
-    Qt::Edges available, hasInvisible;
-
-    for (int i = Pos::Top; i <= Pos::Bottom; i++) {
-        //FIXME some elements of the pipeline are missing, ignore left and right
-        if (i == 1 || i == 2)
-            continue;
-
-        const auto geo = m_lpLoadedEdges[i] ? m_lpLoadedEdges[i]->geometry() : QRectF();
-        Q_ASSERT((!m_lpLoadedEdges[i]) || geo.isValid());
-
-        const bool contains = (!m_lpLoadedEdges[i]) || m_ViewRect.contains(geo);
-        const bool isBelow = m_lpLoadedEdges[i] && geo.bottomLeft().y() > m_ViewRect.bottomLeft().y();
-
-        if (contains && geo.isValid()) {
-            Q_ASSERT(m_ViewRect.bottomLeft().y() >= geo.bottomLeft().y());
-        }
-
-        switch(i) {
-            case Pos::Top:
-            case Pos::Bottom:
-                if (geo.isValid() && (!contains) && !m_ViewRect.intersects(geo)) {
-                    hasInvisible |= edgeMap[i];
-                }
-                break;
-            case Pos::Left:
-            case Pos::Right:
-                //FIXME
-                break;
-        }
-
-
-        if (contains && !isBelow) {
-            available |= edgeMap[i];
-        }
-        else {
-//             Q_ASSERT(false);
-            //TODO batch them instead of doing this over and over
-            //m_pReflector->detachUntil(edgeMap[i], m_lpLoadedEdges[i]);
-//             m_lpLoadedEdges[i]->performAction(VisualTreeItem::ViewAction::LEAVE_BUFFER);
-        }
-    }
-
-    //BEGIN debug
-    if (m_lpLoadedEdges[Pos::Bottom] && m_SizeStrategy == Viewport::SizeHintStrategy::JIT) {
-        Q_ASSERT(!m_ModelHasSizeHints);
-        if (m_lpLoadedEdges[Pos::Top] != m_lpLoadedEdges[Pos::Bottom]) {
-            Q_ASSERT(m_lpLoadedEdges[Pos::Bottom]->geometry().y() > 0);
-        }
-    }
-    //END debug
+    Qt::Edges available;
 
     auto v = m_pModelAdapter->view();
+    auto e = m_pReflector->getEdge(
+        TreeTraversalReflector::EdgeType::VISIBLE, Qt::BottomEdge
+    );
 
     // Resize the contend height
-    if (m_lpLoadedEdges[Pos::Bottom] && m_SizeStrategy == Viewport::SizeHintStrategy::JIT) {
+    if (e && m_SizeStrategy == Viewport::SizeHintStrategy::JIT) {
 
-        const auto geo = m_lpLoadedEdges[Pos::Bottom]->geometry();
+        const auto geo = e->geometry();
 
         v->contentItem()->setHeight(std::max(
             geo.y()+geo.height(), v->height()
@@ -549,11 +501,6 @@ void ViewportPrivate::updateAvailableEdges()
 
         emit v->contentHeightChanged( v->contentItem()->height() );
     }
-//     else if (m_pEngine)
-//         v->contentItem()->setHeight(std::max(
-//             100.0, v->height()
-//         ) + 200);
-
 
     auto tve = m_pReflector->getEdge(
         TreeTraversalReflector::EdgeType::VISIBLE, Qt::TopEdge
@@ -564,16 +511,29 @@ void ViewportPrivate::updateAvailableEdges()
         TreeTraversalReflector::EdgeType::VISIBLE, Qt::BottomEdge
     );
 
+
     qDebug() << "CHECK TOP" << bve << (bve ? bve->geometry() : QRectF()) << (bve ? m_ViewRect.intersects(bve->geometry()) : true);
+
+    if ((!tve) || m_ViewRect.intersects(tve->geometry()))
+        available |= Qt::TopEdge;
+
+    if ((!bve) || m_ViewRect.intersects(bve->geometry()))
+        available |= Qt::BottomEdge;
+
+    Q_ASSERT(available & Qt::TopEdge);
+    Q_ASSERT(available & Qt::BottomEdge);
 
     m_pReflector->setAvailableEdges(
         available, TreeTraversalReflector::EdgeType::FREE
     );
+    m_pReflector->setAvailableEdges(
+        available, TreeTraversalReflector::EdgeType::VISIBLE
+    );
 
 //     Q_ASSERT((~hasInvisible)&available == available || !available);
-    m_pReflector->setAvailableEdges(
-        (~hasInvisible)&15, TreeTraversalReflector::EdgeType::VISIBLE
-    );
+//     m_pReflector->setAvailableEdges(
+//         (~hasInvisible)&15, TreeTraversalReflector::EdgeType::VISIBLE
+//     );
 }
 
 void ViewportSync::geometryUpdated(BlockMetadata *item)
@@ -609,41 +569,41 @@ void ViewportSync::updateGeometry(BlockMetadata* item)
 
 void ViewportSync::notifyRemoval(BlockMetadata* item)
 {
-    auto edges = q_ptr->d_ptr->m_lpLoadedEdges;
-
-    //TODO do something that's actually correct
-    while (edges[Pos::Top] && !edges[Pos::Top]->visualItem()) {
-        auto old = edges[Pos::Top];
-        edges[Pos::Top] = edges[Pos::Top]->down();
-        Q_ASSERT(edges[Pos::Top] != old);
-    }
-
-    Q_ASSERT((!edges[Pos::Top]) || edges[Pos::Top]->geometry().isValid());
-
-    while (edges[Pos::Bottom] && !edges[Pos::Bottom]->visualItem()) {
-        auto old = edges[Pos::Bottom];
-        edges[Pos::Bottom] = edges[Pos::Bottom]->up();
-        Q_ASSERT(edges[Pos::Bottom] != old);
-    }
-
-    Q_ASSERT((!edges[Pos::Bottom]) || edges[Pos::Bottom]->geometry().isValid());
+//     auto edges = q_ptr->d_ptr->m_lpLoadedEdges;
+//
+//     //TODO do something that's actually correct
+//     while (edges[Pos::Top] && !edges[Pos::Top]->visualItem()) {
+//         auto old = edges[Pos::Top];
+//         edges[Pos::Top] = edges[Pos::Top]->down();
+//         Q_ASSERT(edges[Pos::Top] != old);
+//     }
+//
+//     Q_ASSERT((!edges[Pos::Top]) || edges[Pos::Top]->geometry().isValid());
+//
+//     while (edges[Pos::Bottom] && !edges[Pos::Bottom]->visualItem()) {
+//         auto old = edges[Pos::Bottom];
+//         edges[Pos::Bottom] = edges[Pos::Bottom]->up();
+//         Q_ASSERT(edges[Pos::Bottom] != old);
+//     }
+//
+//     Q_ASSERT((!edges[Pos::Bottom]) || edges[Pos::Bottom]->geometry().isValid());
 
     q_ptr->d_ptr->updateAvailableEdges();
 
-    auto e = q_ptr->d_ptr->m_pReflector->availableEdges( TreeTraversalReflector::EdgeType::VISIBLE);
+//     auto e = q_ptr->d_ptr->m_pReflector->availableEdges( TreeTraversalReflector::EdgeType::VISIBLE);
 
     // Either both are edge have visible edges item or there is neither
-    Q_ASSERT((edges[Pos::Bottom] && edges[Pos::Top]) || !edges[Pos::Top]);
+//     Q_ASSERT((edges[Pos::Bottom] && edges[Pos::Top]) || !edges[Pos::Top]);
 
-    if (edges[Pos::Bottom]) {
-        Q_ASSERT(edges[Pos::Bottom]->visualItem());
-        auto geo = edges[Pos::Bottom]->geometry();
-        Q_ASSERT(q_ptr->d_ptr->m_ViewRect.intersects(geo) || geo.height() <= 0 || geo.width() <= 0);
-    }
-
-    // If that happens then something is broken above
-    Q_ASSERT(e & Qt::BottomEdge);
-    Q_ASSERT(e & Qt::TopEdge);
+//     if (edges[Pos::Bottom]) {
+//         Q_ASSERT(edges[Pos::Bottom]->visualItem());
+//         auto geo = edges[Pos::Bottom]->geometry();
+//         Q_ASSERT(q_ptr->d_ptr->m_ViewRect.intersects(geo) || geo.height() <= 0 || geo.width() <= 0);
+//     }
+//
+//     // If that happens then something is broken above
+//     Q_ASSERT(e & Qt::BottomEdge);
+//     Q_ASSERT(e & Qt::TopEdge);
 }
 
 void Viewport::resize(const QRectF& rect)
@@ -655,6 +615,7 @@ void Viewport::resize(const QRectF& rect)
     // The {x, y} may not be at {0, 0}, but given it is a relative viewport,
     // then the content doesn't care about where it is on the screen.
     d_ptr->m_ViewRect = rect;
+    Q_ASSERT(rect.y() == 0);
 
     // For now ignore the case where the content is smaller, it doesn't change
     // anything. This could eventually change

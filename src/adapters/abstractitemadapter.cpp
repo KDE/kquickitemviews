@@ -119,7 +119,7 @@ const VisualTreeItem::State AbstractItemAdapterPrivate::m_fStateMap[7][7] = {
 /*POOLING */ { S POOLING, S BUFFER, S ERROR , S ERROR , S ERROR , S ERROR  , S POOLED   },
 /*POOLED  */ { S POOLED , S BUFFER, S ACTIVE, S ERROR , S ERROR , S ERROR  , S DANGLING },
 /*BUFFER  */ { S ERROR  , S ERROR , S ACTIVE, S BUFFER, S ERROR , S POOLING, S DANGLING },
-/*ACTIVE  */ { S ERROR  , S BUFFER, S ERROR , S ACTIVE, S ACTIVE, S POOLING, S POOLING  },
+/*ACTIVE  */ { S ERROR  , S BUFFER, S ERROR , S ACTIVE, S ACTIVE, S BUFFER , S POOLING  },
 /*FAILED  */ { S ERROR  , S BUFFER, S ACTIVE, S ACTIVE, S ACTIVE, S POOLING, S DANGLING },
 /*DANGLING*/ { S ERROR  , S ERROR , S ERROR , S ERROR , S ERROR , S ERROR  , S DANGLING },
 /*ERROR   */ { S ERROR  , S ERROR , S ERROR , S ERROR , S ERROR , S ERROR  , S DANGLING },
@@ -257,7 +257,12 @@ bool AbstractItemAdapterPrivate::flush()
 
 bool AbstractItemAdapterPrivate::remove()
 {
-    return q_ptr->remove();
+    bool ret = q_ptr->remove();
+
+    m_pItem->setParentItem(nullptr);
+    q_ptr->s_ptr->m_pTTI = nullptr;
+
+    return ret;
 }
 
 bool AbstractItemAdapterPrivate::hide()
@@ -274,6 +279,7 @@ bool AbstractItemAdapterPrivate::hide()
 // This methodwrap the removal of the element from the view
 bool AbstractItemAdapterPrivate::detach()
 {
+    m_pItem->setParentItem(nullptr);
     remove();
 
     //FIXME
@@ -299,6 +305,11 @@ bool AbstractItemAdapterPrivate::error()
 bool AbstractItemAdapterPrivate::destroy()
 {
     auto ptrCopy = m_pLocker;
+
+    //FIXME manage to add to the pool without a SEGFAULT
+    m_pItem->setParentItem(nullptr);
+    delete m_pItem;
+    m_pItem = nullptr;
 
     QTimer::singleShot(0,[this, ptrCopy]() {
         if (!ptrCopy)

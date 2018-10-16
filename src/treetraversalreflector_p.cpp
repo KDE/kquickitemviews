@@ -26,6 +26,7 @@
 // Qt
 #include <QQmlComponent>
 #include <QtCore/QDebug>
+#include <QtCore/QTimer>
 
 using EdgeType = TreeTraversalReflector::EdgeType;
 
@@ -430,21 +431,20 @@ bool TreeTraversalItem::remove()
 {
 
     if (m_Geometry.visualItem()) {
+        Q_ASSERT(m_Geometry.visualItem()->m_State != VisualTreeItem::State::POOLED);
+        Q_ASSERT(m_Geometry.visualItem()->m_State != VisualTreeItem::State::POOLING);
+        Q_ASSERT(m_Geometry.visualItem()->m_State != VisualTreeItem::State::DANGLING);
 
-        // If the item was active (due, for example, of a full reset), then
-        // it has to be removed from view then deleted.
-        if (m_Geometry.visualItem()->m_State == VisualTreeItem::State::ACTIVE) {
+        // Move the item lifecycle forward
+        while (m_Geometry.visualItem()->m_State != VisualTreeItem::State::POOLED
+          && m_Geometry.visualItem()->m_State != VisualTreeItem::State::DANGLING)
             m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::DETACH);
 
-            // It should still exists, it may crash otherwise, so make sure early
-            Q_ASSERT(m_Geometry.visualItem()->m_State == VisualTreeItem::State::POOLED);
+        // It should still exists, it may crash otherwise, so make sure early
+        Q_ASSERT(m_Geometry.visualItem()->m_State == VisualTreeItem::State::POOLED
+            || m_Geometry.visualItem()->m_State == VisualTreeItem::State::DANGLING
+        );
 
-            m_Geometry.visualItem()->m_State = VisualTreeItem::State::POOLED;
-            //FIXME ^^ add a new action for finish pooling or call
-            // VisualTreeItem::detach from a new action method (instead of directly)
-        }
-
-        m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::DETACH);
         m_Geometry.setVisualItem(nullptr);
         qDebug() << "\n\nREMOVE!!!" << this;
     }
@@ -591,6 +591,10 @@ bool TreeTraversalItem::move()
 bool TreeTraversalItem::destroy()
 {
     detach();
+
+    if (m_Geometry.visualItem()) {
+        m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::DETACH);
+    }
 
     m_Geometry.setVisualItem(nullptr);
 
@@ -1169,32 +1173,37 @@ void TreeTraversalReflectorPrivate::populate()
 
 void TreeTraversalReflectorPrivate::trim()
 {
-    _test_validateViewport();
-
-    qDebug() << "TRIM" << edges(EdgeType::VISIBLE)->m_Edges;
-//     if (!edges(EdgeType::FREE)->getEdge(Qt::TopEdge)) {
-//         Q_ASSERT(!edges(EdgeType::FREE)->getEdge(Qt::BottomEdge));
-//         return;
-//     }
-
-    auto elem = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge)); //FIXME have a visual and reacheable rect
-
-    while (!(edges(EdgeType::FREE)->m_Edges & Qt::TopEdge)) {
-        Q_ASSERT(elem);
-        Q_ASSERT(edges(EdgeType::FREE)->getEdge(Qt::TopEdge));
-        Q_ASSERT(!m_pViewport->currentRect().intersects(elem->m_Geometry.geometry()));
-
-        elem->m_Geometry.performAction(BlockMetadata::Action::HIDE);
-        elem = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge));
-    }
-
-    elem = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge)); //FIXME have a visual and reacheable rect
-    while (!(edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge)) {
-        Q_ASSERT(elem);
-        Q_ASSERT(!m_pViewport->currentRect().intersects(elem->m_Geometry.geometry()));
-        elem->m_Geometry.performAction(BlockMetadata::Action::HIDE);
-        elem = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge));
-    }
+//     QTimer::singleShot(0, [this]() {
+//         if (m_TrackingState != TreeTraversalReflector::TrackingState::TRACKING)
+//             return;
+//
+//         _test_validateViewport();
+//
+//         qDebug() << "TRIM" << edges(EdgeType::VISIBLE)->m_Edges;
+//     //     if (!edges(EdgeType::FREE)->getEdge(Qt::TopEdge)) {
+//     //         Q_ASSERT(!edges(EdgeType::FREE)->getEdge(Qt::BottomEdge));
+//     //         return;
+//     //     }
+//
+//         auto elem = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge)); //FIXME have a visual and reacheable rect
+//
+//         while (!(edges(EdgeType::FREE)->m_Edges & Qt::TopEdge)) {
+//             Q_ASSERT(elem);
+//             Q_ASSERT(edges(EdgeType::FREE)->getEdge(Qt::TopEdge));
+//             Q_ASSERT(!m_pViewport->currentRect().intersects(elem->m_Geometry.geometry()));
+//
+//             elem->m_Geometry.performAction(BlockMetadata::Action::HIDE);
+//             elem = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge));
+//         }
+//
+//         elem = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge)); //FIXME have a visual and reacheable rect
+//         while (!(edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge)) {
+//             Q_ASSERT(elem);
+//             Q_ASSERT(!m_pViewport->currentRect().intersects(elem->m_Geometry.geometry()));
+//             elem->m_Geometry.performAction(BlockMetadata::Action::HIDE);
+//             elem = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge));
+//         }
+//     });
 }
 
 void TreeTraversalReflectorPrivate::fill()

@@ -224,22 +224,22 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
 
         auto vi = cur->m_Geometry.visualItem();
 
-        if (vi) {
-            if (vi->m_State == VisualTreeItem::State::ACTIVE) {
-                Q_ASSERT(cur->m_State == TreeTraversalItem::State::VISIBLE);
-                Q_ASSERT(m_pViewport->currentRect().isValid());
-                Q_ASSERT(m_pViewport->currentRect().intersects(
-                    vi->geometry()
-                ));
-                qDebug() << "\n\nLA!!!!";
-            }
-            else {
-                Q_ASSERT(vi->m_State == VisualTreeItem::State::BUFFER);
-                Q_ASSERT(!m_pViewport->currentRect().intersects(
-                    vi->geometry()
-                ));
-            }
-        }
+//         if (vi) {
+//             if (vi->m_State == VisualTreeItem::State::ACTIVE) {
+//                 Q_ASSERT(cur->m_State == TreeTraversalItem::State::VISIBLE);
+//                 Q_ASSERT(m_pViewport->currentRect().isValid());
+//                 Q_ASSERT(m_pViewport->currentRect().intersects(
+//                     vi->geometry()
+//                 ));
+//                 qDebug() << "LA!!!!";
+//             }
+//             else {
+//                 Q_ASSERT(vi->m_State == VisualTreeItem::State::BUFFER);
+//                 Q_ASSERT(!m_pViewport->currentRect().intersects(
+//                     vi->geometry()
+//                 ));
+//             }
+//         }
 
         Q_ASSERT((!visibleFinished) || visibleFinished ^ (cur->m_State == TreeTraversalItem::State::VISIBLE));
 

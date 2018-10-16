@@ -116,11 +116,11 @@ public:
 #define S VisualTreeItem::State::
 const VisualTreeItem::State AbstractItemAdapterPrivate::m_fStateMap[7][7] = {
 /*              ATTACH ENTER_BUFFER ENTER_VIEW UPDATE    MOVE   LEAVE_BUFFER  DETACH  */
-/*POOLING */ { S POOLING, S BUFFER, S ERROR , S ERROR , S ERROR , S ERROR  , S DANGLING },
+/*POOLING */ { S POOLING, S BUFFER, S ERROR , S ERROR , S ERROR , S ERROR  , S POOLED   },
 /*POOLED  */ { S POOLED , S BUFFER, S ACTIVE, S ERROR , S ERROR , S ERROR  , S DANGLING },
-/*BUFFER  */ { S ERROR  , S ERROR , S ACTIVE, S BUFFER, S ERROR , S POOLED , S DANGLING },
-/*ACTIVE  */ { S ERROR  , S BUFFER, S ERROR , S ACTIVE, S ACTIVE, S POOLED , S POOLED  },
-/*FAILED  */ { S ERROR  , S BUFFER, S ACTIVE, S ACTIVE, S ACTIVE, S POOLED , S DANGLING },
+/*BUFFER  */ { S ERROR  , S ERROR , S ACTIVE, S BUFFER, S ERROR , S POOLING, S DANGLING },
+/*ACTIVE  */ { S ERROR  , S BUFFER, S ERROR , S ACTIVE, S ACTIVE, S POOLING, S POOLING  },
+/*FAILED  */ { S ERROR  , S BUFFER, S ACTIVE, S ACTIVE, S ACTIVE, S POOLING, S DANGLING },
 /*DANGLING*/ { S ERROR  , S ERROR , S ERROR , S ERROR , S ERROR , S ERROR  , S DANGLING },
 /*ERROR   */ { S ERROR  , S ERROR , S ERROR , S ERROR , S ERROR , S ERROR  , S DANGLING },
 };
@@ -129,7 +129,7 @@ const VisualTreeItem::State AbstractItemAdapterPrivate::m_fStateMap[7][7] = {
 #define A &AbstractItemAdapterPrivate::
 const AbstractItemAdapterPrivate::StateF AbstractItemAdapterPrivate::m_fStateMachine[7][7] = {
 /*             ATTACH  ENTER_BUFFER  ENTER_VIEW   UPDATE     MOVE   LEAVE_BUFFER  DETACH  */
-/*POOLING */ { A error  , A error  , A error  , A error  , A error  , A error  , A error   },
+/*POOLING */ { A error  , A error  , A error  , A error  , A error  , A error  , A nothing },
 /*POOLED  */ { A nothing, A attach , A move   , A error  , A error  , A error  , A destroy },
 /*BUFFER  */ { A error  , A error  , A move   , A refresh, A error  , A detach , A destroy },
 /*ACTIVE  */ { A error  , A nothing, A nothing, A refresh, A move   , A hide   , A detach  },

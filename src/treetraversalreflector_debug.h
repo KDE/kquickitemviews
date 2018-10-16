@@ -45,6 +45,7 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItem* p)
             //Q_ASSERT(i->effectiveRow() == idx.row()+1); //FIXME
             Q_ASSERT(i->previousSibling()->nextSibling() == i);
             Q_ASSERT(i->previousSibling() == oldI);
+            Q_ASSERT((!oldI->index().isValid()) || i->index().parent() == oldI->index().parent());
             Q_ASSERT((!oldI->index().isValid()) || i->effectiveRow() == oldI->effectiveRow()+1);
             idx = i->index();
             Q_ASSERT(idx.isValid());

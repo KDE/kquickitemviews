@@ -325,7 +325,7 @@ void ModelViewTester::moveToGrandChildren()
     };
 
     m_pRoot->m_lChildren.remove(1);
-    m_pRoot->m_lChildren.remove(2);
+    m_pRoot->m_lChildren.remove(1);
 
     newPar->m_lChildren << elem1 << elem2;
 

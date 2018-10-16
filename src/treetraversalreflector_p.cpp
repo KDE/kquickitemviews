@@ -116,10 +116,9 @@ public:
 
     bool isInsertActive(const QModelIndex& p, int first, int last) const;
 
-    void setTemporaryIndices(const QModelIndex &parent, int start, int end,
+    QList<TreeTraversalBase*> setTemporaryIndices(const QModelIndex &parent, int start, int end,
                              const QModelIndex &destination, int row);
-    void resetTemporaryIndices(const QModelIndex &parent, int start, int end,
-                               const QModelIndex &destination, int row);
+    void resetTemporaryIndices(const QList<TreeTraversalBase*>&);
 
     TreeTraversalItem* m_pRoot {new TreeTraversalItem(this)};
 
@@ -473,6 +472,7 @@ bool TreeTraversalItem::attach()
     const auto upTTI   = TTI(up());
     const auto downTTI = TTI(down());
 
+    //TODO this ain't correct
     if ((!upTTI) || (upTTI->m_State == State::BUFFER && upTTI->m_Geometry.m_BufferEdge == Qt::TopEdge)) {
         upTTI->m_Geometry.m_BufferEdge == Qt::TopEdge;
         return m_Geometry.performAction(BlockMetadata::Action::SHOW);
@@ -872,9 +872,11 @@ void TreeTraversalReflectorPrivate::slotLayoutChanged()
     Q_EMIT q_ptr->countChanged();
 }
 
-void TreeTraversalReflectorPrivate::setTemporaryIndices(const QModelIndex &parent, int start, int end,
+QList<TreeTraversalBase*> TreeTraversalReflectorPrivate::setTemporaryIndices(const QModelIndex &parent, int start, int end,
                                      const QModelIndex &destination, int row)
 {
+    QList<TreeTraversalBase*> ret;
+
     //FIXME list only
     // Before moving them, set a temporary now/col value because it wont be set
     // on the index until before slotRowsMoved2 is called (but after this
@@ -890,6 +892,7 @@ void TreeTraversalReflectorPrivate::setTemporaryIndices(const QModelIndex &paren
             elem->setTemporaryIndex(
                 destination, row + (i - start), idx.column()
             );
+            ret << elem;
         }
 
         for (int i = row; i <= row + (end - start); i++) {
@@ -901,33 +904,17 @@ void TreeTraversalReflectorPrivate::setTemporaryIndices(const QModelIndex &paren
             elem->setTemporaryIndex(
                 destination, row + (end - start) + 1, idx.column()
             );
+            ret << elem;
         }
     }
+
+    return ret;
 }
 
-void TreeTraversalReflectorPrivate::resetTemporaryIndices(const QModelIndex &parent, int start, int end,
-                                     const QModelIndex &destination, int row)
+void TreeTraversalReflectorPrivate::resetTemporaryIndices(const QList<TreeTraversalBase*>& indices)
 {
-    //FIXME list only
-    // Before moving them, set a temporary now/col value because it wont be set
-    // on the index until before slotRowsMoved2 is called (but after this
-    // method returns //TODO do not use the hashmap, it is already known
-    if (parent == destination) {
-        const auto pitem = parent.isValid() ? m_hMapper.value(parent) : m_pRoot;
-        for (int i = start; i <= end; i++) {
-            auto idx = q_ptr->model()->index(i, 0, parent);
-            auto elem = pitem->childrenLookup(idx);
-            Q_ASSERT(elem);
-            elem->resetTemporaryIndex();
-        }
-
-        for (int i = row; i <= row + (end - start); i++) {
-            auto idx = q_ptr->model()->index(i, 0, parent);
-            auto elem = pitem->childrenLookup(idx);
-            Q_ASSERT(elem);
-            elem->resetTemporaryIndex();
-        }
-    }
+    for (auto i : qAsConst(indices))
+        i->resetTemporaryIndex();
 }
 
 void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int start, int end,
@@ -946,7 +933,7 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
         return;
     }
 
-    setTemporaryIndices(parent, start, end, destination, row);
+    auto tmp = setTemporaryIndices(parent, start, end, destination, row);
 
     // As the actual view is implemented as a daisy chained list, only moving
     // the edges is necessary for the TreeTraversalItem. Each VisualTreeItem
@@ -1020,6 +1007,8 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
     Q_ASSERT((newNextTTI || endTTI  ) && newNextTTI != endTTI  );
 
     TreeTraversalItem* newParentTTI = ttiForIndex(destination);
+    Q_ASSERT(newParentTTI || !destination.isValid()); //TODO not coded yet
+
     newParentTTI = newParentTTI ? newParentTTI : m_pRoot;
     auto oldParentTTI = startTTI->parent();
 
@@ -1032,27 +1021,26 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
     TreeTraversalBase* dest = newNextTTI && newNextTTI->parent() == newParentTTI ?
         newNextTTI : nullptr;
 
-    QVector<TreeTraversalBase*> tmp;
+    int i = -1; //DEBUG
 
-    int i = -1;
     do {
         TreeTraversalBase* cur = tti;
         tti = tti->previousSibling();
         Q_ASSERT(cur != tti);
         Q_ASSERT(cur->parent());
-        tmp <<cur;
         cur->TreeTraversalBase::remove();
         Q_ASSERT(cur->m_LifeCycleState == TreeTraversalBase::LifeCycleState::NEW);
 
         TreeTraversalBase::insertChildBefore(cur, dest, newParentTTI);
         dest = cur;
 
-        i++;
+        i++; //DEBUG
+
         if (cur == startTTI) {
             qDebug() << "\n\nBREAK!" << tti << startTTI << cur;
-            break;
+            break; //TODO remove, debug only
         }
-    } while(tti);
+    } while(tti || cur != startTTI);
 
     Q_ASSERT( (end - start) == i);
 
@@ -1070,41 +1058,6 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
     if (newNextTTI && newNextTTI->parent())
         newNextTTI->parent()->_test_validate_chain();
     //END debug
-
-//     TreeTraversalBase::bridgeGap(newPrevTTI, startTTI );
-//     //BEGIN debug
-//     if (newPrevTTI && newPrevTTI->parent())
-//         newPrevTTI->parent()->_test_validate_chain();
-//     if (startTTI && startTTI->parent())
-//         startTTI->parent()->_test_validate_chain();
-//     if (endTTI && endTTI->parent())
-//         endTTI->parent()->_test_validate_chain();
-//     if (newNextTTI && newNextTTI->parent())
-//         newNextTTI->parent()->_test_validate_chain();
-//     //END debug
-//     TreeTraversalBase::bridgeGap(endTTI   , newNextTTI);
-//     //BEGIN debug
-//     if (newPrevTTI && newPrevTTI->parent())
-//         newPrevTTI->parent()->_test_validate_chain();
-//     if (startTTI && startTTI->parent())
-//         startTTI->parent()->_test_validate_chain();
-//     if (endTTI && endTTI->parent())
-//         endTTI->parent()->_test_validate_chain();
-//     if (newNextTTI && newNextTTI->parent())
-//         newNextTTI->parent()->_test_validate_chain();
-//     //END debug
-//     TreeTraversalBase::bridgeGap(oldPreviousTTI, oldNextTTI);
-//
-//     //BEGIN debug
-//     if (newPrevTTI && newPrevTTI->parent())
-//         newPrevTTI->parent()->_test_validate_chain();
-//     if (startTTI && startTTI->parent())
-//         startTTI->parent()->_test_validate_chain();
-//     if (endTTI && endTTI->parent())
-//         endTTI->parent()->_test_validate_chain();
-//     if (newNextTTI && newNextTTI->parent())
-//         newNextTTI->parent()->_test_validate_chain();
-//     //END debug
 
     if (endTTI->nextSibling()) {
         Q_ASSERT(endTTI->nextSibling()->previousSibling() ==endTTI);
@@ -1124,7 +1077,7 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
     //TODO move it more efficient
     m_pRoot->m_Geometry.performAction(BlockMetadata::Action::MOVE);
 
-    resetTemporaryIndices(parent, start, end, destination, row);
+    resetTemporaryIndices(tmp);
 }
 
 QAbstractItemModel* TreeTraversalReflector::model() const
@@ -1152,12 +1105,12 @@ void TreeTraversalReflectorPrivate::track()
     connect(m_pModel, &QAbstractItemModel::rowsAboutToBeMoved, this,
         &TreeTraversalReflectorPrivate::slotRowsMoved);
 
-#ifdef QT_NO_DEBUG_OUTPUT
+// #ifdef QT_NO_DEBUG_OUTPUT
     connect(m_pModel, &QAbstractItemModel::rowsMoved, this,
-        &TreeTraversalReflectorPrivate::_test_validateLinkedList);
+        [this](){_test_validateLinkedList();});
     connect(m_pModel, &QAbstractItemModel::rowsRemoved, this,
-        &TreeTraversalReflectorPrivate::_test_validateLinkedList);
-#endif
+        [this](){_test_validateLinkedList();});
+// #endif
 
     m_pTrackedModel = m_pModel;
 }
@@ -1200,12 +1153,12 @@ void TreeTraversalReflectorPrivate::untrack()
     disconnect(m_pTrackedModel, &QAbstractItemModel::rowsAboutToBeMoved, this,
         &TreeTraversalReflectorPrivate::slotRowsMoved);
 
-#ifdef QT_NO_DEBUG_OUTPUT
-    disconnect(m_pTrackedModel, &QAbstractItemModel::rowsMoved, this,
-        &TreeTraversalReflectorPrivate::_test_validateLinkedList);
-    disconnect(m_pTrackedModel, &QAbstractItemModel::rowsRemoved, this,
-        &TreeTraversalReflectorPrivate::_test_validateLinkedList);
-#endif
+// #ifdef QT_NO_DEBUG_OUTPUT
+//     disconnect(m_pTrackedModel, &QAbstractItemModel::rowsMoved, this,
+//         [this](){_test_validateLinkedList();});
+//     disconnect(m_pTrackedModel, &QAbstractItemModel::rowsRemoved, this,
+//         [this](){_test_validateLinkedList();});
+// #endif
 
     m_pTrackedModel = nullptr;
 }
@@ -1318,7 +1271,7 @@ void TreeTraversalReflectorPrivate::enterState(TreeTraversalItem* tti, TreeTrave
         Q_ASSERT(tti != last);
     }
 
-    _test_validate_edges();
+//     _test_validate_edges();
 }
 
 void TreeTraversalReflectorPrivate::leaveState(TreeTraversalItem *tti, TreeTraversalItem::State s)
@@ -1509,7 +1462,13 @@ VisualTreeItem* VisualTreeItem::up(AbstractItemAdapter::StateFlags flags) const
     if (ret && ret->m_Geometry.visualItem())
         Q_ASSERT(ret->m_Geometry.visualItem()->m_State != State::POOLING && ret->m_Geometry.visualItem()->m_State != State::DANGLING);
 
-    return ret ? ret->m_Geometry.visualItem() : nullptr;
+    auto vi = ret ? ret->m_Geometry.visualItem() : nullptr;
+
+    // Do not allow navigating past the loaded edges
+    if (vi && (vi->m_State == State::POOLING || vi->m_State == State::POOLED))
+        return nullptr;
+
+    return vi;
 }
 
 /**
@@ -1520,6 +1479,7 @@ VisualTreeItem* VisualTreeItem::up(AbstractItemAdapter::StateFlags flags) const
 VisualTreeItem* VisualTreeItem::down(AbstractItemAdapter::StateFlags flags) const
 {
     Q_UNUSED(flags)
+
     Q_ASSERT(m_State == State::ACTIVE
         || m_State == State::BUFFER
         || m_State == State::FAILED
@@ -1538,7 +1498,13 @@ VisualTreeItem* VisualTreeItem::down(AbstractItemAdapter::StateFlags flags) cons
     while (ret && !ret->m_Geometry.visualItem())
         ret = TTI(ret->down());
 
-    return ret ? ret->m_Geometry.visualItem() : nullptr;
+    auto vi = ret ? ret->m_Geometry.visualItem() : nullptr;
+
+    // Do not allow navigating past the loaded edges
+    if (vi && (vi->m_State == State::POOLING || vi->m_State == State::POOLED))
+        return nullptr;
+
+    return vi;
 }
 
 int VisualTreeItem::row() const

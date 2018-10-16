@@ -240,7 +240,7 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
         if ((!prev) || (cur->parent() != prev && cur->parent() != prev->parent() && prev->parent() != prev->d_ptr->m_pRoot)) {
             Q_ASSERT(prev->parent()->index().isValid());
             const int prevParRc = prev->d_ptr->m_pModel->rowCount(prev->parent()->index());
-            Q_ASSERT(prev->effectiveRow() == prevParRc - 1);
+//             Q_ASSERT(prev->effectiveRow() == prevParRc - 1);
         }
 
         if (cur->m_Geometry.visualItem()) {
@@ -371,4 +371,42 @@ void TreeTraversalReflectorPrivate::_test_validate_edges()
         Q_ASSERT((!prev) || prev->m_State == TreeTraversalItem::State::REACHABLE);
         Q_ASSERT((!next) || next->m_State == TreeTraversalItem::State::REACHABLE);
     }
+}
+
+void TreeTraversalReflectorPrivate::_test_validate_move(TreeTraversalBase* parentTTI,
+                                                        TreeTraversalBase* startTTI,
+                                                        TreeTraversalBase* endTTI,
+                                                        TreeTraversalBase* newPrevTTI,
+                                                        TreeTraversalBase* newNextTTI,
+                                                        int row)
+{
+    Q_ASSERT((newPrevTTI || startTTI) && newPrevTTI != startTTI);
+    Q_ASSERT((newNextTTI || endTTI  ) && newNextTTI != endTTI  );
+
+    // Update the tree parent (if necessary)
+    Q_ASSERT(startTTI->parent() == parentTTI);
+    Q_ASSERT(endTTI->parent()   == parentTTI);
+
+    //BEGIN debug
+    if (newPrevTTI && newPrevTTI->parent())
+        newPrevTTI->parent()->_test_validate_chain();
+    if (startTTI && startTTI->parent())
+        startTTI->parent()->_test_validate_chain();
+    if (endTTI && endTTI->parent())
+        endTTI->parent()->_test_validate_chain();
+    if (newNextTTI && newNextTTI->parent())
+        newNextTTI->parent()->_test_validate_chain();
+    //END debug
+
+    if (endTTI->nextSibling()) {
+        Q_ASSERT(endTTI->nextSibling()->previousSibling() ==endTTI);
+    }
+
+    if (startTTI->previousSibling()) {
+        Q_ASSERT(startTTI->previousSibling()->parent() == startTTI->parent());
+        Q_ASSERT(startTTI->previousSibling()->nextSibling() ==startTTI);
+    }
+
+    Q_ASSERT(parentTTI->firstChild());
+    Q_ASSERT(row || parentTTI->firstChild() == startTTI);
 }

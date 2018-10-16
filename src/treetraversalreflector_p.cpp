@@ -168,6 +168,10 @@ public:
     void _test_validateViewport(bool skipVItemState = false);
     void _test_validateLinkedList(bool skipVItemState = false);
     void _test_validate_edges();
+    void _test_validate_move(TreeTraversalBase* parentTTI,TreeTraversalBase* startTTI,
+                             TreeTraversalBase* endTTI, TreeTraversalBase* newPrevTTI,
+                             TreeTraversalBase* newNextTTI, int row);
+
 
 public Q_SLOTS:
     void cleanup();
@@ -367,17 +371,7 @@ bool TreeTraversalItem::error()
 
 bool TreeTraversalItem::show()
 {
-//     qDebug() << "SHOW";
     Q_ASSERT(m_State == State::VISIBLE);
-
-    // Update the viewport first since the state is already to visible
-//     auto upTTI = up();
-//     if ((!upTTI) || upTTI->m_State != State::VISIBLE)
-//         d_ptr->edges(EdgeType::VISIBLE)->setEdge(this, Qt::TopEdge);
-
-//     auto downTTI = down();
-//     if ((!downTTI) || downTTI->m_State != State::VISIBLE)
-//         d_ptr->edges(EdgeType::VISIBLE)->setEdge(this, Qt::BottomEdge);
 
     if (auto item = m_Geometry.visualItem()) {
         //item->setVisible(true);
@@ -761,9 +755,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 
         int rc = q_ptr->model()->rowCount(idx);
         if (rc && edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge) {
-            qDebug() << "\n\nRECURSE!" << rc;
             slotRowsInserted(idx, 0, rc-1);
-            qDebug() << "\n\nDONE!" << rc;
         }
 
         // Validate early to prevent propagating garbage that's nearly impossible
@@ -1003,75 +995,33 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
         }
     }
 
-    Q_ASSERT((newPrevTTI || startTTI) && newPrevTTI != startTTI);
-    Q_ASSERT((newNextTTI || endTTI  ) && newNextTTI != endTTI  );
-
     TreeTraversalItem* newParentTTI = ttiForIndex(destination);
     Q_ASSERT(newParentTTI || !destination.isValid()); //TODO not coded yet
 
     newParentTTI = newParentTTI ? newParentTTI : m_pRoot;
-    auto oldParentTTI = startTTI->parent();
-
-    // Make sure not to leave invalid pointers while the steps below are being performed
-//     TreeTraversalBase::createGap(startTTI, endTTI);
 
     // Remove everything //TODO add batching again
     TreeTraversalBase* tti = endTTI;
-    TreeTraversalBase* cur = nullptr;
     TreeTraversalBase* dest = newNextTTI && newNextTTI->parent() == newParentTTI ?
         newNextTTI : nullptr;
 
-    int i = -1; //DEBUG
-
+    QList<TreeTraversalBase*> tmp2;
     do {
-        TreeTraversalBase* cur = tti;
-        tti = tti->previousSibling();
-        Q_ASSERT(cur != tti);
-        Q_ASSERT(cur->parent());
-        cur->TreeTraversalBase::remove();
-        Q_ASSERT(cur->m_LifeCycleState == TreeTraversalBase::LifeCycleState::NEW);
+        tmp2 << tti;
+    } while(endTTI != startTTI && (tti = tti->previousSibling()) != startTTI);
 
-        TreeTraversalBase::insertChildBefore(cur, dest, newParentTTI);
-        dest = cur;
+    if (endTTI != startTTI) //FIXME use a better condition
+        tmp2 << startTTI;
 
-        i++; //DEBUG
+    Q_ASSERT( (end - start) == tmp2.size() - 1);
 
-        if (cur == startTTI) {
-            qDebug() << "\n\nBREAK!" << tti << startTTI << cur;
-            break; //TODO remove, debug only
-        }
-    } while(tti || cur != startTTI);
-
-    Q_ASSERT( (end - start) == i);
-
-    // Update the tree parent (if necessary)
-    Q_ASSERT(startTTI->parent() == newParentTTI);
-    Q_ASSERT(endTTI->parent()   == newParentTTI);
-
-    //BEGIN debug
-    if (newPrevTTI && newPrevTTI->parent())
-        newPrevTTI->parent()->_test_validate_chain();
-    if (startTTI && startTTI->parent())
-        startTTI->parent()->_test_validate_chain();
-    if (endTTI && endTTI->parent())
-        endTTI->parent()->_test_validate_chain();
-    if (newNextTTI && newNextTTI->parent())
-        newNextTTI->parent()->_test_validate_chain();
-    //END debug
-
-    if (endTTI->nextSibling()) {
-        Q_ASSERT(endTTI->nextSibling()->previousSibling() ==endTTI);
+    for (auto item : qAsConst(tmp2)) {
+        item->TreeTraversalBase::remove();
+        TreeTraversalBase::insertChildBefore(item, dest, newParentTTI);
+        dest = item;
     }
 
-    if (startTTI->previousSibling()) {
-        Q_ASSERT(startTTI->previousSibling()->parent() == startTTI->parent());
-        Q_ASSERT(startTTI->previousSibling()->nextSibling() ==startTTI);
-    }
-
-    Q_ASSERT(newParentTTI->firstChild());
-    /*Q_ASSERT(startTTI == newParentTTI->firstChild() ||
-        newParentTTI->firstChild()->effectiveRow() <= startTTI->m_MoveToRow);*/
-    Q_ASSERT(row || newParentTTI->firstChild() ==startTTI);
+    _test_validate_move(newParentTTI, startTTI, endTTI, newPrevTTI, newNextTTI, row);
 
     // Move everything
     //TODO move it more efficient
@@ -1167,7 +1117,6 @@ void TreeTraversalReflectorPrivate::populate()
 {
     Q_ASSERT(m_pModel);
 
-
     qDebug() << "\n\nPOPULATE!" << edges(EdgeType::FREE)->m_Edges;
     if (m_pRoot->firstChild() && (edges(EdgeType::FREE)->m_Edges & (Qt::TopEdge|Qt::BottomEdge))) {
         //Q_ASSERT(edges(EdgeType::FREE)->getEdge(Qt::TopEdge));
@@ -1217,7 +1166,6 @@ void TreeTraversalReflectorPrivate::trim()
     while (!(edges(EdgeType::VISIBLE)->m_Edges & Qt::TopEdge)) {
         Q_ASSERT(edges(EdgeType::FREE)->getEdge(Qt::TopEdge));
         Q_ASSERT(!m_pViewport->currentRect().intersects(TTI(edges(EdgeType::FREE)->getEdge(Qt::TopEdge))->m_Geometry.geometry()));
-//         Q_ASSERT(false);
         TTI(edges(EdgeType::FREE)->getEdge(Qt::TopEdge))->m_Geometry.performAction(BlockMetadata::Action::HIDE);
     }
 
@@ -1225,7 +1173,6 @@ void TreeTraversalReflectorPrivate::trim()
     while (!(edges(EdgeType::VISIBLE)->m_Edges & Qt::BottomEdge)) {
         Q_ASSERT(elem);
         Q_ASSERT(!m_pViewport->currentRect().intersects(elem->m_Geometry.geometry()));
-//         Q_ASSERT(false);
         elem->m_Geometry.performAction(BlockMetadata::Action::HIDE);
         elem = TTI(elem->up());
     }
@@ -1255,9 +1202,9 @@ void TreeTraversalReflectorPrivate::enterState(TreeTraversalItem* tti, TreeTrave
         auto prev = tti->up();
         auto next = tti->down();
         auto last = edges(TreeTraversalReflector::EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
-        qDebug() << "VISIBLE!" << first << prev << tti << next << last;
-        qDebug() << first << tti;
-        qDebug() << last << tti;
+//         qDebug() << "VISIBLE!" << first << prev << tti << next << last;
+//         qDebug() << first << tti;
+//         qDebug() << last << tti;
 
         if (first == next) {
             edges(TreeTraversalReflector::EdgeType::VISIBLE)->setEdge(tti, Qt::TopEdge);

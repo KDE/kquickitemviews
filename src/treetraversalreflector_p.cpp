@@ -225,7 +225,7 @@ const TreeTraversalItem::State TreeTraversalItem::m_fStateMap[7][7] = {
 /*BUFFER   */ { S VISIBLE, S BUFFER   , S BUFFER   , S DANGLING , S BUFFER , S BUFFER   , S BUFFER    },
 /*REMOVED  */ { S ERROR  , S ERROR    , S ERROR    , S REACHABLE, S ERROR  , S ERROR    , S ERROR     },
 /*REACHABLE*/ { S VISIBLE, S REACHABLE, S ERROR    , S REACHABLE, S ERROR  , S REACHABLE, S REACHABLE },
-/*VISIBLE  */ { S VISIBLE, S BUFFER   , S ERROR    , S REACHABLE, S VISIBLE, S VISIBLE  , S VISIBLE   },
+/*VISIBLE  */ { S VISIBLE, S BUFFER   , S ERROR    , S ERROR    , S VISIBLE, S VISIBLE  , S VISIBLE   },
 /*ERROR    */ { S ERROR  , S ERROR    , S ERROR    , S ERROR    , S ERROR  , S ERROR    , S ERROR     },
 /*DANGLING */ { S ERROR  , S ERROR    , S ERROR    , S ERROR    , S ERROR  , S ERROR    , S ERROR     },
 };
@@ -238,7 +238,7 @@ const TreeTraversalItem::StateF TreeTraversalItem::m_fStateMachine[7][7] = {
 /*BUFFER   */ { A show   , A remove , A attach , A destroy , A refresh, A move , A reset },
 /*REMOVED  */ { A error  , A error  , A error  , A detach  , A error  , A error, A reset },
 /*REACHABLE*/ { A show   , A nothing, A error  , A detach  , A error  , A move , A reset },
-/*VISIBLE  */ { A nothing, A hide   , A error  , A detach  , A refresh, A move , A reset },
+/*VISIBLE  */ { A nothing, A hide   , A error  , A error   , A refresh, A move , A reset },
 /*ERROR    */ { A error  , A error  , A error  , A error   , A error  , A error, A error },
 /*DANGLING */ { A error  , A error  , A error  , A error   , A error  , A error, A error },
 };
@@ -340,7 +340,9 @@ bool BlockMetadata::performAction(BlockMetadata::Action a)
 
     m_pTTI->m_Geometry.removeMe = (int) m_pTTI->m_State; //FIXME remove
     bool ret        = (this->m_pTTI->*TreeTraversalItem::m_fStateMachine[s][(int)a])();
-    Q_ASSERT((!m_pTTI->m_Geometry.visualItem()) ||  m_pTTI->m_State == TreeTraversalItem::State::VISIBLE);
+    Q_ASSERT((!m_pTTI->m_Geometry.visualItem())
+        ||  m_pTTI->m_State == TreeTraversalItem::State::BUFFER
+        ||  m_pTTI->m_State == TreeTraversalItem::State::VISIBLE);
 
 //     m_pTTI->d_ptr->_test_validate_edges();
 
@@ -387,13 +389,13 @@ bool TreeTraversalItem::show()
         Q_ASSERT(m_State == State::VISIBLE);
     }
 
-    d_ptr->_test_validateViewport(true);
+    //d_ptr->_test_validateViewport(true);
     m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::ENTER_BUFFER);
     Q_ASSERT(m_State == State::VISIBLE);
-    d_ptr->_test_validateViewport(true);
+    //d_ptr->_test_validateViewport(true);
     Q_ASSERT(m_Geometry.visualItem()->m_State == VisualTreeItem::State::BUFFER);
 
-    d_ptr->_test_validateViewport(true);
+    //d_ptr->_test_validateViewport(true);
     m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::ENTER_VIEW);
     Q_ASSERT(m_State == State::VISIBLE);
     d_ptr->_test_validateViewport();
@@ -414,7 +416,8 @@ bool TreeTraversalItem::show()
 
 bool TreeTraversalItem::hide()
 {
-    qDebug() << "HIDE";
+    qDebug() << "\n\nHIDE";
+
     if (auto item = m_Geometry.visualItem()) {
         //item->setVisible(false);
         m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::LEAVE_BUFFER);
@@ -456,7 +459,6 @@ bool TreeTraversalItem::attach()
     // Attach can only be called when there is room in the viewport //FIXME and the buffer
 //     Q_ASSERT(d_ptr->edges(EdgeType::FREE)->m_Edges & (Qt::TopEdge|Qt::BottomEdge));
 
-    d_ptr->m_pViewport->s_ptr->updateGeometry(&m_Geometry);
 
     Q_ASSERT(!m_Geometry.visualItem());
 
@@ -491,6 +493,7 @@ bool TreeTraversalItem::detach()
     // First, detach any remaining children
     for (auto i : qAsConst(children)) {
         auto tti = TTI(i);
+        tti->m_Geometry.performAction(BlockMetadata::Action::HIDE);
         tti->m_Geometry.performAction(BlockMetadata::Action::DETACH);
     }
 
@@ -843,6 +846,7 @@ void TreeTraversalReflectorPrivate::slotRowsRemoved(const QModelIndex& parent, i
         auto idx = q_ptr->model()->index(i, 0, parent);
 
         if (auto elem = TTI(pitem->childrenLookup(idx))) {
+            elem->m_Geometry.performAction(BlockMetadata::Action::HIDE);
             elem->m_Geometry.performAction(BlockMetadata::Action::DETACH);
         }
 
@@ -1015,17 +1019,25 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
 
     Q_ASSERT( (end - start) == tmp2.size() - 1);
 
+    // Check if the point where
+    //TODO this isn't good enough
+    bool isRangeVisible = (newPrevTTI &&
+        newPrevTTI->m_State == TreeTraversalItem::State::VISIBLE) || (newNextTTI &&
+            newNextTTI->m_State == TreeTraversalItem::State::VISIBLE);
+
     for (auto item : qAsConst(tmp2)) {
         item->TreeTraversalBase::remove();
         TreeTraversalBase::insertChildBefore(item, dest, newParentTTI);
         dest = item;
+        if (isRangeVisible)
+            TTI(item)->m_Geometry.performAction(BlockMetadata::Action::SHOW);
     }
 
     _test_validate_move(newParentTTI, startTTI, endTTI, newPrevTTI, newNextTTI, row);
 
     // Move everything
     //TODO move it more efficient
-    m_pRoot->m_Geometry.performAction(BlockMetadata::Action::MOVE);
+    //m_pRoot->m_Geometry.performAction(BlockMetadata::Action::MOVE);
 
     resetTemporaryIndices(tmp);
 }
@@ -1157,24 +1169,31 @@ void TreeTraversalReflectorPrivate::populate()
 
 void TreeTraversalReflectorPrivate::trim()
 {
+    _test_validateViewport();
+
     qDebug() << "TRIM" << edges(EdgeType::VISIBLE)->m_Edges;
-    if (!edges(EdgeType::FREE)->getEdge(Qt::TopEdge)) {
-        Q_ASSERT(!edges(EdgeType::FREE)->getEdge(Qt::BottomEdge));
-        return;
-    }
+//     if (!edges(EdgeType::FREE)->getEdge(Qt::TopEdge)) {
+//         Q_ASSERT(!edges(EdgeType::FREE)->getEdge(Qt::BottomEdge));
+//         return;
+//     }
 
-    while (!(edges(EdgeType::VISIBLE)->m_Edges & Qt::TopEdge)) {
+    auto elem = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge)); //FIXME have a visual and reacheable rect
+
+    while (!(edges(EdgeType::FREE)->m_Edges & Qt::TopEdge)) {
+        Q_ASSERT(elem);
         Q_ASSERT(edges(EdgeType::FREE)->getEdge(Qt::TopEdge));
-        Q_ASSERT(!m_pViewport->currentRect().intersects(TTI(edges(EdgeType::FREE)->getEdge(Qt::TopEdge))->m_Geometry.geometry()));
-        TTI(edges(EdgeType::FREE)->getEdge(Qt::TopEdge))->m_Geometry.performAction(BlockMetadata::Action::HIDE);
+        Q_ASSERT(!m_pViewport->currentRect().intersects(elem->m_Geometry.geometry()));
+
+        elem->m_Geometry.performAction(BlockMetadata::Action::HIDE);
+        elem = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge));
     }
 
-    auto elem = TTI(edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)); //FIXME have a visual and reacheable rect
-    while (!(edges(EdgeType::VISIBLE)->m_Edges & Qt::BottomEdge)) {
+    elem = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge)); //FIXME have a visual and reacheable rect
+    while (!(edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge)) {
         Q_ASSERT(elem);
         Q_ASSERT(!m_pViewport->currentRect().intersects(elem->m_Geometry.geometry()));
         elem->m_Geometry.performAction(BlockMetadata::Action::HIDE);
-        elem = TTI(elem->up());
+        elem = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge));
     }
 }
 
@@ -1333,6 +1352,7 @@ void TreeTraversalReflectorPrivate::cleanup()
     if (!m_pRoot->firstChild())
         return;
 
+    m_pRoot->m_Geometry.performAction(BlockMetadata::Action::HIDE);
     m_pRoot->m_Geometry.performAction(BlockMetadata::Action::DETACH);
 
     m_hMapper.clear();

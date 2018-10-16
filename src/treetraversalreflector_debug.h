@@ -222,12 +222,31 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
             lastVisible = prev;
         }
 
+        auto vi = cur->m_Geometry.visualItem();
+
+        if (vi) {
+            if (vi->m_State == VisualTreeItem::State::ACTIVE) {
+                Q_ASSERT(cur->m_State == TreeTraversalItem::State::VISIBLE);
+                Q_ASSERT(m_pViewport->currentRect().isValid());
+                Q_ASSERT(m_pViewport->currentRect().intersects(
+                    vi->geometry()
+                ));
+                qDebug() << "\n\nLA!!!!";
+            }
+            else {
+                Q_ASSERT(vi->m_State == VisualTreeItem::State::BUFFER);
+                Q_ASSERT(!m_pViewport->currentRect().intersects(
+                    vi->geometry()
+                ));
+            }
+        }
+
         Q_ASSERT((!visibleFinished) || visibleFinished ^ (cur->m_State == TreeTraversalItem::State::VISIBLE));
 
         // skipVItemState is necessary to test some steps in between the tree and view
         if (!skipVItemState) {
-            Q_ASSERT(cur->m_State == TreeTraversalItem::State::VISIBLE || !cur->m_Geometry.visualItem());
-            Q_ASSERT((!visibleFinished) || !cur->m_Geometry.visualItem());
+            Q_ASSERT(cur->m_State == TreeTraversalItem::State::VISIBLE || !vi);
+            Q_ASSERT((!visibleFinished) || !vi);
         }
 
         // Check the the previous sibling has no children
@@ -243,7 +262,7 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
 //             Q_ASSERT(prev->effectiveRow() == prevParRc - 1);
         }
 
-        if (cur->m_Geometry.visualItem()) {
+        if (vi) {
             auto geo = cur->m_Geometry.geometry();
             minX = std::min(minX, geo.x());
             minY = std::min(minY, geo.y());

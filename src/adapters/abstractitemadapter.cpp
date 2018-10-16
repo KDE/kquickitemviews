@@ -431,7 +431,7 @@ bool AbstractItemAdapter::attach()
 {
     Q_ASSERT(index().isValid());
 
-    return item() && move();
+    return item();// && move();
 }
 
 bool AbstractItemAdapter::flush()

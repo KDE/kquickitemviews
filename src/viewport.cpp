@@ -666,8 +666,11 @@ void ViewportPrivate::slotReset()
 void BlockMetadata::setVisualItem(VisualTreeItem *i)
 {
     Q_ASSERT((!i) || removeMe == 4);
-    if (m_pItem && !i)
-        m_pViewport->q_ptr->s_ptr->notifyRemoval(m_pItem->m_pGeometry);
+    if (m_pItem && !i) {
+        auto old = m_pItem;
+        m_pItem = nullptr;
+        m_pViewport->q_ptr->s_ptr->notifyRemoval(old->m_pGeometry);
+    }
 
     if ((m_pItem = i))
         i->m_pGeometry = this;

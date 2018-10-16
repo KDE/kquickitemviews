@@ -190,7 +190,9 @@ void Flickable::setCurrentY(qreal y)
 
     // Do not allow out of bound scroll
     y = std::fmax(y, 0);
-    y = std::fmin(y, d_ptr->m_pContainer->height() - height());
+
+    if (d_ptr->m_pContainer->height() >= height())
+        y = std::fmin(y, d_ptr->m_pContainer->height() - height());
 
     if (d_ptr->m_pContainer->y() == -y)
         return;

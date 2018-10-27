@@ -396,6 +396,13 @@ void AbstractItemAdapterPrivate::load()
     m_pContext = pair.second;
     m_pItem    = pair.first;
 
+    Q_ASSERT(q_ptr->s_ptr->m_pGeometry);
+    q_ptr->s_ptr->m_pGeometry->m_State.setSize(
+        QSizeF(m_pItem->width(), m_pItem->height())
+    );
+
+    Q_ASSERT(q_ptr->s_ptr->m_pGeometry->m_State.state() != GeometryCache::State::INIT);
+
     q_ptr->s_ptr->updateContext();
 }
 
@@ -599,4 +606,22 @@ void AbstractItemAdapter::setCollapsed(bool v)
 bool AbstractItemAdapter::isCollapsed() const
 {
     return s_ptr->isCollapsed();
+}
+
+bool BlockMetadata::isInSync() const
+{
+    if (m_State.state() != GeometryCache::State::VALID)
+        return false;
+
+    const auto item = visualItem()->item();
+
+    if (!item)
+        return false;
+
+    const auto geo = m_State.geometry();
+
+    return item->y() == geo.y()
+        && item->x() == geo.x()
+        && item->width() == geo.width()
+        && item->height() == geo.height();
 }

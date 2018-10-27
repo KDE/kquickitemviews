@@ -27,6 +27,7 @@
 #include <QQmlApplicationEngine>
 
 #include "modelviewtester.h"
+#include "listmodeltester.h"
 
 #include <views/hierarchyview.h>
 #include <views/listview.h>
@@ -39,6 +40,7 @@ int main(int argc, char **argv)
     QQmlApplicationEngine engine;
 
     qmlRegisterType<ModelViewTester>("RingQmlWidgets", 1, 0, "ModelViewTester");
+    qmlRegisterType<ListModelTester>("RingQmlWidgets", 1, 0, "ListModelTester");
     qmlRegisterType<HierarchyView  >("RingQmlWidgets", 1, 0, "HierarchyView");
     qmlRegisterType<TreeView       >("RingQmlWidgets", 1, 0, "QuickTreeView");
     qmlRegisterType<ListView       >("RingQmlWidgets", 1, 0, "QuickListView");

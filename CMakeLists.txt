@@ -69,6 +69,7 @@ SET( kquickview_LIB_SRCS
     src/viewport.cpp
     src/contextadapterfactory.cpp
     src/treestructure_p.cpp
+    src/geometrycache_p.cpp
 )
 
 set(AUTOMOC_MOC_OPTIONS -Muri=org.kde.playground.kquickview)

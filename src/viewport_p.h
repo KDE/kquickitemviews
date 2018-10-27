@@ -19,6 +19,13 @@
 struct TreeTraversalItem;
 class TreeTraversalReflector;
 class VisualTreeItem;
+class ViewportPrivate;
+class Viewport;
+
+#include <QtCore/QRectF>
+#include <QtCore/QModelIndex>
+
+#include "geometrycache_p.h"
 
 /**
  * For size modes like UniformRowHeight, it's pointless to keep track of
@@ -53,11 +60,9 @@ struct BlockMetadata
         RESET  = 6, /*!< Flush the visual item              */
     };
 
-    QRectF geometry() const { return QRectF(m_Position, m_Size); }
+    QRectF geometry() const;
     QModelIndex index() const;
 
-    void setPosition(const QPointF& pos);
-    void setSize(const QSizeF& size);
 
     Qt::Edge m_BufferEdge {Qt::TopEdge};
     Qt::Edges m_IsEdge {};
@@ -73,13 +78,18 @@ struct BlockMetadata
     BlockMetadata *left () const;
     BlockMetadata *right() const;
 
+    bool isTopItem() const;
+
+    // Check of the QQuickItem exists and is in the right spot
+    bool isInSync() const;
+
     void setVisualItem(VisualTreeItem *i);
 
     VisualTreeItem *visualItem() const;
 
+    GeometryCache m_State; //FIXME I could not find a stable enough other way
+
 private:
-    QPointF m_Position;
-    QSizeF  m_Size;
     ViewportPrivate *m_pViewport;
     VisualTreeItem  *m_pItem {nullptr};
 };
@@ -107,6 +117,16 @@ public:
      * From the model or feedback loop
      */
     void notifyRemoval(BlockMetadata* item);
+
+    /**
+     * From the model or feedback loop
+     */
+    void notifyInsert(BlockMetadata* item);
+
+    /**
+     * Manually trigger the sizes and positions to be updated.
+     */
+    void refreshVisible();
 
     inline void updateSingleItem(const QModelIndex& index, BlockMetadata* b);
 

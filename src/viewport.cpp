@@ -30,6 +30,7 @@
 #include "adapters/abstractitemadapter.h"
 #include "viewbase.h"
 
+
 class ViewportPrivate : public QObject
 {
     Q_OBJECT
@@ -152,46 +153,67 @@ QPair<Qt::Edge,Qt::Edge> ViewportPrivate::fromGravity() const
 
 QSizeF ViewportPrivate::sizeHint(BlockMetadata *item) const
 {
+    Q_ASSERT(item);
     QSizeF ret;
 
+    auto s = item->m_State.state();
+
     //TODO switch to function table
-    switch (m_SizeStrategy) {
-        case Viewport::SizeHintStrategy::AOT:
-            Q_ASSERT(false);
-            break;
-        case Viewport::SizeHintStrategy::JIT:
-            if (item->visualItem())
-                ret = item->visualItem()->geometry().size();
-            else {
-                // JIT cannot be used past the loaded bounds, the value isn't known
+    if (s == GeometryCache::State::POSITION || s == GeometryCache::State::INIT) {
+        switch (m_SizeStrategy) {
+            case Viewport::SizeHintStrategy::AOT:
                 Q_ASSERT(false);
-            }
-            break;
-        case Viewport::SizeHintStrategy::UNIFORM:
-            Q_ASSERT(false);
-            break;
-        case Viewport::SizeHintStrategy::PROXY:
-            Q_ASSERT(m_ModelHasSizeHints);
+                break;
+            case Viewport::SizeHintStrategy::JIT:
+                if (item->visualItem())
+                    ret = item->visualItem()->geometry().size();
+                else {
+                    // JIT cannot be used past the loaded bounds, the value isn't known
+                    Q_ASSERT(false);
+                }
+                break;
+            case Viewport::SizeHintStrategy::UNIFORM:
+                Q_ASSERT(false);
+                break;
+            case Viewport::SizeHintStrategy::PROXY:
+                Q_ASSERT(m_ModelHasSizeHints);
 
-            ret = qobject_cast<SizeHintProxyModel*>(m_pModelAdapter->rawModel())
-                ->sizeHintForIndex(item->index());
+                ret = qobject_cast<SizeHintProxyModel*>(m_pModelAdapter->rawModel())
+                    ->sizeHintForIndex(item->index());
 
-            static int i = 0;
+                static int i = 0;
 
-            break;
-        case Viewport::SizeHintStrategy::ROLE:
-        case Viewport::SizeHintStrategy::DELEGATE:
-            Q_ASSERT(false);
-            break;
+                break;
+            case Viewport::SizeHintStrategy::ROLE:
+            case Viewport::SizeHintStrategy::DELEGATE:
+                Q_ASSERT(false);
+                break;
+        }
+
+        item->m_State.setSize(ret);
     }
 
-    item->setSize(ret);
+    s = item->m_State.state();
+    Q_ASSERT(s != GeometryCache::State::INIT);
+    Q_ASSERT(s != GeometryCache::State::POSITION);
 
-    if (auto prev = item->up()) {
-        const auto prevGeo = prev->geometry();
-        Q_ASSERT(prevGeo.y() != -1);
-        item->setPosition(QPointF(0.0, prevGeo.y() + prevGeo.height()));
+    if (s == GeometryCache::State::SIZE) {
+        if (auto prev = item->up()) {
+
+            // A word of warning, this is recursive
+            const auto prevGeo = prev->geometry();
+            Q_ASSERT(prevGeo.y() != -1);
+            item->m_State.setPosition(QPointF(0.0, prevGeo.y() + prevGeo.height()));
+        }
+        else if (item->isTopItem()) {
+            item->m_State.setPosition(QPointF(0.0, 0.0));
+            Q_ASSERT(item->m_State.state() == GeometryCache::State::VALID);
+        }
     }
+
+    s = item->m_State.state();
+
+    Q_ASSERT(s == GeometryCache::State::VALID);
 
     return ret;
 }
@@ -431,6 +453,12 @@ void ViewportPrivate::updateAvailableEdges()
         TreeTraversalReflector::EdgeType::VISIBLE, Qt::BottomEdge
     );
 
+    // Size is normal as the state as not converged yet
+    Q_ASSERT((!e) || (
+        e->m_State.state() == GeometryCache::State::VALID ||
+        e->m_State.state() == GeometryCache::State::SIZE)
+    );
+
     // Resize the contend height
     if (e && m_SizeStrategy == Viewport::SizeHintStrategy::JIT) {
 
@@ -451,10 +479,18 @@ void ViewportPrivate::updateAvailableEdges()
         TreeTraversalReflector::EdgeType::VISIBLE, Qt::BottomEdge
     );
 
-    if ((!tve) || m_ViewRect.intersects(tve->geometry()))
+    // If they don't have a valid size, then there is a bug elsewhere
+    Q_ASSERT((!tve) || tve->m_State.state() == GeometryCache::State::VALID);
+    Q_ASSERT((!bve) || tve->m_State.state() == GeometryCache::State::VALID);
+
+    // Do not attempt to load the geometry yet, let the loading code do it later
+    bool tveValid = tve && tve->m_State.state() == GeometryCache::State::VALID;
+    bool bveValid = bve && bve->m_State.state() == GeometryCache::State::VALID;
+
+    if ((!tve) || (tveValid && m_ViewRect.intersects(tve->geometry())))
         available |= Qt::TopEdge;
 
-    if ((!bve) || m_ViewRect.intersects(bve->geometry()))
+    if ((!bve) || (bveValid && m_ViewRect.intersects(bve->geometry())))
         available |= Qt::BottomEdge;
 
     m_pReflector->setAvailableEdges(
@@ -468,7 +504,7 @@ void ViewportPrivate::updateAvailableEdges()
 //     m_pReflector->setAvailableEdges(
 //         (~hasInvisible)&15, TreeTraversalReflector::EdgeType::VISIBLE
 //     );
-    qDebug() << "CHECK TOP" <<available << tve << (tve ? tve->geometry() : QRectF()) << (tve ? m_ViewRect.intersects(tve->geometry()) : true) << m_ViewRect;
+//     qDebug() << "CHECK TOP" <<available << tve << (tve ? tve->geometry() : QRectF()) << (tve ? m_ViewRect.intersects(tve->geometry()) : true) << m_ViewRect;
 
     m_pReflector->performAction(TreeTraversalReflector::TrackingAction::TRIM);
 }
@@ -479,10 +515,10 @@ void ViewportSync::geometryUpdated(BlockMetadata *item)
 
     auto geo = item->geometry();
 
-    if (!geo.isValid()) {
-        item->setSize(q_ptr->d_ptr->sizeHint(item));
-        geo = item->geometry();
-    }
+//     if (!geo.isValid()) {
+//         item->m_State.setSize(q_ptr->d_ptr->sizeHint(item));
+//         geo = item->geometry();
+//     }
 
 //     Q_ASSERT((!item->visualItem()) || item->visualItem()->geometry().size() == geo.size());
 
@@ -500,46 +536,124 @@ void ViewportSync::updateGeometry(BlockMetadata* item)
     if (q_ptr->d_ptr->m_SizeStrategy != Viewport::SizeHintStrategy::JIT)
         q_ptr->d_ptr->sizeHint(item);
 
+    notifyInsert(item->down());
+
+    refreshVisible();
+
     q_ptr->d_ptr->updateAvailableEdges();
+    //notifyInsert(item->down());
+
 }
 
 void ViewportSync::notifyRemoval(BlockMetadata* item)
 {
-//     auto edges = q_ptr->d_ptr->m_lpLoadedEdges;
+    item->m_State.performAction(
+        GeometryCache::Action::REMOVE, nullptr, nullptr
+    );
+
+
+//     auto tve = m_pReflector->getEdge(
+//         TreeTraversalReflector::EdgeType::VISIBLE, Qt::TopEdge
+//     );
+
+//     auto bve = q_ptr->d_ptr->m_pReflector->getEdge(
+//         TreeTraversalReflector::EdgeType::VISIBLE, Qt::BottomEdge
+//     );
+//     Q_ASSERT(item != bve); //TODO
+
+//     //FIXME this is horrible
+//     while(auto next = item->down()) { //FIXME dead code
+//         if (next->m_State.state() != GeometryCache::State::VALID ||
+//           next->m_State.state() != GeometryCache::State::POSITION)
+//             break;
 //
-//     //TODO do something that's actually correct
-//     while (edges[Pos::Top] && !edges[Pos::Top]->visualItem()) {
-//         auto old = edges[Pos::Top];
-//         edges[Pos::Top] = edges[Pos::Top]->down();
-//         Q_ASSERT(edges[Pos::Top] != old);
+//         next->m_State.performAction(
+//             GeometryCache::Action::MOVE, nullptr, nullptr
+//         );
+//
+//         Q_ASSERT(next != bve); //TODO
+//
+//         Q_ASSERT(next->m_State.state() != GeometryCache::State::VALID);
 //     }
 //
-//     Q_ASSERT((!edges[Pos::Top]) || edges[Pos::Top]->geometry().isValid());
+//     refreshVisible();
 //
-//     while (edges[Pos::Bottom] && !edges[Pos::Bottom]->visualItem()) {
-//         auto old = edges[Pos::Bottom];
-//         edges[Pos::Bottom] = edges[Pos::Bottom]->up();
-//         Q_ASSERT(edges[Pos::Bottom] != old);
-//     }
-//
-//     Q_ASSERT((!edges[Pos::Bottom]) || edges[Pos::Bottom]->geometry().isValid());
+//     q_ptr->d_ptr->updateAvailableEdges();
+}
 
-    q_ptr->d_ptr->updateAvailableEdges();
+void ViewportSync::refreshVisible()
+{
+    qDebug() << "\n\nREFRESH!!!";
+    BlockMetadata *item = q_ptr->d_ptr->m_pReflector->getEdge(
+        TreeTraversalReflector::EdgeType::VISIBLE, Qt::TopEdge
+    );
 
-//     auto e = q_ptr->d_ptr->m_pReflector->availableEdges( TreeTraversalReflector::EdgeType::VISIBLE);
+    if (!item)
+        return;
 
-    // Either both are edge have visible edges item or there is neither
-//     Q_ASSERT((edges[Pos::Bottom] && edges[Pos::Top]) || !edges[Pos::Top]);
+    auto bve = q_ptr->d_ptr->m_pReflector->getEdge(
+        TreeTraversalReflector::EdgeType::VISIBLE, Qt::BottomEdge
+    );
 
-//     if (edges[Pos::Bottom]) {
-//         Q_ASSERT(edges[Pos::Bottom]->visualItem());
-//         auto geo = edges[Pos::Bottom]->geometry();
-//         Q_ASSERT(q_ptr->d_ptr->m_ViewRect.intersects(geo) || geo.height() <= 0 || geo.width() <= 0);
-//     }
-//
-//     // If that happens then something is broken above
-//     Q_ASSERT(e & Qt::BottomEdge);
-//     Q_ASSERT(e & Qt::TopEdge);
+    auto prev = item->up();
+
+    // First, make sure the previous elem has a valid size. If, for example,
+    // rowsMoved moves a previously unloaded item to the front, this information
+    // will be lost.
+    if (prev && prev->m_State.state() != GeometryCache::State::VALID) {
+        Q_ASSERT(prev->isTopItem()); //TODO there is more
+        prev->m_State.setPosition({0.0, 0.0});
+    }
+
+    const bool hasSingleItem = item == bve;
+
+    do {
+        Q_ASSERT(item->m_State.state() != GeometryCache::State::INIT);
+        Q_ASSERT(item->m_State.state() != GeometryCache::State::POSITION);
+
+        q_ptr->d_ptr->sizeHint(item);
+        Q_ASSERT(item->m_State.state() == GeometryCache::State::VALID);
+
+        if (!item->isInSync())
+            item->performAction(BlockMetadata::Action::MOVE);
+        qDebug() << "R" << item << item->down();
+
+    } while((!hasSingleItem) && item->up() != bve && (item = item->down()));
+}
+
+void ViewportSync::notifyInsert(BlockMetadata* item)
+{
+    if (!item)
+        return;
+
+    auto bve = q_ptr->d_ptr->m_pReflector->getEdge(
+        TreeTraversalReflector::EdgeType::VISIBLE, Qt::BottomEdge
+    );
+
+    qDebug() << "START" << item;
+    //FIXME this is also horrible
+    do {
+        if (item == bve) {
+            item->m_State.performAction(
+                GeometryCache::Action::MOVE, nullptr, nullptr
+            );
+            qDebug() << "BREAK1" << item << item->m_pTTI << (item->down() != nullptr? (int) item->down()->m_State.state() : -1);
+            break;
+        }
+
+        if (item->m_State.state() != GeometryCache::State::VALID &&
+          item->m_State.state() != GeometryCache::State::POSITION) {
+            qDebug() << "BREAK2";
+            break;
+        }
+
+        item->m_State.performAction(
+            GeometryCache::Action::MOVE, nullptr, nullptr
+        );
+
+        Q_ASSERT(item->m_State.state() != GeometryCache::State::VALID);
+        qDebug() << "ONE" << (int) item->m_State.state();
+    } while((item = item->down()));
 }
 
 void Viewport::resize(const QRectF& rect)
@@ -566,16 +680,6 @@ void Viewport::resize(const QRectF& rect)
     else if (rect.isValid()) {
         d_ptr->m_pReflector->performAction(TreeTraversalReflector::TrackingAction::MOVE);
     }
-}
-
-void BlockMetadata::setPosition(const QPointF& pos)
-{
-    m_Position = pos;
-}
-
-void BlockMetadata::setSize(const QSizeF& size)
-{
-    m_Size = size;
 }
 
 qreal ViewportPrivate::getSectionHeight(const QModelIndex& parent, int first, int last)
@@ -679,6 +783,24 @@ void BlockMetadata::setVisualItem(VisualTreeItem *i)
 VisualTreeItem *BlockMetadata::visualItem() const
 {
     return m_pItem;
+}
+
+QRectF BlockMetadata::geometry() const
+{
+    switch(m_State.state()) {
+        case GeometryCache::State::VALID:
+            break;
+        case GeometryCache::State::INIT:
+            Q_ASSERT(false);
+            break;
+        case GeometryCache::State::SIZE:
+        case GeometryCache::State::POSITION:
+            m_pViewport->sizeHint(const_cast<BlockMetadata*>(this));
+    }
+
+    Q_ASSERT(m_State.state() == GeometryCache::State::VALID);
+
+    return m_State.geometry();
 }
 
 #include <viewport.moc>

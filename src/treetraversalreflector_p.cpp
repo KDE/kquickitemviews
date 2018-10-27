@@ -121,6 +121,9 @@ public:
                              const QModelIndex &destination, int row);
     void resetTemporaryIndices(const QList<TreeTraversalBase*>&);
 
+
+    TreeTraversalItem *lastItem() const;
+
     TreeTraversalItem* m_pRoot {new TreeTraversalItem(this)};
 
     //TODO add a circular buffer to GC the items
@@ -139,6 +142,7 @@ public:
 
     ModelRect m_lRects[3];
     ModelRect* edges(TreeTraversalReflector::EdgeType e) const;
+    void setEdge(TreeTraversalReflector::EdgeType et, TreeTraversalBase* tti, Qt::Edge e);
 
     TreeTraversalReflector* q_ptr;
 
@@ -330,17 +334,21 @@ TreeTraversalItem* TreeTraversalItem::loadDown() const
 
 bool BlockMetadata::performAction(BlockMetadata::Action a)
 {
+    Q_ASSERT(m_pTTI->m_State != TreeTraversalItem::State::ERROR);
     const int s     = (int)m_pTTI->m_State;
     m_pTTI->m_State = m_pTTI->m_fStateMap[s][(int)a];
     Q_ASSERT(m_pTTI->m_State != TreeTraversalItem::State::ERROR);
 
+    // This need to be done before calling the transition function because it
+    // can trigger another round of state change.
     if (s != (int)m_pTTI->m_State) {
         m_pTTI->d_ptr->leaveState(m_pTTI, (TreeTraversalItem::State)s);
         m_pTTI->d_ptr->enterState(m_pTTI, m_pTTI->m_State );
     }
 
     m_pTTI->m_Geometry.removeMe = (int) m_pTTI->m_State; //FIXME remove
-    bool ret        = (this->m_pTTI->*TreeTraversalItem::m_fStateMachine[s][(int)a])();
+    bool ret = (this->m_pTTI->*TreeTraversalItem::m_fStateMachine[s][(int)a])();
+
     Q_ASSERT((!m_pTTI->m_Geometry.visualItem())
         ||  m_pTTI->m_State == TreeTraversalItem::State::BUFFER
         ||  m_pTTI->m_State == TreeTraversalItem::State::VISIBLE);
@@ -376,30 +384,47 @@ bool TreeTraversalItem::show()
 {
     Q_ASSERT(m_State == State::VISIBLE);
 
+    //FIXME do this less often
+    if (down() && TTI(down())->m_Geometry.m_State.state() == GeometryCache::State::VALID)
+        d_ptr->m_pViewport->s_ptr->notifyInsert(&TTI(down())->m_Geometry);
+
     if (auto item = m_Geometry.visualItem()) {
         //item->setVisible(true);
+        Q_ASSERT(false); //TODO
     }
     else {
-        qDebug() << "CREATE" << this;
         m_Geometry.setVisualItem(d_ptr->q_ptr->d_ptr->m_fFactory()->s_ptr);
         Q_ASSERT(m_Geometry.visualItem());
         m_Geometry.visualItem()->m_pTTI = this;
+    Q_ASSERT((!down()) || TTI(down())->m_Geometry.m_State.state() != GeometryCache::State::VALID);
 
         m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::ATTACH);
         Q_ASSERT(m_Geometry.visualItem()->m_State == VisualTreeItem::State::POOLED);
         Q_ASSERT(m_State == State::VISIBLE);
+        Q_ASSERT((!m_Geometry.visualItem()->item())
+            || m_Geometry.m_State.state() == GeometryCache::State::SIZE
+        );
+    Q_ASSERT((!down()) || TTI(down())->m_Geometry.m_State.state() != GeometryCache::State::VALID);
+    Q_ASSERT((!down()) || TTI(down())->m_Geometry.m_State.state() != GeometryCache::State::VALID);
+        if (auto item = m_Geometry.visualItem()->item())
+            qDebug() << "CREATE" << this << item->y() << item->height();
     }
+    Q_ASSERT((!down()) || TTI(down())->m_Geometry.m_State.state() != GeometryCache::State::VALID);
 
     //d_ptr->_test_validateViewport(true);
     m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::ENTER_BUFFER);
     Q_ASSERT(m_State == State::VISIBLE);
     //d_ptr->_test_validateViewport(true);
     Q_ASSERT(m_Geometry.visualItem()->m_State == VisualTreeItem::State::BUFFER);
+    Q_ASSERT((!down()) || TTI(down())->m_Geometry.m_State.state() != GeometryCache::State::VALID);
 
     //d_ptr->_test_validateViewport(true);
     m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::ENTER_VIEW);
     Q_ASSERT(m_State == State::VISIBLE);
-    d_ptr->_test_validateViewport();
+    //d_ptr->_test_validateViewport();
+//     Q_ASSERT((!down()) || TTI(down())->m_Geometry.m_State.state() != GeometryCache::State::VALID);
+
+    d_ptr->m_pViewport->s_ptr->updateGeometry(&m_Geometry);
 
     // For some reason creating the visual element failed, this can and will
     // happen and need to be recovered from.
@@ -408,8 +433,43 @@ bool TreeTraversalItem::show()
         Q_ASSERT(m_State == State::VISIBLE);
         m_Geometry.setVisualItem(nullptr);
     }
+//     Q_ASSERT((!down()) || TTI(down())->m_Geometry.m_State.state() != GeometryCache::State::VALID);
+
+    if (auto item = m_Geometry.visualItem()->item())
+        qDebug() << "IN SHOW" << this << item->y() << item->height();
 
     Q_ASSERT(m_State == State::VISIBLE);
+
+//     Q_ASSERT((!down()) || TTI(down())->m_Geometry.m_State.state() != GeometryCache::State::VALID);
+
+    // Update the edges
+    if (m_State == TreeTraversalItem::State::VISIBLE) {
+        auto first = d_ptr->edges(TreeTraversalReflector::EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
+        auto prev = up();
+        auto next = down();
+        auto last = d_ptr->edges(TreeTraversalReflector::EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
+//         qDebug() << "VISIBLE!" << first << prev << tti << next << last;
+//         qDebug() << first << tti;
+//         qDebug() << last << tti;
+
+        // Make sure the geometry is up to data
+        m_Geometry.geometry();
+        Q_ASSERT(m_Geometry.m_State.state() == GeometryCache::State::VALID);
+
+        if (first == next) {
+            d_ptr->setEdge(TreeTraversalReflector::EdgeType::VISIBLE, this, Qt::TopEdge);
+        }
+
+        if (prev == last) {
+            d_ptr->setEdge(TreeTraversalReflector::EdgeType::VISIBLE, this, Qt::BottomEdge);
+        }
+
+        Q_ASSERT(this != first);
+        Q_ASSERT(this != last);
+    }
+    else
+        Q_ASSERT(false); //TODO handle failed elements
+
     d_ptr->_test_validateViewport();
 
     return true;
@@ -513,8 +573,10 @@ bool TreeTraversalItem::detach()
 //     if (e->getEdge(Qt::BottomEdge) == this)
 //         e->setEdge(down() ? down() : up(), Qt::BottomEdge);
 
+    d_ptr->m_pViewport->s_ptr->notifyRemoval(&m_Geometry);
     TreeTraversalItem::remove();
     TreeTraversalBase::remove();
+    d_ptr->m_pViewport->s_ptr->refreshVisible();
 
 
     //d_ptr->_test_validateViewport(true);
@@ -622,8 +684,9 @@ bool TreeTraversalItem::reset()
         m_Geometry.setVisualItem(nullptr);
     }
 
-    m_Geometry.setSize({});
-    m_Geometry.setPosition({});
+    m_Geometry.m_State.performAction(
+        GeometryCache::Action::RESET, nullptr, nullptr
+    );
 
     return true;
     /*return this == d_ptr->m_pRoot ?
@@ -648,14 +711,13 @@ void TreeTraversalReflector::setItemFactory(std::function<AbstractItemAdapter*()
     d_ptr->m_fFactory = factory;
 }
 
-
 void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, int first, int last)
 {
     Q_ASSERT((!parent.isValid()) || parent.model() == q_ptr->model());
 
     if (!isInsertActive(parent, first, last)) {
         _test_validateLinkedList();
-        Q_ASSERT(false); //FIXME so I can't forget when time comes
+//         Q_ASSERT(false); //FIXME so I can't forget when time comes
         return;
     }
 
@@ -675,6 +737,22 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
     if (pitem->firstChild())
         last = std::max(last, pitem->firstChild()->effectiveRow() - 1);
 
+    if (prev && prev->down()) {
+        m_pViewport->s_ptr->notifyInsert(&TTI(prev->down())->m_Geometry);
+        Q_ASSERT(TTI(prev->down())->m_Geometry.m_State.state() != GeometryCache::State::VALID);
+    }
+    else if ((!prev) && (!pitem) && m_pRoot->firstChild()) {
+        Q_ASSERT(!first);
+        Q_ASSERT(!parent.isValid());
+        m_pViewport->s_ptr->notifyInsert(&TTI(m_pRoot->firstChild())->m_Geometry);
+        Q_ASSERT(TTI(m_pRoot->firstChild())->m_Geometry.m_State.state() != GeometryCache::State::VALID);
+    }
+    else if (pitem && pitem != m_pRoot && pitem->down()) {
+        Q_ASSERT(!first);
+        m_pViewport->s_ptr->notifyInsert(&TTI(pitem->down())->m_Geometry);
+        Q_ASSERT(TTI(pitem->down())->m_Geometry.m_State.state() != GeometryCache::State::VALID);
+    }
+
     //FIXME support smaller ranges
     for (int i = first; i <= last; i++) {
         auto idx = q_ptr->model()->index(i, 0, parent);
@@ -688,6 +766,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         if (((!prev) || !prev->down()) && !(edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge)) {
             Q_ASSERT((!prev) || !prev->down());
             qDebug() << "\n\nNO SPACE LEFT";
+            m_pViewport->s_ptr->refreshVisible();
             return; //FIXME break
         }
 
@@ -698,10 +777,13 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         if (pitem->firstChild() && pitem->firstChild()->effectiveRow() == idx.row()+1) {
             Q_ASSERT(idx.parent() == pitem->firstChild()->effectiveParentIndex());
 
+//             m_pViewport->s_ptr->notifyInsert(&TTI(pitem->firstChild())->m_Geometry);
             TreeTraversalBase::insertChildBefore(e, pitem->firstChild(), pitem);
         }
-        else
+        else {
+//             m_pViewport->s_ptr->notifyInsert(&TTI(prev)->m_Geometry);
             TreeTraversalBase::insertChildAfter(e, prev, pitem); //FIXME incorrect
+        }
 
         //FIXME It can happen if the previous is out of the visible range
         Q_ASSERT( e->previousSibling() || e->nextSibling() || e->effectiveRow() == 0);
@@ -726,6 +808,9 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         // The item is about the current parent first item
         if (needUpMove) {
 //             Q_ASSERT(false); //TODO merge with the other bridgeGap above
+
+            m_pViewport->s_ptr->notifyInsert(&TTI(m_pRoot->firstChild())->m_Geometry);
+            Q_ASSERT((!m_pRoot->firstChild()) || TTI(m_pRoot->firstChild())->m_Geometry.m_State.state() != GeometryCache::State::VALID);
             TreeTraversalBase::insertChildBefore(e, nullptr, pitem);
         }
         e->parent()->_test_validate_chain();
@@ -740,10 +825,19 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 
         e->parent()->_test_validate_chain();
 
+        Q_ASSERT(e->m_Geometry.m_State.state() == GeometryCache::State::INIT);
+
+
+
+//         if (auto ne = TTI(e->down()))
+//             Q_ASSERT(ne->m_Geometry.m_State.state() != GeometryCache::State::VALID);
+
+        Q_ASSERT(e->m_State != TreeTraversalItem::State::VISIBLE);
+
         // NEW -> REACHABLE, this should never fail
         if (!e->m_Geometry.performAction(BlockMetadata::Action::ATTACH)) {
-            _test_validateLinkedList();
             qDebug() << "\n\nATTACH FAILED";
+            _test_validateLinkedList();
             break;
         }
 
@@ -756,8 +850,12 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         Q_ASSERT((!pitem->lastChild()) || !pitem->lastChild()->hasTemporaryIndex()); //TODO
 
         if (needDownMove) {
-            if (auto ne = TTI(e->down()))
+            if (auto ne = TTI(e->down())) {
+                Q_ASSERT(ne->m_Geometry.m_State.state() != GeometryCache::State::VALID);
+
                 ne->m_Geometry.performAction(BlockMetadata::Action::MOVE);
+                Q_ASSERT(ne->m_Geometry.m_State.state() != GeometryCache::State::VALID);
+            }
         }
 
         int rc = q_ptr->model()->rowCount(idx);
@@ -772,14 +870,13 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
             Q_ASSERT(e == pitem->down());
         }
 
-        if (first == last)
-            _test_validateLinkedList();
-
         prev = e;
-
     }
 
+    m_pViewport->s_ptr->refreshVisible();
+
     _test_validateLinkedList();
+    pitem->_test_validate_chain();
 
     // Fix the linked list
 //     if (oldFirst && prev && prev->effectiveRow() < oldFirst->effectiveRow()) {
@@ -797,9 +894,6 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 
     Q_ASSERT(pitem->lastChild());
 
-    pitem->_test_validate_chain();
-    _test_validateLinkedList();
-
 
     //FIXME use down()
 //     if (q_ptr->model()->rowCount(parent) > last) {
@@ -814,8 +908,6 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 // //         else //FIXME it happens
 // //             Q_ASSERT(false);
 //     }
-
-    _test_validateLinkedList();
 
     Q_EMIT q_ptr->contentChanged();
 
@@ -948,7 +1040,7 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
     auto endTTI   = ttiForIndex(idxEnd);
 
     if (end - start == 1)
-        Q_ASSERT(startTTI->nextSibling() ==endTTI);
+        Q_ASSERT(startTTI->nextSibling() == endTTI);
 
     //FIXME so I don't forget, it will mess things up if silently ignored
     Q_ASSERT(startTTI && endTTI);
@@ -1030,8 +1122,16 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
             newNextTTI->m_State == TreeTraversalItem::State::VISIBLE);
 
     for (auto item : qAsConst(tmp2)) {
+        m_pViewport->s_ptr->notifyRemoval(&TTI(item)->m_Geometry);
         item->TreeTraversalBase::remove();
+        m_pViewport->s_ptr->refreshVisible();
+
+//     _test_validateLinkedList();
         TreeTraversalBase::insertChildBefore(item, dest, newParentTTI);
+//     _test_validateLinkedList();
+        if (dest)
+            m_pViewport->s_ptr->notifyInsert(&TTI(dest)->m_Geometry);
+//     _test_validateLinkedList();
         dest = item;
         if (isRangeVisible)
             TTI(item)->m_Geometry.performAction(BlockMetadata::Action::SHOW);
@@ -1039,11 +1139,9 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
 
     _test_validate_move(newParentTTI, startTTI, endTTI, newPrevTTI, newNextTTI, row);
 
-    // Move everything
-    //TODO move it more efficient
-    //m_pRoot->m_Geometry.performAction(BlockMetadata::Action::MOVE);
-
     resetTemporaryIndices(tmp);
+    m_pViewport->s_ptr->refreshVisible();
+//     _test_validateLinkedList();
 }
 
 QAbstractItemModel* TreeTraversalReflector::model() const
@@ -1173,6 +1271,7 @@ void TreeTraversalReflectorPrivate::populate()
 
 void TreeTraversalReflectorPrivate::trim()
 {
+    return;
 //     QTimer::singleShot(0, [this]() {
 //         if (m_TrackingState != TreeTraversalReflector::TrackingState::TRACKING)
 //             return;
@@ -1204,6 +1303,26 @@ void TreeTraversalReflectorPrivate::trim()
 //             elem = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge));
 //         }
 //     });
+
+
+    // Unload everything below the cache area to get rid of the insertion/moving
+    // overhead. Not doing so would also require to handle "holes" in the tree
+    // which is very complex and unnecessary.
+    TreeTraversalBase *be = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge)); //TODO use BUFFERED
+    qDebug() << "TRIM" << be;
+
+    if (!be)
+        return;
+
+    TreeTraversalBase *item = lastItem();
+
+    if (be == item)
+        return;
+
+    do {
+        qDebug() << "DEWTAC" << be << item;
+        TTI(item)->m_Geometry.performAction(BlockMetadata::Action::DETACH);
+    } while((item = item->up()) != be);
 }
 
 void TreeTraversalReflectorPrivate::fill()
@@ -1225,26 +1344,7 @@ void TreeTraversalReflectorPrivate::error()
 void TreeTraversalReflectorPrivate::enterState(TreeTraversalItem* tti, TreeTraversalItem::State s)
 {
     qDebug() << "ENTER STATE!!";
-    if (s == TreeTraversalItem::State::VISIBLE) {
-        auto first = edges(TreeTraversalReflector::EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
-        auto prev = tti->up();
-        auto next = tti->down();
-        auto last = edges(TreeTraversalReflector::EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
-//         qDebug() << "VISIBLE!" << first << prev << tti << next << last;
-//         qDebug() << first << tti;
-//         qDebug() << last << tti;
 
-        if (first == next) {
-            edges(TreeTraversalReflector::EdgeType::VISIBLE)->setEdge(tti, Qt::TopEdge);
-        }
-
-        if (prev == last) {
-            edges(TreeTraversalReflector::EdgeType::VISIBLE)->setEdge(tti, Qt::BottomEdge);
-        }
-
-        Q_ASSERT(tti != first);
-        Q_ASSERT(tti != last);
-    }
 
 //     _test_validate_edges();
 }
@@ -1265,14 +1365,14 @@ void TreeTraversalReflectorPrivate::leaveState(TreeTraversalItem *tti, TreeTrave
         auto next = TTI(tti->down());
 
         if (tti == first)
-            edges(TreeTraversalReflector::EdgeType::VISIBLE)->setEdge(
+            setEdge(TreeTraversalReflector::EdgeType::VISIBLE,
                 (next && next->m_State == TreeTraversalItem::State::VISIBLE) ?
                     next : nullptr,
                 Qt::TopEdge
             );
 
         if (tti == last)
-            edges(TreeTraversalReflector::EdgeType::VISIBLE)->setEdge(
+            setEdge(TreeTraversalReflector::EdgeType::VISIBLE,
                 (prev && prev->m_State == TreeTraversalItem::State::VISIBLE) ?
                     prev : nullptr,
                 Qt::BottomEdge
@@ -1306,8 +1406,20 @@ void TreeTraversalReflector::setModel(QAbstractItemModel* m)
         return;
 }
 
+TreeTraversalItem *TreeTraversalReflectorPrivate::lastItem() const
+{
+    auto candidate = m_pRoot->lastChild();
+
+    while (candidate && candidate->lastChild())
+        candidate = candidate->lastChild();
+
+    return TTI(candidate);
+}
+
 bool TreeTraversalReflectorPrivate::isInsertActive(const QModelIndex& p, int first, int last) const
 {
+    return true; //TODO solve all the problems later
+
     if (edges(EdgeType::FREE)->m_Edges & (Qt::TopEdge|Qt::BottomEdge))
         return true;
 
@@ -1517,6 +1629,11 @@ BlockMetadata *BlockMetadata::right() const
     return i ? &i->m_Geometry : nullptr;
 }
 
+bool BlockMetadata::isTopItem() const
+{
+    return m_pTTI == m_pTTI->d_ptr->m_pRoot->firstChild();
+}
+
 BlockMetadata *TreeTraversalReflector::getEdge(EdgeType t, Qt::Edge e) const
 {
     auto ret = TTI(d_ptr->edges(t)->getEdge(e));
@@ -1537,6 +1654,16 @@ ModelRect* TreeTraversalReflectorPrivate::edges(TreeTraversalReflector::EdgeType
 {
     Q_ASSERT((int) e >= 0 && (int)e <= 2);
     return (ModelRect*) &m_lRects[(int)e]; //FIXME use reference, not ptr
+}
+
+// Add more validation to detect possible invalid edges being set
+void TreeTraversalReflectorPrivate::
+setEdge(TreeTraversalReflector::EdgeType et, TreeTraversalBase* tti, Qt::Edge e)
+{
+    if (et == TreeTraversalReflector::EdgeType::VISIBLE)
+        Q_ASSERT(TTI(tti)->m_Geometry.m_State.state() == GeometryCache::State::VALID);
+
+    edges(et)->setEdge(tti, e);
 }
 
 #include <treetraversalreflector_p.moc>

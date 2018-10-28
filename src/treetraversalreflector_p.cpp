@@ -1296,7 +1296,11 @@ void TreeTraversalReflectorPrivate::populate()
 {
     Q_ASSERT(m_pModel);
 
-    qDebug() << "\n\nPOPULATE!" << edges(EdgeType::FREE)->m_Edges;
+    qDebug() << "\n\nPOPULATE!" << edges(EdgeType::FREE)->m_Edges << (edges(EdgeType::FREE));
+
+    if (!edges(EdgeType::FREE)->m_Edges)
+        return;
+
     if (m_pRoot->firstChild() && (edges(EdgeType::FREE)->m_Edges & (Qt::TopEdge|Qt::BottomEdge))) {
         //Q_ASSERT(edges(EdgeType::FREE)->getEdge(Qt::TopEdge));
 

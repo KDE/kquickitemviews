@@ -11,9 +11,9 @@
 
 void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItem* p)
 {
-#ifdef QT_NO_DEBUG_OUTPUT
+// #ifdef QT_NO_DEBUG_OUTPUT
     return;
-#endif
+// #endif
 
     // The asserts below only work on valid models with valid delegates.
     // If those conditions are not met, it *could* work anyway, but cannot be
@@ -88,6 +88,7 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItem* p)
     const auto children = p->allLoadedChildren();
 
     for (auto i : qAsConst(children)) {
+        Q_ASSERT(i->parent() == p);
         TreeTraversalItem *item = TTI(i);
         if ((!newest) || i->effectiveRow() < newest->effectiveRow())
             newest = TTI(item);
@@ -124,6 +125,7 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItem* p)
             Q_ASSERT(next != item);
 
             if (next->effectiveParentIndex() == item->effectiveParentIndex()) {
+                volatile int c = m_pModel->rowCount(item->index());
                 Q_ASSERT(!m_pModel->rowCount(item->index()));
             }
         }
@@ -186,6 +188,9 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItem* p)
 
 void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState)
 {
+// #ifdef QT_NO_DEBUG_OUTPUT
+    return;
+// #endif
     _test_validateTree(m_pRoot);
 
     if (!m_pRoot->firstChild()) {
@@ -323,7 +328,9 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
 
 void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)
 {
+// #ifdef QT_NO_DEBUG_OUTPUT
     return;
+// #endif
     _test_validateLinkedList(skipVItemState);
     int activeCount = 0;
 
@@ -381,7 +388,9 @@ void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)
 
 void TreeTraversalBase::_test_validate_chain() const
 {
+// #ifdef QT_NO_DEBUG_OUTPUT
     return;
+// #endif
     auto p = this; //FIXME due to refactor
 
     int count = 0;
@@ -436,7 +445,9 @@ void TreeTraversalReflectorPrivate::_test_validate_move(TreeTraversalBase* paren
                                                         TreeTraversalBase* newNextTTI,
                                                         int row)
 {
+// #ifdef QT_NO_DEBUG_OUTPUT
     return;
+// #endif
     Q_ASSERT((newPrevTTI || startTTI) && newPrevTTI != startTTI);
     Q_ASSERT((newNextTTI || endTTI  ) && newNextTTI != endTTI  );
 

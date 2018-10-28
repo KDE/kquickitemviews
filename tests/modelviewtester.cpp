@@ -69,6 +69,10 @@ ModelViewTester::ModelViewTester(QObject* parent)
     // Remove
     DO(removeRoot);
     DO(resetModel);
+
+    // LargeModel
+    DO(largeFrontTree);
+
 }
 
 ModelViewTester::~ModelViewTester()
@@ -408,6 +412,36 @@ void ModelViewTester::removeRoot()
 void ModelViewTester::resetModel()
 {
     beginResetModel();
+    qDeleteAll(m_pRoot->m_lChildren);
     m_pRoot->m_lChildren.clear();
     endResetModel();
+}
+
+void ModelViewTester::largeFrontTree()
+{
+    for (int i = 0; i < 100; i++) {
+        beginInsertRows({}, 0, 0);
+
+        QHash<int, QVariant> vals = {
+            {Qt::DisplayRole, "inserted root 1"},
+            {Qt::UserRole, 0}
+        };
+
+        auto itm = new ModelViewTesterItem(m_pRoot, vals, 0);
+
+        endInsertRows();
+
+        auto p = createIndex(0, 0, itm);
+
+        beginInsertRows(p, 0, 4);
+        for (int j = 0; j < 5; j++) {
+            QHash<int, QVariant> vals2 = {
+                {Qt::DisplayRole, "children "+QString::number(j)},
+                {Qt::UserRole, 0}
+            };
+
+            new ModelViewTesterItem(itm, vals2, 0);
+        }
+        endInsertRows();
+    }
 }

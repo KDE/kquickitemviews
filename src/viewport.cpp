@@ -601,8 +601,24 @@ void ViewportSync::refreshVisible()
     // rowsMoved moves a previously unloaded item to the front, this information
     // will be lost.
     if (prev && prev->m_State.state() != GeometryCache::State::VALID) {
-        Q_ASSERT(prev->isTopItem()); //TODO there is more
-        prev->m_State.setPosition({0.0, 0.0});
+
+        // This is the slow path, it can be /very/ slow. Possible mitigation
+        // include adding more lower level methods to never lose track of the
+        // list state, but this makes everything more (too) complex. Another
+        // better solution is more aggressive unloading to the list becomes
+        // smaller.
+        if (!prev->isTopItem()) {
+            qDebug() << "Slow path";
+            //FIXME this is slow
+            auto i = prev;
+            while((i = i->up()) && i && i->m_State.state() != GeometryCache::State::VALID);
+            Q_ASSERT(i);
+
+            while ((i = i->down()) != item)
+                i->geometry();
+        }
+        else
+            prev->m_State.setPosition({0.0, 0.0});
     }
 
     const bool hasSingleItem = item == bve;

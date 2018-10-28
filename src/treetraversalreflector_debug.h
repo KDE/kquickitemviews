@@ -289,7 +289,7 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
 // //             qDebug() << "BOO" << cur->index().row() << geo.y() << maxX;
             // Prevent accidental overlapping until a view with on-purpose
             // overlapping exists
-            Q_ASSERT(geo.y() >= maxY); // The `=` because it starts at 0
+//             Q_ASSERT(geo.y() >= maxY); // The `=` because it starts at 0
 //             Q_ASSERT(cur->m_Geometry.visualItem()->item()->y() >= maxY); // The `=` because it starts at 0
 //             Q_ASSERT(cur->m_Geometry.visualItem()->item()->y() == cur->m_Geometry.geometry().y());
 

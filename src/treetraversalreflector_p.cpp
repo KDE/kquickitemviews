@@ -121,6 +121,7 @@ public:
                              const QModelIndex &destination, int row);
     void resetTemporaryIndices(const QList<TreeTraversalBase*>&);
 
+    void reloadEdges();
 
     TreeTraversalItem *lastItem() const;
 
@@ -760,14 +761,14 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         Q_ASSERT(idx.parent() != idx);
         Q_ASSERT(idx.model() == q_ptr->model());
 
-        // If the insertion is sandwitched between loaded items, not doing it
+        // If the insertion is sandwiched between loaded items, not doing it
         // will corrupt the view, but if it's a "tail" insertion, then they
         // can be discarded.
         if (((!prev) || !prev->down()) && !(edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge)) {
-            Q_ASSERT((!prev) || !prev->down());
-            qDebug() << "\n\nNO SPACE LEFT";
-            m_pViewport->s_ptr->refreshVisible();
-            return; //FIXME break
+//             Q_ASSERT((!prev) || !prev->down());
+//             qDebug() << "\n\nNO SPACE LEFT";
+//             m_pViewport->s_ptr->refreshVisible();
+//             return; //FIXME break
         }
 
         auto e = addChildren(pitem, idx);
@@ -1121,17 +1122,26 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
         newPrevTTI->m_State == TreeTraversalItem::State::VISIBLE) || (newNextTTI &&
             newNextTTI->m_State == TreeTraversalItem::State::VISIBLE);
 
+    const auto topEdge    = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge));
+    const auto bottomEdge = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge));
+
+    bool needRefreshVisibleTop    = false;
+    bool needRefreshVisibleBottom = false;
+    bool needRefreshBufferTop     = false; //TODO
+    bool needRefreshBufferBottom  = false; //TODO
+
     for (auto item : qAsConst(tmp2)) {
+        needRefreshVisibleTop    |= item != topEdge;
+        needRefreshVisibleBottom |= item != bottomEdge;
+
         m_pViewport->s_ptr->notifyRemoval(&TTI(item)->m_Geometry);
         item->TreeTraversalBase::remove();
-        m_pViewport->s_ptr->refreshVisible();
 
-//     _test_validateLinkedList();
         TreeTraversalBase::insertChildBefore(item, dest, newParentTTI);
-//     _test_validateLinkedList();
+
         if (dest)
             m_pViewport->s_ptr->notifyInsert(&TTI(dest)->m_Geometry);
-//     _test_validateLinkedList();
+
         dest = item;
         if (isRangeVisible)
             TTI(item)->m_Geometry.performAction(BlockMetadata::Action::SHOW);
@@ -1141,7 +1151,62 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
 
     resetTemporaryIndices(tmp);
     m_pViewport->s_ptr->refreshVisible();
+
+    // The visible edges are now probably incorectly placed, reload them
+        if (needRefreshVisibleTop || needRefreshVisibleBottom) {
+        reloadEdges();
+        m_pViewport->s_ptr->refreshVisible();
+    }
 //     _test_validateLinkedList();
+}
+
+// Go O(N) for now. Optimize when it becomes a problem (read: soon)
+void TreeTraversalReflectorPrivate::reloadEdges()
+{
+    enum Range : uint16_t {
+        TOP            = 0x0 << 0,
+        BUFFER_TOP     = 0x1 << 0,
+        VISIBLE        = 0x1 << 1,
+        BUFFER_BOTTOM  = 0x1 << 2,
+        BOTTOM         = 0x1 << 3,
+        IS_VISIBLE     = 0x1 << 4,
+        IS_NOT_VISIBLE = 0x1 << 5,
+        IS_BUFFER      = 0x1 << 6,
+        IS_NOT_BUFFER  = 0x1 << 7,
+    };
+
+    Range pos = Range::TOP;
+
+    for (auto item = m_pRoot->firstChild(); item; item = item->down()) {
+        const uint16_t isVisible = TTI(item)->m_State == TreeTraversalItem::State::VISIBLE ?
+            IS_VISIBLE : IS_NOT_VISIBLE;
+        const uint16_t isBuffer  = TTI(item)->m_State == TreeTraversalItem::State::BUFFER  ?
+            IS_BUFFER : IS_NOT_BUFFER;
+
+        switch(pos | isVisible | isBuffer) {
+            case Range::TOP    | Range::IS_BUFFER:
+                pos = Range::BUFFER_TOP;
+                setEdge(TreeTraversalReflector::EdgeType::BUFFERED, item, Qt::TopEdge);
+                break;
+            case Range::TOP        | Range::IS_VISIBLE:
+            case Range::BUFFER_TOP | Range::IS_VISIBLE:
+                pos = Range::VISIBLE;
+                setEdge(TreeTraversalReflector::EdgeType::VISIBLE, item, Qt::TopEdge);
+                break;
+            case Range::VISIBLE | Range::IS_NOT_VISIBLE:
+            case Range::VISIBLE | Range::IS_NOT_BUFFER:
+                setEdge(TreeTraversalReflector::EdgeType::VISIBLE, item->up(), Qt::BottomEdge);
+                pos = Range::BOTTOM;
+                break;
+            case Range::VISIBLE | Range::IS_NOT_VISIBLE | Range::IS_BUFFER:
+                pos = Range::BUFFER_BOTTOM;
+                break;
+            case Range::VISIBLE | Range::IS_NOT_BUFFER | Range::IS_NOT_VISIBLE:
+                setEdge(TreeTraversalReflector::EdgeType::BUFFERED, item->up(), Qt::BottomEdge);
+                pos = Range::BOTTOM;
+                break;
+        }
+    }
 }
 
 QAbstractItemModel* TreeTraversalReflector::model() const
@@ -1660,7 +1725,7 @@ ModelRect* TreeTraversalReflectorPrivate::edges(TreeTraversalReflector::EdgeType
 void TreeTraversalReflectorPrivate::
 setEdge(TreeTraversalReflector::EdgeType et, TreeTraversalBase* tti, Qt::Edge e)
 {
-    if (et == TreeTraversalReflector::EdgeType::VISIBLE)
+    if (tti && et == TreeTraversalReflector::EdgeType::VISIBLE)
         Q_ASSERT(TTI(tti)->m_Geometry.m_State.state() == GeometryCache::State::VALID);
 
     edges(et)->setEdge(tti, e);

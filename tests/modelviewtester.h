@@ -75,6 +75,10 @@ public Q_SLOTS:
     void resetModel();
 
     void largeFrontTree();
+    void removeLargeTree();
+    void removeLargeTree2();
+    void largeFrontTree2();
+    void removeLargeTree3();
 
 private:
     ModelViewTesterItem* m_pRoot;

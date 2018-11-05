@@ -610,15 +610,25 @@ bool AbstractItemAdapter::isCollapsed() const
 
 bool BlockMetadata::isInSync() const
 {
-    if (m_State.state() != GeometryCache::State::VALID)
+    if (m_State.state() != GeometryCache::State::VALID) {
+        qDebug() << "INVALID";
         return false;
+    }
 
     const auto item = visualItem()->item();
 
-    if (!item)
-        return false;
+    // If it got that far, then it's probably not going to load, trying to fix
+    // that should be done elsewhere. Lets just assume a null delegate.
+    if (!item) {
+        qDebug() << "NO ITEM";
+        return true;
+    }
 
     const auto geo = m_State.geometry();
+
+    qDebug() << "SYNC" << (item->y() == geo.y())
+        << (item->x() == geo.x()) << (item->width() == geo.width())
+        << (item->height() == geo.height());
 
     return item->y() == geo.y()
         && item->x() == geo.x()

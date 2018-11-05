@@ -70,8 +70,13 @@ ModelViewTester::ModelViewTester(QObject* parent)
     DO(removeRoot);
     DO(resetModel);
 
-    // LargeModel
+    // Larger tree
     DO(largeFrontTree);
+    DO(removeLargeTree);
+    DO(removeLargeTree2);
+    DO(largeFrontTree2);
+    DO(removeLargeTree2);
+    DO(removeLargeTree3);
 
 }
 
@@ -441,6 +446,68 @@ void ModelViewTester::largeFrontTree()
             };
 
             new ModelViewTesterItem(itm, vals2, 0);
+        }
+        endInsertRows();
+    }
+}
+
+// Test removing elements when some are out of view
+void ModelViewTester::removeLargeTree()
+{
+    for (int i = 0; i < 100; i++) {
+        auto parent = m_pRoot->m_lChildren[i];
+        auto idx = createIndex(i, 0, parent);
+
+        beginRemoveRows(idx, 3, 3);
+        delete parent->m_lChildren[3];
+        parent->m_lChildren.remove(3);
+        endRemoveRows();
+    }
+}
+
+// Test removing multiple item at once with out-of-view
+void ModelViewTester::removeLargeTree2()
+{
+    for (int i = 0; i < 100; i++) {
+        auto parent = m_pRoot->m_lChildren[i];
+        const int s =  parent->m_lChildren.size();
+        auto idx = createIndex(i, 0, parent);
+
+        beginRemoveRows(idx, 0, s);
+        for (int j = 0; j < s; j++)
+            delete parent->m_lChildren[j];
+        parent->m_lChildren.clear();
+        endRemoveRows();
+    }
+}
+
+// Test removing out-of-view item until the viewport is empty
+void ModelViewTester::removeLargeTree3()
+{
+    while (m_pRoot->m_lChildren.size()) {
+        const int pos = m_pRoot->m_lChildren.size()/2;
+        beginRemoveRows({}, pos, pos);
+        delete m_pRoot->m_lChildren[pos];
+        m_pRoot->m_lChildren.remove(pos);
+        endRemoveRows();
+    }
+}
+
+// Insert more items that can fit in the view
+void ModelViewTester::largeFrontTree2()
+{
+    for (int i = 0; i < 100; i++) {
+        auto parent = m_pRoot->m_lChildren[i];
+        auto idx = createIndex(i, 0, parent);
+
+        beginInsertRows(idx, 0, 19);
+        for (int j = 0; j < 20; j++) {
+            QHash<int, QVariant> vals = {
+                {Qt::DisplayRole, "children v2 "+QString::number(j)},
+                {Qt::UserRole, 0}
+            };
+
+            new ModelViewTesterItem(parent, vals, 0);
         }
         endInsertRows();
     }

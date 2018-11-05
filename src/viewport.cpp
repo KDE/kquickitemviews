@@ -487,15 +487,30 @@ void ViewportPrivate::updateAvailableEdges()
     bool tveValid = tve && tve->m_State.state() == GeometryCache::State::VALID;
     bool bveValid = bve && bve->m_State.state() == GeometryCache::State::VALID;
 
-    if ((!tve) || (tveValid && m_ViewRect.intersects(tve->geometry())))
+    // Given 42x0 sized item are possible. However just "fixing" this by adding
+    // a minimum size wont help because it will trigger the out of sync view
+    // correction in an infinite loop.
+    QRectF tvg(tve?tve->geometry():QRectF()), bvg(bve?bve->geometry():QRectF());
+
+    const auto fixedIntersect = [](bool valid, QRectF& vp, QRectF& geo) -> bool {
+        return vp.intersects(geo) || (
+            geo.y() >= vp.y() && geo.height() == 0 && geo.y() <= vp.y() + geo.height()
+        );
+    };
+
+    if ((!tve) || fixedIntersect(tveValid, m_ViewRect, tvg))
         available |= Qt::TopEdge;
 
-    if ((!bve) || (bveValid && m_ViewRect.intersects(bve->geometry())))
+    if ((!bve) || fixedIntersect(bveValid, m_ViewRect, bvg))
         available |= Qt::BottomEdge;
+
+    qDebug() << "=====" << (bool)(available & Qt::TopEdge)
+        << (bool)(available & Qt::BottomEdge) << tvg << bvg;
 
     m_pReflector->setAvailableEdges(
         available, TreeTraversalReflector::EdgeType::FREE
     );
+
     m_pReflector->setAvailableEdges(
         available, TreeTraversalReflector::EdgeType::VISIBLE
     );
@@ -632,7 +647,7 @@ void ViewportSync::refreshVisible()
 
         if (!item->isInSync())
             item->performAction(BlockMetadata::Action::MOVE);
-        qDebug() << "R" << item << item->down();
+//         qDebug() << "R" << item << item->down();
 
     } while((!hasSingleItem) && item->up() != bve && (item = item->down()));
 }
@@ -646,20 +661,20 @@ void ViewportSync::notifyInsert(BlockMetadata* item)
         TreeTraversalReflector::EdgeType::VISIBLE, Qt::BottomEdge
     );
 
-    qDebug() << "START" << item;
+//     qDebug() << "START" << item;
     //FIXME this is also horrible
     do {
         if (item == bve) {
             item->m_State.performAction(
                 GeometryCache::Action::MOVE, nullptr, nullptr
             );
-            qDebug() << "BREAK1" << item << item->m_pTTI << (item->down() != nullptr? (int) item->down()->m_State.state() : -1);
+//             qDebug() << "BREAK1" << item << item->m_pTTI << (item->down() != nullptr? (int) item->down()->m_State.state() : -1);
             break;
         }
 
         if (item->m_State.state() != GeometryCache::State::VALID &&
           item->m_State.state() != GeometryCache::State::POSITION) {
-            qDebug() << "BREAK2";
+//             qDebug() << "BREAK2";
             break;
         }
 
@@ -668,7 +683,7 @@ void ViewportSync::notifyInsert(BlockMetadata* item)
         );
 
         Q_ASSERT(item->m_State.state() != GeometryCache::State::VALID);
-        qDebug() << "ONE" << (int) item->m_State.state();
+//         qDebug() << "ONE" << (int) item->m_State.state();
     } while((item = item->down()));
 }
 

@@ -122,6 +122,7 @@ public:
     void resetTemporaryIndices(const QList<TreeTraversalBase*>&);
 
     void reloadEdges();
+    void resetEdges();
 
     TreeTraversalItem *lastItem() const;
 
@@ -265,6 +266,31 @@ TreeTraversalItem* TreeTraversalItem::loadUp() const
 
     //TODO load more than 1 at a time (probably std::max(remaining, buffer)
     if (auto row = effectiveRow()) {
+
+        // It will only work if the parent is already loaded. In the worst
+        // case scenario, "up" is the only children of an item whose own parent
+        // only has one children and so on for an undefined number of depth
+        // iterations.
+        const auto pidx = effectiveParentIndex();
+        auto cur = pidx;
+
+        QVector<QModelIndex> rewind;
+
+        while (cur.isValid()) {
+            auto pitem = d_ptr->m_hMapper.value(cur);
+
+            if (pitem)
+                break;
+
+            rewind << cur;
+            cur = cur.parent();
+        }
+
+        // Load each parents
+        for (auto parIdx : qAsConst(rewind)) {
+            d_ptr->slotRowsInserted(parIdx.parent(), parIdx.row(), parIdx.row());
+        }
+
         d_ptr->slotRowsInserted(effectiveParentIndex(), row-1, row-1);
         d_ptr->_test_validateViewport();
 
@@ -622,12 +648,14 @@ bool TreeTraversalItem::move()
     for (auto i = TTI(firstChild()); i; i = TTI(i->nextSibling())) {
         Q_ASSERT(i);
         Q_ASSERT(i != this);
+        qDebug() << "MOVE CHILD" << i;
         i->m_Geometry.performAction(BlockMetadata::Action::MOVE);
 
         if (i == lastChild())
             break;
     }
 
+    qDebug() << "MOVE" << this;
     //FIXME this if should not exists, this should be handled by the state
     // machine.
     if (m_Geometry.visualItem()) {
@@ -716,13 +744,23 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 {
     Q_ASSERT((!parent.isValid()) || parent.model() == q_ptr->model());
 
+    qDebug() << "IN SOLT ROWS INSERTED!" << first << last << parent;
     if (!isInsertActive(parent, first, last)) {
         _test_validateLinkedList();
+        qDebug() << "INACTIVE, BYE" << parent << first << last;
 //         Q_ASSERT(false); //FIXME so I can't forget when time comes
         return;
     }
 
     auto pitem = parent.isValid() ? m_hMapper.value(parent) : m_pRoot;
+
+    //FIXME it is possible if the anchor is at the bottom that the parent
+    // needs to be loaded
+    if (!pitem) {
+        qDebug() << "NO PARENT, BYE";
+        return;
+    }
+
     Q_ASSERT((!pitem->firstChild()) || pitem->lastChild());
 
     TreeTraversalItem *prev(nullptr);
@@ -757,18 +795,20 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
     //FIXME support smaller ranges
     for (int i = first; i <= last; i++) {
         auto idx = q_ptr->model()->index(i, 0, parent);
-        Q_ASSERT(idx.isValid());
-        Q_ASSERT(idx.parent() != idx);
-        Q_ASSERT(idx.model() == q_ptr->model());
+        Q_ASSERT(idx.isValid() && idx.parent() != idx && idx.model() == q_ptr->model());
 
         // If the insertion is sandwiched between loaded items, not doing it
         // will corrupt the view, but if it's a "tail" insertion, then they
         // can be discarded.
-        if (((!prev) || !prev->down()) && !(edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge)) {
-//             Q_ASSERT((!prev) || !prev->down());
-//             qDebug() << "\n\nNO SPACE LEFT";
-//             m_pViewport->s_ptr->refreshVisible();
-//             return; //FIXME break
+        if (!(edges(EdgeType::FREE)->m_Edges & (Qt::BottomEdge | Qt::TopEdge))) {
+
+            qDebug() << "\n\nNO SPACE LEFT" << prev
+                << (prev && prev->down() ? "down" : "nodown")
+                << (bool) (edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge)
+                << (bool) (edges(EdgeType::FREE)->m_Edges & Qt::TopEdge);
+
+            m_pViewport->s_ptr->refreshVisible();
+            return; //FIXME break
         }
 
         auto e = addChildren(pitem, idx);
@@ -816,19 +856,9 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         }
         e->parent()->_test_validate_chain();
 
-        // Do this before ATTACH to make sure the daisy-chaining is valid in
-        // case it is used.
-//         if (needDownMove) {
-//             Q_ASSERT(pitem != e);
-//             pitem->m_tChildren[LAST] = e;
-//             Q_ASSERT(!e->nextSibling());
-//         }
-
         e->parent()->_test_validate_chain();
 
         Q_ASSERT(e->m_Geometry.m_State.state() == GeometryCache::State::INIT);
-
-
 
 //         if (auto ne = TTI(e->down()))
 //             Q_ASSERT(ne->m_Geometry.m_State.state() != GeometryCache::State::VALID);
@@ -879,37 +909,6 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
     _test_validateLinkedList();
     pitem->_test_validate_chain();
 
-    // Fix the linked list
-//     if (oldFirst && prev && prev->effectiveRow() < oldFirst->effectiveRow()) {
-//         Q_ASSERT(!oldFirst->previousSibling());
-//         Q_ASSERT(oldFirst->effectiveRow() == prev->effectiveRow() + 1);
-//         Q_ASSERT(prev->nextSibling() ==oldFirst);
-//
-//         oldFirst->previousSibling() = prev;
-//     }
-
-//     if ((!pitem->lastChild()) || last > pitem->lastChild()->effectiveRow()) {
-//         pitem->m_tChildren[LAST] = prev;
-//         Q_ASSERT((!prev) || !prev->nextSibling());
-//     }
-
-    Q_ASSERT(pitem->lastChild());
-
-
-    //FIXME use down()
-//     if (q_ptr->model()->rowCount(parent) > last) {
-//         //detachUntil;
-//         if (!prev) {
-//
-//         }
-//         else if (auto i = pitem->childrenLookup(q_ptr->model()->index(last+1, 0, parent))) {
-//             i->m_tSiblings[PREVIOUS] = prev;
-//             prev->m_tSiblings[NEXT] = i;
-//         }
-// //         else //FIXME it happens
-// //             Q_ASSERT(false);
-//     }
-
     Q_EMIT q_ptr->contentChanged();
 
     if (!parent.isValid())
@@ -928,6 +927,9 @@ void TreeTraversalReflectorPrivate::slotRowsRemoved(const QModelIndex& parent, i
     }
 
     auto pitem = parent.isValid() ? m_hMapper.value(parent) : m_pRoot;
+
+    if (!pitem)
+        return;
 
     //TODO make sure the state machine support them
     //TreeTraversalItem *prev(nullptr), *next(nullptr);
@@ -1160,6 +1162,16 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
 //     _test_validateLinkedList();
 }
 
+void TreeTraversalReflectorPrivate::resetEdges()
+{
+    for (int i = 0; i <= (int) TreeTraversalReflector::EdgeType::BUFFERED; i++) {
+        setEdge((TreeTraversalReflector::EdgeType)i, nullptr, Qt::BottomEdge);
+        setEdge((TreeTraversalReflector::EdgeType)i, nullptr, Qt::TopEdge   );
+        setEdge((TreeTraversalReflector::EdgeType)i, nullptr, Qt::LeftEdge  );
+        setEdge((TreeTraversalReflector::EdgeType)i, nullptr, Qt::RightEdge );
+    }
+}
+
 // Go O(N) for now. Optimize when it becomes a problem (read: soon)
 void TreeTraversalReflectorPrivate::reloadEdges()
 {
@@ -1258,7 +1270,9 @@ void TreeTraversalReflectorPrivate::free()
 
 void TreeTraversalReflectorPrivate::reset()
 {
+    qDebug() << "RESET";
     m_pRoot->m_Geometry.performAction(BlockMetadata::Action::RESET);
+    resetEdges();
 }
 
 void TreeTraversalReflectorPrivate::untrack()

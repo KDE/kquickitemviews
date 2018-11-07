@@ -112,11 +112,6 @@ protected:
     // are implemented independently.
     void setSelectionAdapter(SelectionAdapter* v);
 
-    // Rather then scope-creeping this class, all methods and logic related
-    // to keeping the QQmlContext object in sync with the model are delegated
-    // to this class.
-    void setContextAdapterFactory(ContextAdapterFactory* rm);
-
 Q_SIGNALS:
     void modelAboutToChange(QAbstractItemModel* m, QAbstractItemModel* old);
     void modelChanged(QAbstractItemModel* m, QAbstractItemModel* old);

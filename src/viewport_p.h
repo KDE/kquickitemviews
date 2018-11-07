@@ -124,6 +124,11 @@ public:
     void notifyInsert(BlockMetadata* item);
 
     /**
+     * From the model when the QModelIndex role change
+     */
+    void notifyChange(BlockMetadata* item);
+
+    /**
      * Manually trigger the sizes and positions to be updated.
      */
     void refreshVisible();

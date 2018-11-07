@@ -432,7 +432,7 @@ bool TreeTraversalItem::show()
             || m_Geometry.m_State.state() == GeometryCache::State::SIZE
         );
     Q_ASSERT((!down()) || TTI(down())->m_Geometry.m_State.state() != GeometryCache::State::VALID);
-    Q_ASSERT((!down()) || TTI(down())->m_Geometry.m_State.state() != GeometryCache::State::VALID);
+
         if (auto item = m_Geometry.visualItem()->item())
             qDebug() << "CREATE" << this << item->y() << item->height();
     }
@@ -660,8 +660,11 @@ bool TreeTraversalItem::move()
     // machine.
     if (m_Geometry.visualItem()) {
         m_Geometry.visualItem()->performAction(VisualTreeItem::ViewAction::MOVE); //FIXME don't
+        Q_ASSERT(m_Geometry.isInSync());
     }
     //TODO update m_Geometry
+
+    Q_ASSERT(m_Geometry.m_State.state() == GeometryCache::State::VALID);
 
     return true;
 
@@ -1526,6 +1529,37 @@ bool TreeTraversalReflector::isActive(const QModelIndex& parent, int first, int 
     Q_UNUSED(parent)
     Q_UNUSED(first)
     Q_UNUSED(last)
+
+    if (!parent.isValid()) {
+        // There is nothing loaded, so everything is active (so far)
+        if (!d_ptr->m_pRoot->firstChild())
+            return true;
+
+        // There is room for more. Assuming the code that makes sure all items
+        // that can be loaded are, then it only happens when there is room for
+        // more.
+        if (d_ptr->edges(EdgeType::FREE)->m_Edges & (Qt::BottomEdge | Qt::TopEdge))
+            return true;
+
+        const QRect loadedRect(
+            d_ptr->m_pRoot->firstChild()->index().column(),
+            d_ptr->m_pRoot->firstChild()->index().row(),
+            d_ptr->m_pRoot->lastChild()->index().column() + 1,
+            d_ptr->m_pRoot->lastChild()->index().row()
+        );
+
+        const QRect changedRect(
+            0,
+            first,
+            1, //FIXME use columnCount+!?
+            last
+        );
+
+        return loadedRect.intersects(changedRect);
+    }
+
+    Q_ASSERT(false); //TODO
+
     return true; //FIXME
 }
 
@@ -1582,6 +1616,14 @@ AbstractItemAdapter* TreeTraversalReflector::itemForIndex(const QModelIndex& idx
 {
     const auto tti = d_ptr->ttiForIndex(idx);
     return tti && tti->m_Geometry.visualItem() ? tti->m_Geometry.visualItem()->d_ptr : nullptr;
+}
+
+BlockMetadata *TreeTraversalReflector::geometryForIndex(const QModelIndex& idx) const
+{
+    if (const auto tti = d_ptr->ttiForIndex(idx))
+        return &tti->m_Geometry;
+
+    return nullptr;
 }
 
 void TreeTraversalReflector::setAvailableEdges(Qt::Edges edges, TreeTraversalReflector::EdgeType t)

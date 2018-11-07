@@ -26,6 +26,7 @@
 #include "proxies/sizehintproxymodel.h"
 #include "treetraversalreflector_p.h"
 #include "adapters/modeladapter.h"
+#include "adapters/contextadapter.h"
 #include "adapters/abstractitemadapter_p.h"
 #include "adapters/abstractitemadapter.h"
 #include "viewbase.h"
@@ -67,7 +68,7 @@ public Q_SLOTS:
     void slotModelChanged(QAbstractItemModel* m, QAbstractItemModel* o);
     void slotModelAboutToChange(QAbstractItemModel* m, QAbstractItemModel* o);
     void slotViewportChanged(const QRectF &viewport);
-    void slotDataChanged(const QModelIndex& tl, const QModelIndex& br);
+    void slotDataChanged(const QModelIndex& tl, const QModelIndex& br, const QVector<int> &roles);
     void slotRowsInserted(const QModelIndex& parent, int first, int last);
     void slotRowsRemoved(const QModelIndex& parent, int first, int last);
     void slotReset();
@@ -394,7 +395,7 @@ AbstractItemAdapter* Viewport::itemForIndex(const QModelIndex& idx) const
 }
 
 //TODO remove this content and check each range
-void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& br)
+void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& br, const QVector<int> &roles)
 {
     if (tl.model() && tl.model() != m_pModelAdapter->rawModel()) {
         Q_ASSERT(false);
@@ -422,8 +423,17 @@ void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& 
     //itemForIndex(const QModelIndex& idx) const final override;
     for (int i = tl.row(); i <= br.row(); i++) {
         const auto idx = m_pModelAdapter->rawModel()->index(i, tl.column(), tl.parent());
-        if (auto item = m_pReflector->itemForIndex(idx))
-            item->s_ptr->performAction(VisualTreeItem::ViewAction::UPDATE);
+        if (auto item = m_pReflector->geometryForIndex(idx)) {
+            // Prevent performing action if we know the changes wont affect the
+            // view.
+            if (item->visualItem() && item->visualItem()->contextAdapter()->updateRoles(roles)) {
+                // (maybe) dismiss geometry cache
+                q_ptr->s_ptr->notifyChange(item);
+
+                if (auto vi = item->visualItem())
+                    vi->performAction(VisualTreeItem::ViewAction::UPDATE);
+            }
+        }
     }
 }
 
@@ -558,6 +568,23 @@ void ViewportSync::updateGeometry(BlockMetadata* item)
     q_ptr->d_ptr->updateAvailableEdges();
     //notifyInsert(item->down());
 
+}
+
+// When the QModelIndex role change
+void ViewportSync::notifyChange(BlockMetadata* item)
+{
+    switch(q_ptr->d_ptr->m_SizeStrategy) {
+        case Viewport::SizeHintStrategy::UNIFORM:
+        case Viewport::SizeHintStrategy::DELEGATE: //TODO
+        case Viewport::SizeHintStrategy::ROLE: //TODO
+            return;
+        case Viewport::SizeHintStrategy::AOT:
+        case Viewport::SizeHintStrategy::JIT:
+        case Viewport::SizeHintStrategy::PROXY:
+            item->m_State.performAction(
+                GeometryCache::Action::MODIFY, nullptr, nullptr
+            );
+    }
 }
 
 void ViewportSync::notifyRemoval(BlockMetadata* item)

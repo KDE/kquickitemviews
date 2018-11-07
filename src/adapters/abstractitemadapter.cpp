@@ -630,6 +630,8 @@ bool BlockMetadata::isInSync() const
         << (item->x() == geo.x()) << (item->width() == geo.width())
         << (item->height() == geo.height());
 
+    qDebug() << item->y() << geo.y();
+    qDebug() << item->height() << geo.height();
     return item->y() == geo.y()
         && item->x() == geo.x()
         && item->width() == geo.width()

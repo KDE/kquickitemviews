@@ -99,6 +99,7 @@ public:
 
     // Getter
     AbstractItemAdapter* itemForIndex(const QModelIndex& idx) const; //TODO remove
+    BlockMetadata *geometryForIndex(const QModelIndex& idx) const;
     bool isActive(const QModelIndex& parent, int first, int last); //TODO move to range
 
     /**

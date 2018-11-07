@@ -113,6 +113,9 @@ void ModelAdapterPrivate::setModelCommon(QAbstractItemModel* m, QAbstractItemMod
 {
     Q_UNUSED(old)
     q_ptr->selectionAdapter()->s_ptr->setModel(m);
+
+    if (auto f = m_pRoleContextFactory)
+        f->setModel(m);
 }
 
 void ModelAdapter::setModel(const QVariant& var)
@@ -267,18 +270,14 @@ SelectionAdapter* ModelAdapter::selectionAdapter() const
 
 ContextAdapterFactory* ModelAdapter::contextAdapterFactory() const
 {
-    if (!d_ptr->m_pRoleContextFactory)
+    if (!d_ptr->m_pRoleContextFactory) {
         d_ptr->m_pRoleContextFactory = new ContextAdapterFactory();
 
+        if (auto m = rawModel())
+            d_ptr->m_pRoleContextFactory->setModel(m);
+    }
+
     return d_ptr->m_pRoleContextFactory;
-}
-
-void ModelAdapter::setContextAdapterFactory(ContextAdapterFactory* cm)
-{
-    // It cannot (yet) be replaced.
-    Q_ASSERT(!d_ptr->m_pRoleContextFactory);
-
-    d_ptr->m_pRoleContextFactory = cm;
 }
 
 QVector<Viewport*> ModelAdapter::viewports() const

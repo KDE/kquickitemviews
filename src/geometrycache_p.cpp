@@ -22,22 +22,22 @@
 #include "viewport_p.h"
 
 #define S GeometryCache::State::
-const GeometryCache::State GeometryCache::m_fStateMap[4][7] = {
-/*               INSERT     MOVE    REMOVE    RESIZE      VIEW       PLACE      RESET*/
-/*INIT     */ { S INIT , S INIT , S INIT , S SIZE    , S INIT    , S POSITION, S INIT},
-/*SIZE     */ { S VALID, S SIZE , S INIT , S SIZE    , S SIZE    , S VALID   , S INIT},
-/*POSITION */ { S VALID, S INIT , S INIT , S VALID   , S POSITION, S POSITION, S INIT},
-/*VALID    */ { S VALID, S SIZE , S SIZE , S VALID   , S VALID   , S VALID   , S INIT},
+const GeometryCache::State GeometryCache::m_fStateMap[4][8] = {
+/*               INSERT     MOVE    REMOVE    RESIZE      VIEW       PLACE      RESET    MODIFY  */
+/*INIT     */ { S INIT , S INIT , S INIT , S SIZE    , S INIT    , S POSITION, S INIT, S INIT    },
+/*SIZE     */ { S VALID, S SIZE , S INIT , S SIZE    , S SIZE    , S VALID   , S INIT, S INIT    },
+/*POSITION */ { S VALID, S INIT , S INIT , S VALID   , S POSITION, S POSITION, S INIT, S POSITION},
+/*VALID    */ { S VALID, S SIZE , S SIZE , S VALID   , S VALID   , S VALID   , S INIT, S POSITION},
 };
 #undef S
 
 #define A &GeometryCache::
-const GeometryCache::StateF GeometryCache::m_fStateMachine[4][7] = {
-/*                INSERT      MOVE      REMOVE     RESIZE      VIEW       PLACE , A nothing */
-/*INIT     */ { A nothing, A nothing, A nothing, A nothing, A nothing, A nothing, A nothing },
-/*SIZE     */ { A nothing, A nothing, A nothing, A nothing, A nothing, A nothing, A nothing },
-/*POSITION */ { A nothing, A nothing, A nothing, A nothing, A nothing, A nothing, A nothing },
-/*VALID    */ { A nothing, A nothing, A invalidate, A nothing, A nothing, A nothing, A invalidate },
+const GeometryCache::StateF GeometryCache::m_fStateMachine[4][8] = {
+/*                INSERT      MOVE      REMOVE        RESIZE      VIEW       PLACE      RESET         MODIFY    */
+/*INIT     */ { A nothing, A nothing, A nothing   , A nothing, A nothing, A nothing, A nothing   , A nothing    },
+/*SIZE     */ { A nothing, A nothing, A nothing   , A nothing, A nothing, A nothing, A nothing   , A nothing    },
+/*POSITION */ { A nothing, A nothing, A nothing   , A nothing, A nothing, A nothing, A nothing   , A nothing    },
+/*VALID    */ { A nothing, A nothing, A invalidate, A nothing, A nothing, A nothing, A invalidate, A invalidate },
 };
 #undef A
 

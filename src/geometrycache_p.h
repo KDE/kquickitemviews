@@ -53,7 +53,8 @@ struct GeometryCache
         RESIZE ,
         VIEW   ,
         PLACE  ,
-        RESET  ,
+        RESET  , /*!<  */
+        MODIFY , /*!< When the QModelIndex role change */
     };
 
     // actions
@@ -80,8 +81,8 @@ private:
 
     typedef void(GeometryCache::*StateF)(BlockMetadata*, BlockMetadata*);
 
-    static const State  m_fStateMap    [4][7];
-    static const StateF m_fStateMachine[4][7];
+    static const State  m_fStateMap    [4][8];
+    static const StateF m_fStateMachine[4][8];
 
     BlockMetadata *m_pFirst {nullptr};
     BlockMetadata *m_pLast  {nullptr};

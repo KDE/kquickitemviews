@@ -22,6 +22,8 @@
 #include <QtCore/QByteArray>
 #include <QtCore/QModelIndex>
 
+class ContextExtensionPrivate;
+
 /**
  * Add more properties to the QML context.
  *
@@ -35,6 +37,7 @@ class ContextExtension
 {
 public:
 
+    explicit ContextExtension();
     virtual ~ContextExtension() {}
 
     /**
@@ -94,4 +97,6 @@ public:
         * Notify that content of this property has changed.
         */
     void changeProperty(AbstractItemAdapter* item, uint id);
+
+    ContextExtensionPrivate *d_ptr;
 };

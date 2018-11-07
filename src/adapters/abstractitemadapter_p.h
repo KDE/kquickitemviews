@@ -112,6 +112,7 @@ public:
 
     virtual QQuickItem* item() const final;
 
+    QQmlContext *context() const;
     ContextAdapter* contextAdapter() const;
     void updateContext();
 
@@ -124,10 +125,10 @@ public:
 
     bool performAction(ViewAction); //FIXME make private, remove #include
 
+    AbstractItemAdapter* d_ptr;
 private:
     State               m_State {State::POOLED};
-    TreeTraversalItem *m_pTTI  {   nullptr   };
+    TreeTraversalItem  *m_pTTI  {   nullptr   };
     ViewBase           *m_pView {   nullptr   };
 
-    AbstractItemAdapter* d_ptr;
 };

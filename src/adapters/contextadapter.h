@@ -25,6 +25,7 @@ class QQmlContext;
 class AbstractItemAdapter;
 class ContextAdapterFactory;
 class DynamicContext;
+class ContextExtension;
 
 /**
  * Calling `context()` on an instance of this object will create a
@@ -55,6 +56,29 @@ public:
 
     virtual QQmlContext* context() const;
     virtual AbstractItemAdapter* item() const;
+
+    /**
+     * Clear the cache entry and send the notify signal on the property `id`
+     * from the extension `e`.
+     */
+    void dismissCache(ContextExtension* e, int id);
+
+    /**
+     * Notify the adapter some QModelIndex roles changed.
+     *
+     * @return True when the updated roles affect the adapter, false otherwise.
+     */
+    bool updateRoles(const QVector<int> &modified) const;
+
+    /**
+     * Clear the cache of role values.
+     *
+     * To improve performance, QAbstractItemModel::data is only called once
+     * unless dataChanged() is called. The value is then stored in the QML
+     * context. Call this to manually invalidate the cache and for roles to be
+     * reloaded.
+     */
+    void flushCache();
 
 protected:
     QObject *contextObject() const;

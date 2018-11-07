@@ -94,7 +94,7 @@ class ViewItemContextAdapter final : public ContextAdapter
 public:
     explicit ViewItemContextAdapter(QQmlContext* p) : ContextAdapter(p){}
     virtual ~ViewItemContextAdapter() {
-        m_pItem->flushCache();
+        flushCache();
         m_pItem->context()->setContextObject(nullptr);
     }
 

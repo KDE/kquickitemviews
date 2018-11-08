@@ -51,6 +51,8 @@ struct TreeTraversalItem : public TreeTraversalBase
 
     typedef bool(TreeTraversalItem::*StateF)();
 
+    virtual ~TreeTraversalItem() {}
+
     static const State  m_fStateMap    [7][7];
     static const StateF m_fStateMachine[7][7];
 
@@ -363,7 +365,7 @@ bool BlockMetadata::performAction(BlockMetadata::Action a)
 {
     Q_ASSERT(m_pTTI->m_State != TreeTraversalItem::State::ERROR);
     const int s     = (int)m_pTTI->m_State;
-    m_pTTI->m_State = m_pTTI->m_fStateMap[s][(int)a];
+    auto nextState  = m_pTTI->m_State = m_pTTI->m_fStateMap[s][(int)a];
     Q_ASSERT(m_pTTI->m_State != TreeTraversalItem::State::ERROR);
 
     // This need to be done before calling the transition function because it
@@ -376,9 +378,12 @@ bool BlockMetadata::performAction(BlockMetadata::Action a)
     m_pTTI->m_Geometry.removeMe = (int) m_pTTI->m_State; //FIXME remove
     bool ret = (this->m_pTTI->*TreeTraversalItem::m_fStateMachine[s][(int)a])();
 
-    Q_ASSERT((!m_pTTI->m_Geometry.visualItem())
+    //WARNING, do not access m_pTTI form here, it might have been deleted
+
+    Q_ASSERT(nextState == TreeTraversalItem::State::DANGLING ||
+        ((!m_pTTI->m_Geometry.visualItem())
         ||  m_pTTI->m_State == TreeTraversalItem::State::BUFFER
-        ||  m_pTTI->m_State == TreeTraversalItem::State::VISIBLE);
+        ||  m_pTTI->m_State == TreeTraversalItem::State::VISIBLE));
 
 //     m_pTTI->d_ptr->_test_validate_edges();
 
@@ -600,11 +605,15 @@ bool TreeTraversalItem::detach()
 //     if (e->getEdge(Qt::BottomEdge) == this)
 //         e->setEdge(down() ? down() : up(), Qt::BottomEdge);
 
+    const auto p = parent();
+
     d_ptr->m_pViewport->s_ptr->notifyRemoval(&m_Geometry);
     TreeTraversalItem::remove();
     TreeTraversalBase::remove();
     d_ptr->m_pViewport->s_ptr->refreshVisible();
 
+    if (p)
+        Q_ASSERT(!p->childrenLookup(index()));
 
     //d_ptr->_test_validateViewport(true);
 
@@ -684,6 +693,9 @@ bool TreeTraversalItem::move()
 
 bool TreeTraversalItem::destroy()
 {
+    const auto p = parent();
+    Q_ASSERT(p->hasChildren(this));
+
     detach();
 
     if (m_Geometry.visualItem()) {
@@ -695,6 +707,8 @@ bool TreeTraversalItem::destroy()
     Q_ASSERT(!loadedChildrenCount());
 
     delete this;
+
+    Q_ASSERT(!p->hasChildren(this));
     return true;
 }
 
@@ -951,7 +965,6 @@ void TreeTraversalReflectorPrivate::slotRowsRemoved(const QModelIndex& parent, i
             elem->m_Geometry.performAction(BlockMetadata::Action::HIDE);
             elem->m_Geometry.performAction(BlockMetadata::Action::DETACH);
         }
-
     }
 
     if (!parent.isValid())

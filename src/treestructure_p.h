@@ -43,6 +43,8 @@ public:
         ROOT       , /*!< This is the root element                            */
     };
 
+    virtual ~TreeTraversalBase();
+
     static void insertChildBefore(TreeTraversalBase* self, TreeTraversalBase* other, TreeTraversalBase* parent);
     static void insertChildAfter(TreeTraversalBase* self, TreeTraversalBase* other, TreeTraversalBase* parent);
 
@@ -71,6 +73,7 @@ public:
 //     static void createGap(TreeTraversalBase* first, TreeTraversalBase* last  );
 
     TreeTraversalBase *childrenLookup(const QPersistentModelIndex &index) const;
+    bool hasChildren(TreeTraversalBase *child) const;
     int loadedChildrenCount() const;
     QList<TreeTraversalBase*> allLoadedChildren() const;
     bool withinRange(QAbstractItemModel* m, int last, int first) const;

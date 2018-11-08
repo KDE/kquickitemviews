@@ -24,6 +24,11 @@
 #define FIRST 0
 #define LAST 1
 
+TreeTraversalBase::~TreeTraversalBase()
+{
+    remove();
+}
+
 TreeTraversalBase* TreeTraversalBase::firstChild() const
 {
     return m_tChildren[FIRST];
@@ -336,6 +341,7 @@ void TreeTraversalBase::remove(bool reparent)
     const int size = m_pParent->m_hLookup.size();
     m_pParent->m_hLookup.remove(m_Index);
     Q_ASSERT(size == m_pParent->m_hLookup.size()+1);
+    Q_ASSERT(!m_pParent->m_hLookup.values().contains(this));
 
     if (!reparent) {
         Q_ASSERT(!firstChild());
@@ -520,6 +526,11 @@ TreeTraversalBase* ModelRect::getEdge(Qt::Edge e) const
 TreeTraversalBase *TreeTraversalBase::childrenLookup(const QPersistentModelIndex &index) const
 {
     return m_hLookup.value(index);
+}
+
+bool TreeTraversalBase::hasChildren(TreeTraversalBase *child) const
+{
+    return !m_hLookup.keys(child).isEmpty();
 }
 
 int TreeTraversalBase::loadedChildrenCount() const

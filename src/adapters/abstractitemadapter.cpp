@@ -85,28 +85,6 @@ public:
     AbstractItemAdapter* q_ptr;
 };
 
-
-/**
- * Extend the class for the need of needs of the AbstractItemAdapter.
- */
-class ViewItemContextAdapter final : public ContextAdapter
-{
-public:
-    explicit ViewItemContextAdapter(QQmlContext* p) : ContextAdapter(p){}
-    virtual ~ViewItemContextAdapter() {
-        flushCache();
-        m_pItem->context()->setContextObject(nullptr);
-    }
-
-    virtual QQmlContext         *context() const override;
-    virtual QModelIndex          index  () const override;
-    virtual AbstractItemAdapter *item   () const override;
-
-    mutable std::atomic_flag m_InitContext = ATOMIC_FLAG_INIT;
-
-    AbstractItemAdapter* m_pItem;
-};
-
 /*
  * The visual elements state changes.
  *
@@ -247,7 +225,13 @@ bool AbstractItemAdapterPrivate::refresh()
 
 bool AbstractItemAdapterPrivate::move()
 {
-    return q_ptr->move();
+    const bool ret = q_ptr->move();
+
+    // Views should apply the geometry they have been told to apply. Otherwise
+    // all optimizations brakes.
+    Q_ASSERT((!ret) || q_ptr->s_ptr->m_pGeometry->isInSync());
+
+    return ret;
 }
 
 bool AbstractItemAdapterPrivate::flush()
@@ -397,13 +381,16 @@ void AbstractItemAdapterPrivate::load()
     m_pItem    = pair.first;
 
     Q_ASSERT(q_ptr->s_ptr->m_pGeometry);
+
+    q_ptr->s_ptr->m_pGeometry->contextAdapter()->context();
+
+    Q_ASSERT(q_ptr->s_ptr->m_pGeometry->contextAdapter()->context() == m_pContext);
+
     q_ptr->s_ptr->m_pGeometry->m_State.setSize(
         QSizeF(m_pItem->width(), m_pItem->height())
     );
 
     Q_ASSERT(q_ptr->s_ptr->m_pGeometry->m_State.state() != GeometryCache::State::INIT);
-
-    q_ptr->s_ptr->updateContext();
 }
 
 QQmlContext *AbstractItemAdapter::context() const
@@ -439,9 +426,6 @@ QRectF AbstractItemAdapter::geometry() const
 
 bool AbstractItemAdapter::refresh()
 {
-    if (context())
-        s_ptr->updateContext();
-
     return true;
 }
 
@@ -465,9 +449,7 @@ QPair<QQuickItem*, QQmlContext*> AbstractItemAdapterPrivate::loadDelegate(QQuick
     if (!q_ptr->s_ptr->m_pRange->modelAdapter()->delegate())
         return {};
 
-    // Create a context for the container, it's the only way to force anchors
-    // to work
-    auto pctx = new QQmlContext(parentCtx);
+    auto pctx = q_ptr->s_ptr->m_pGeometry->contextAdapter()->context();
 
     // Create a parent item to hold the delegate and all children
     auto container = qobject_cast<QQuickItem *>(sharedVariables()->component()->create(pctx));
@@ -501,54 +483,6 @@ QPair<QQuickItem*, QQmlContext*> AbstractItemAdapterPrivate::loadDelegate(QQuick
     container->setProperty("content", QVariant::fromValue(item));
 
     return {container, pctx};
-}
-
-ContextAdapter* VisualTreeItem::contextAdapter() const
-{
-    if (!m_pContextAdapter) {
-        auto cm = m_pRange->modelAdapter()->contextAdapterFactory();
-        m_pContextAdapter = cm->createAdapter<ViewItemContextAdapter>();
-        m_pContextAdapter->m_pItem = d_ptr;
-    }
-
-    return m_pContextAdapter;
-}
-
-QModelIndex ViewItemContextAdapter::index() const
-{
-    return m_pItem->index();
-}
-
-QQmlContext* ViewItemContextAdapter::context() const
-{
-    if (!m_InitContext.test_and_set()) {
-        m_pItem->d_ptr->m_pContext->setContextObject(contextObject());
-    }
-
-    return m_pItem->d_ptr->m_pContext;
-}
-
-AbstractItemAdapter* ViewItemContextAdapter::item() const
-{
-    return m_pItem;
-}
-
-void VisualTreeItem::updateContext()
-{
-    if (m_pContextAdapter)
-        return;
-
-    ContextAdapterFactory* cm = m_pRange->modelAdapter()->contextAdapterFactory();
-
-    const QModelIndex self = d_ptr->index();
-    Q_ASSERT(self.model());
-    cm->setModel(const_cast<QAbstractItemModel*>(self.model()));
-
-    // This will init the context now. If the method has been re-implemented in
-    // a busclass, it might do important thing and otherwise never be called.
-    contextAdapter()->context();
-
-    Q_ASSERT(m_pContextAdapter);
 }
 
 QQmlEngine *ViewBaseItemVariables::engine()
@@ -598,6 +532,11 @@ void VisualTreeItem::updateGeometry()
     m_pRange->s_ptr->geometryUpdated(m_pGeometry);
 }
 
+QQmlContext *VisualTreeItem::context() const
+{
+    return d_ptr->d_ptr->m_pContext;
+}
+
 void AbstractItemAdapter::setCollapsed(bool v)
 {
     s_ptr->setCollapsed(v);
@@ -632,6 +571,7 @@ bool BlockMetadata::isInSync() const
 
     qDebug() << item->y() << geo.y();
     qDebug() << item->height() << geo.height();
+
     return item->y() == geo.y()
         && item->x() == geo.x()
         && item->width() == geo.width()

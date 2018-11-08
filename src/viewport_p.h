@@ -21,6 +21,8 @@ class TreeTraversalReflector;
 class VisualTreeItem;
 class ViewportPrivate;
 class Viewport;
+class ContextAdapter;
+class ViewItemContextAdapter;
 
 #include <QtCore/QRectF>
 #include <QtCore/QModelIndex>
@@ -37,6 +39,7 @@ class Viewport;
 struct BlockMetadata
 {
     explicit BlockMetadata(ViewportPrivate* p) : m_pViewport(p) {}
+    ~BlockMetadata();
     int removeMe = -1;
 
     enum class Mode {
@@ -87,11 +90,14 @@ struct BlockMetadata
 
     VisualTreeItem *visualItem() const;
 
+    ContextAdapter* contextAdapter() const;
+
     GeometryCache m_State; //FIXME I could not find a stable enough other way
 
 private:
     ViewportPrivate *m_pViewport;
     VisualTreeItem  *m_pItem {nullptr};
+    mutable ViewItemContextAdapter* m_pContextAdapter {nullptr};
 };
 
 /**

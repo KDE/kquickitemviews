@@ -20,12 +20,14 @@
 // Qt
 #include <QtCore/QDebug>
 #include <QQmlEngine>
+#include <QQmlContext>
 
 // KQuickItemViews
 #include "viewport_p.h"
 #include "proxies/sizehintproxymodel.h"
 #include "treetraversalreflector_p.h"
 #include "adapters/modeladapter.h"
+#include "contextadapterfactory.h"
 #include "adapters/contextadapter.h"
 #include "adapters/abstractitemadapter_p.h"
 #include "adapters/abstractitemadapter.h"
@@ -78,6 +80,27 @@ enum Pos {Top, Left, Right, Bottom};
 static constexpr const Qt::Edge edgeMap[] = {
     Qt::TopEdge, Qt::LeftEdge, Qt::RightEdge, Qt::BottomEdge
 };
+
+/**
+ * Extend the class for the need of needs of the AbstractItemAdapter.
+ */
+class ViewItemContextAdapter final : public ContextAdapter
+{
+public:
+    explicit ViewItemContextAdapter(QQmlContext* p) : ContextAdapter(p){}
+    virtual ~ViewItemContextAdapter() {
+        flushCache();
+    }
+
+// //     virtual QQmlContext         *context() const override;
+    virtual QModelIndex          index  () const override;
+    virtual AbstractItemAdapter *item   () const override;
+
+    mutable std::atomic_flag m_InitContext = ATOMIC_FLAG_INIT;
+
+    BlockMetadata* m_pGeometry;
+};
+
 
 
 Viewport::Viewport(ModelAdapter* ma) : QObject(),
@@ -426,7 +449,7 @@ void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& 
         if (auto item = m_pReflector->geometryForIndex(idx)) {
             // Prevent performing action if we know the changes wont affect the
             // view.
-            if (item->visualItem() && item->visualItem()->contextAdapter()->updateRoles(roles)) {
+            if (item->contextAdapter()->updateRoles(roles)) {
                 // (maybe) dismiss geometry cache
                 q_ptr->s_ptr->notifyChange(item);
 
@@ -834,8 +857,12 @@ void BlockMetadata::setVisualItem(VisualTreeItem *i)
         m_pViewport->q_ptr->s_ptr->notifyRemoval(old->m_pGeometry);
     }
 
-    if ((m_pItem = i))
+    if ((m_pItem = i)) {
         i->m_pGeometry = this;
+
+        // Assign the context object
+        contextAdapter()->context();
+    }
 }
 
 VisualTreeItem *BlockMetadata::visualItem() const
@@ -860,5 +887,52 @@ QRectF BlockMetadata::geometry() const
 
     return m_State.geometry();
 }
+
+QModelIndex ViewItemContextAdapter::index() const
+{
+    return m_pGeometry->index();
+}
+
+// QQmlContext* ViewItemContextAdapter::context() const
+// {
+//     const auto vi = m_pGeometry->visualItem();
+//
+// //     if (vi && !m_InitContext.test_and_set()) {
+// //         vi->context()->setContextObject(contextObject());
+// //     }
+//
+//     return vi ? vi->context() : nullptr;
+// }
+
+AbstractItemAdapter* ViewItemContextAdapter::item() const
+{
+    return m_pGeometry->visualItem() ? m_pGeometry->visualItem()->d_ptr : nullptr;
+}
+
+ContextAdapter* BlockMetadata::contextAdapter() const
+{
+    if (!m_pContextAdapter) {
+        auto cm = m_pViewport->q_ptr->modelAdapter()->contextAdapterFactory();
+        m_pContextAdapter = cm->createAdapter<ViewItemContextAdapter>(
+            m_pViewport->q_ptr->modelAdapter()->view()->rootContext()
+        );
+        m_pContextAdapter->m_pGeometry = const_cast<BlockMetadata*>(this);
+
+        // This will init the context now.
+        contextAdapter()->context();
+    }
+
+    return m_pContextAdapter;
+}
+
+BlockMetadata::~BlockMetadata()
+{
+    if (m_pContextAdapter) {
+        if (m_pContextAdapter->isActive())
+            m_pContextAdapter->context()->setContextObject(nullptr);
+        delete m_pContextAdapter;
+    }
+}
+
 
 #include <viewport.moc>

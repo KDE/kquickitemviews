@@ -51,10 +51,12 @@ public:
     bool isCacheEnabled() const;
     void setCacheEnabled(bool v);
 
+    bool isActive() const;
+
     virtual QModelIndex index() const;
     void setModelIndex(const QModelIndex& index);
 
-    virtual QQmlContext* context() const;
+    virtual QQmlContext* context() const final;
     virtual AbstractItemAdapter* item() const;
 
     /**

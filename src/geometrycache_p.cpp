@@ -25,9 +25,9 @@
 const GeometryCache::State GeometryCache::m_fStateMap[4][8] = {
 /*               INSERT     MOVE    REMOVE    RESIZE      VIEW       PLACE      RESET    MODIFY  */
 /*INIT     */ { S INIT , S INIT , S INIT , S SIZE    , S INIT    , S POSITION, S INIT, S INIT    },
-/*SIZE     */ { S VALID, S SIZE , S INIT , S SIZE    , S SIZE    , S VALID   , S INIT, S INIT    },
+/*SIZE     */ { S VALID, S SIZE , S INIT , S SIZE    , S SIZE    , S VALID   , S INIT, S SIZE   },
 /*POSITION */ { S VALID, S INIT , S INIT , S VALID   , S POSITION, S POSITION, S INIT, S POSITION},
-/*VALID    */ { S VALID, S SIZE , S SIZE , S VALID   , S VALID   , S VALID   , S INIT, S POSITION},
+/*VALID    */ { S VALID, S SIZE , S SIZE , S VALID   , S VALID   , S VALID   , S INIT, S VALID},
 };
 #undef S
 

@@ -214,6 +214,7 @@ QSizeF ViewportPrivate::sizeHint(BlockMetadata *item) const
                 break;
         }
 
+        qDebug() << "\n\n\n\nSET SIZE" << ret << (int) m_SizeStrategy;
         item->m_State.setSize(ret);
     }
 
@@ -231,13 +232,11 @@ QSizeF ViewportPrivate::sizeHint(BlockMetadata *item) const
         }
         else if (item->isTopItem()) {
             item->m_State.setPosition(QPointF(0.0, 0.0));
-            Q_ASSERT(item->m_State.state() == GeometryCache::State::VALID);
+            Q_ASSERT(item->m_State.state() == GeometryCache::State::PENDING);
         }
     }
 
-    s = item->m_State.state();
-
-    Q_ASSERT(s == GeometryCache::State::VALID);
+    Q_ASSERT(item->m_State.isReady());
 
     return ret;
 }
@@ -604,18 +603,12 @@ void ViewportSync::notifyChange(BlockMetadata* item)
         case Viewport::SizeHintStrategy::AOT:
         case Viewport::SizeHintStrategy::JIT:
         case Viewport::SizeHintStrategy::PROXY:
-            item->m_State.performAction(
-                GeometryCache::Action::MODIFY, nullptr, nullptr
-            );
+            item->m_State.performAction(GeometryCache::Action::MODIFY);
     }
 }
 
 void ViewportSync::notifyRemoval(BlockMetadata* item)
 {
-    item->m_State.performAction(
-        GeometryCache::Action::REMOVE, nullptr, nullptr
-    );
-
 
 //     auto tve = m_pReflector->getEdge(
 //         TreeTraversalReflector::EdgeType::VISIBLE, Qt::TopEdge
@@ -693,7 +686,7 @@ void ViewportSync::refreshVisible()
         Q_ASSERT(item->m_State.state() != GeometryCache::State::POSITION);
 
         q_ptr->d_ptr->sizeHint(item);
-        Q_ASSERT(item->m_State.state() == GeometryCache::State::VALID);
+        Q_ASSERT(item->m_State.isReady());
 
         if (!item->isInSync())
             item->performAction(BlockMetadata::Action::MOVE);
@@ -715,9 +708,7 @@ void ViewportSync::notifyInsert(BlockMetadata* item)
     //FIXME this is also horrible
     do {
         if (item == bve) {
-            item->m_State.performAction(
-                GeometryCache::Action::MOVE, nullptr, nullptr
-            );
+            item->m_State.performAction(GeometryCache::Action::MOVE);
 //             qDebug() << "BREAK1" << item << item->m_pTTI << (item->down() != nullptr? (int) item->down()->m_State.state() : -1);
             break;
         }
@@ -728,9 +719,7 @@ void ViewportSync::notifyInsert(BlockMetadata* item)
             break;
         }
 
-        item->m_State.performAction(
-            GeometryCache::Action::MOVE, nullptr, nullptr
-        );
+        item->m_State.performAction(GeometryCache::Action::MOVE);
 
         Q_ASSERT(item->m_State.state() != GeometryCache::State::VALID);
 //         qDebug() << "ONE" << (int) item->m_State.state();
@@ -883,9 +872,11 @@ QRectF BlockMetadata::geometry() const
             m_pViewport->sizeHint(const_cast<BlockMetadata*>(this));
     }
 
+    const auto ret = m_State.decoratedGeometry();
+
     Q_ASSERT(m_State.state() == GeometryCache::State::VALID);
 
-    return m_State.geometry();
+    return ret;
 }
 
 QModelIndex ViewItemContextAdapter::index() const

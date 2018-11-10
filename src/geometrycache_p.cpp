@@ -22,61 +22,75 @@
 #include "viewport_p.h"
 
 #define S GeometryCache::State::
-const GeometryCache::State GeometryCache::m_fStateMap[4][8] = {
-/*               INSERT     MOVE    REMOVE    RESIZE      VIEW       PLACE      RESET    MODIFY  */
-/*INIT     */ { S INIT , S INIT , S INIT , S SIZE    , S INIT    , S POSITION, S INIT, S INIT    },
-/*SIZE     */ { S VALID, S SIZE , S INIT , S SIZE    , S SIZE    , S VALID   , S INIT, S SIZE   },
-/*POSITION */ { S VALID, S INIT , S INIT , S VALID   , S POSITION, S POSITION, S INIT, S POSITION},
-/*VALID    */ { S VALID, S SIZE , S SIZE , S VALID   , S VALID   , S VALID   , S INIT, S VALID},
+const GeometryCache::State GeometryCache::m_fStateMap[5][7] = {
+/*              MOVE      RESIZE      PLACE     RESET    MODIFY     DECORATE       VIEW   */
+/*INIT     */ { S INIT, S SIZE   , S POSITION, S INIT, S INIT    , S INIT    , S INIT     },
+/*SIZE     */ { S SIZE, S SIZE   , S PENDING , S INIT, S SIZE    , S SIZE    , S SIZE     },
+/*POSITION */ { S INIT, S PENDING, S POSITION, S INIT, S POSITION, S POSITION, S POSITION },
+/*PENDING  */ { S SIZE, S PENDING, S PENDING , S INIT, S POSITION, S PENDING , S VALID    },
+/*VALID    */ { S SIZE, S PENDING, S PENDING , S INIT, S POSITION, S PENDING , S VALID    },
 };
 #undef S
 
 #define A &GeometryCache::
-const GeometryCache::StateF GeometryCache::m_fStateMachine[4][8] = {
-/*                INSERT      MOVE      REMOVE        RESIZE      VIEW       PLACE      RESET         MODIFY    */
-/*INIT     */ { A nothing, A nothing, A nothing   , A nothing, A nothing, A nothing, A nothing   , A nothing    },
-/*SIZE     */ { A nothing, A nothing, A nothing   , A nothing, A nothing, A nothing, A nothing   , A nothing    },
-/*POSITION */ { A nothing, A nothing, A nothing   , A nothing, A nothing, A nothing, A nothing   , A nothing    },
-/*VALID    */ { A nothing, A nothing, A invalidate, A nothing, A nothing, A nothing, A invalidate, A invalidate },
+const GeometryCache::StateF GeometryCache::m_fStateMachine[5][7] = {
+/*                 MOVE      RESIZE        PLACE         RESET         MODIFY      DECORATE       VIEW    */
+/*INIT     */ { A nothing, A nothing  , A nothing  , A nothing   , A nothing   , A nothing  , A error     },
+/*SIZE     */ { A nothing, A dropSize , A nothing  , A dropSize  , A nothing   , A nothing  , A error     },
+/*POSITION */ { A nothing, A nothing  , A nothing  , A dropPos   , A nothing   , A nothing  , A error     },
+/*PENDING  */ { A nothing, A nothing  , A nothing  , A invalidate, A invalidate, A nothing  , A buildCache},
+/*VALID    */ { A nothing, A dropCache, A dropCache, A invalidate, A dropCache , A dropCache, A buildCache},
 };
 #undef A
 
+void GeometryCache::nothing()
+{}
 
-void GeometryCache::nothing(BlockMetadata* topLeft, BlockMetadata* bottomRight)
+void GeometryCache::invalidate()
 {
-
-}
-
-void GeometryCache::discardPosition(BlockMetadata* topLeft, BlockMetadata* bottomRight)
-{
-
-}
-
-void GeometryCache::discardSize(BlockMetadata* topLeft, BlockMetadata* bottomRight)
-{
-
-}
-
-void GeometryCache::invalidate(BlockMetadata* topLeft, BlockMetadata* bottomRight)
-{
+    dropCache();
     qDebug() << "INVALIDATE" << m_Position << m_Size;
 }
 
-void GeometryCache::split(BlockMetadata* topLeft, State above, State below)
+void GeometryCache::error()
 {
-
+    Q_ASSERT(false);
 }
 
-GeometryCache::State GeometryCache::performAction(Action a, BlockMetadata* tl, BlockMetadata* br)
+void GeometryCache::dropCache()
+{
+    //TODO
+}
+
+void GeometryCache::buildCache()
+{
+    //TODO
+}
+
+void GeometryCache::dropSize()
+{
+    dropCache();
+    m_Size = {};
+}
+
+void GeometryCache::dropPos()
+{
+    dropCache();
+    m_Position = {};
+}
+
+GeometryCache::State GeometryCache::performAction(Action a)
 {
     const int s = (int)m_State;
     m_State     = m_fStateMap[s][(int)a];
 
-    (this->*GeometryCache::m_fStateMachine[s][(int)a])(tl, br);
+    (this->*GeometryCache::m_fStateMachine[s][(int)a])();
 
     // Validate the state
+    //BEGIN debug
     switch(m_State) {
         case GeometryCache::State::VALID:
+        case GeometryCache::State::PENDING:
             Q_ASSERT(!(m_Position.x() == -1 && m_Position.y() == -1));
             Q_ASSERT(m_Size.isValid());
             break;
@@ -89,52 +103,65 @@ GeometryCache::State GeometryCache::performAction(Action a, BlockMetadata* tl, B
         case GeometryCache::State::INIT:
             break;
     }
+    //END debug
 
     return m_State;
 }
 
-QRectF GeometryCache::geometry() const
+QRectF GeometryCache::rawGeometry() const
 {
-    // So far don't let getting the geometry "accidentally" happen. It has valid
-    // use case where this code could lazy-load it. However it makes everything
-    // very hard to debug after the fact since doing so in the middle of a
-    // transaction will cache an invalid geometry, voiding the whole point of
-    // this state machine.
-    switch(m_State) {
-        case GeometryCache::State::VALID:
-            break;
-        case GeometryCache::State::INIT:
-            // Try never to get here, it may be possible to add a new state for no_item
-            Q_ASSERT(false);
-            break;
-        case GeometryCache::State::SIZE:
-            //TODO check the size hint strategy, it may be available
-            Q_ASSERT(false);
-            [[clang::fallthrough]]
-        case GeometryCache::State::POSITION:
-            Q_ASSERT(false);
-            //TODO check the size hint strategy, it may be available
-    }
+    const_cast<GeometryCache*>(this)->performAction(Action::VIEW);
+
+    Q_ASSERT(m_State == GeometryCache::State::VALID);
 
     return QRectF(m_Position, m_Size);
 }
 
+QRectF GeometryCache::contentGeometry() const
+{
+    auto g = rawGeometry();
+
+    g.setY(g.y() + borderDecoration( Qt::TopEdge  ));
+    g.setX(g.x() + borderDecoration( Qt::LeftEdge ));
+
+    return g;
+}
+
+QRectF GeometryCache::decoratedGeometry() const
+{
+    //TODO cache this, extend the state machine to have a "really valid" state
+    auto g = rawGeometry();
+
+    const auto topDeco = borderDecoration( Qt::TopEdge    );
+    const auto botDeco = borderDecoration( Qt::BottomEdge );
+    const auto lefDeco = borderDecoration( Qt::LeftEdge   );
+    const auto rigDeco = borderDecoration( Qt::RightEdge  );
+
+    g.setHeight(g.height() + topDeco + botDeco);
+    g.setWidth (g.width () + lefDeco + rigDeco);
+
+    return g;
+}
+
 QSizeF GeometryCache::size() const
 {
+    Q_ASSERT(m_State != GeometryCache::State::INIT);
+    Q_ASSERT(m_State != GeometryCache::State::POSITION);
+
     return m_State == GeometryCache::State::SIZE ?
-        m_Size : geometry().size();
+        m_Size : decoratedGeometry().size();
 }
 
 QPointF GeometryCache::position() const
 {
     return m_State == GeometryCache::State::POSITION ?
-        m_Position : geometry().topLeft();
+        m_Position : decoratedGeometry().topLeft();
 }
 
 void GeometryCache::setPosition(const QPointF& pos)
 {
     m_Position = pos;
-    performAction(Action::PLACE, nullptr, nullptr);
+    performAction(Action::PLACE);
 }
 
 void GeometryCache::setSize(const QSizeF& size)
@@ -143,10 +170,51 @@ void GeometryCache::setSize(const QSizeF& size)
     Q_ASSERT(size.isValid());
 
     m_Size = size;
-    performAction(Action::RESIZE, nullptr, nullptr);
+    performAction(Action::RESIZE);
 }
 
 GeometryCache::State GeometryCache::state() const
 {
     return m_State;
+}
+
+enum Pos {Top, Left, Right, Bottom};
+static Pos edgeToPos(Qt::Edge e)
+{
+    switch(e) {
+        case Qt::TopEdge:
+            return Pos::Top;
+        case Qt::LeftEdge:
+            return Pos::Left;
+        case Qt::RightEdge:
+            return Pos::Right;
+        case Qt::BottomEdge:
+            return Pos::Bottom;
+    }
+
+    Q_ASSERT(false);
+
+    return {};
+}
+
+qreal GeometryCache::borderDecoration(Qt::Edge e) const
+{
+    return m_lBorderDecoration[edgeToPos(e)];
+}
+
+void GeometryCache::setBorderDecoration(Qt::Edge e, qreal r)
+{
+    const auto pos = edgeToPos(e);
+
+    if (m_lBorderDecoration[pos] == r)
+        return;
+
+    m_lBorderDecoration[pos] = r;
+
+    performAction(Action::DECORATE);
+}
+
+bool GeometryCache::isReady() const
+{
+    return m_State == State::VALID || m_State == State::PENDING;
 }

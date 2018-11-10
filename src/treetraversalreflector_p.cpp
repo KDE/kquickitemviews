@@ -730,9 +730,7 @@ bool TreeTraversalItem::reset()
         m_Geometry.setVisualItem(nullptr);
     }
 
-    m_Geometry.m_State.performAction(
-        GeometryCache::Action::RESET, nullptr, nullptr
-    );
+    m_Geometry.m_State.performAction( GeometryCache::Action::RESET );
 
     return true;
     /*return this == d_ptr->m_pRoot ?

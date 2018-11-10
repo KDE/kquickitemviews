@@ -386,9 +386,24 @@ void AbstractItemAdapterPrivate::load()
 
     Q_ASSERT(q_ptr->s_ptr->m_pGeometry->contextAdapter()->context() == m_pContext);
 
-    q_ptr->s_ptr->m_pGeometry->m_State.setSize(
-        QSizeF(m_pItem->width(), m_pItem->height())
-    );
+    // Update the geometry cache
+    switch (q_ptr->s_ptr->m_pRange->sizeHintStrategy()){
+        case Viewport::SizeHintStrategy::JIT:
+        case Viewport::SizeHintStrategy::AOT:
+            q_ptr->s_ptr->m_pGeometry->m_State.setSize(
+                QSizeF(m_pItem->width(), m_pItem->height())
+            );
+            break;
+        case Viewport::SizeHintStrategy::PROXY:
+        case Viewport::SizeHintStrategy::ROLE:
+        case Viewport::SizeHintStrategy::DELEGATE:
+            q_ptr->s_ptr->m_pGeometry->m_State.performAction(
+                GeometryCache::Action::MODIFY
+            );
+            break;
+        case Viewport::SizeHintStrategy::UNIFORM:
+            break;
+    }
 
     Q_ASSERT(q_ptr->s_ptr->m_pGeometry->m_State.state() != GeometryCache::State::INIT);
 }
@@ -422,6 +437,21 @@ QRectF AbstractItemAdapter::geometry() const
         item()->width(),
         item()->height()
     };
+}
+
+QRectF AbstractItemAdapter::decoratedGeometry() const
+{
+    return s_ptr->m_pGeometry->m_State.decoratedGeometry();
+}
+
+qreal AbstractItemAdapter::borderDecoration(Qt::Edge e) const
+{
+    return s_ptr->m_pGeometry->m_State.borderDecoration(e);
+}
+
+void AbstractItemAdapter::setBorderDecoration(Qt::Edge e, qreal r)
+{
+    s_ptr->m_pGeometry->m_State.setBorderDecoration(e, r);
 }
 
 bool AbstractItemAdapter::refresh()
@@ -563,17 +593,19 @@ bool BlockMetadata::isInSync() const
         return true;
     }
 
-    const auto geo = m_State.geometry();
+    const auto geo = m_State.contentGeometry();
 
-    qDebug() << "SYNC" << (item->y() == geo.y())
-        << (item->x() == geo.x()) << (item->width() == geo.width())
-        << (item->height() == geo.height());
+    // The actual QQuickItem position adjusted for the decoration
+    QRectF correctedRect(
+        item->x(),
+        item->y(),
+        item->width(),
+        item->height()
+    );
 
-    qDebug() << item->y() << geo.y();
-    qDebug() << item->height() << geo.height();
+    //qDebug() << m_State.geometry();
+    qDebug() << geo << m_State.borderDecoration(Qt::TopEdge);
+    qDebug() << correctedRect;
 
-    return item->y() == geo.y()
-        && item->x() == geo.x()
-        && item->width() == geo.width()
-        && item->height() == geo.height();
+    return correctedRect == geo;
 }

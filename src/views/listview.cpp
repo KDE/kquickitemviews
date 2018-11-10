@@ -43,7 +43,6 @@ struct ListViewSection final
     );
     virtual ~ListViewSection();
 
-    ListViewItem*    m_pOwner   {nullptr};
     QQuickItem*      m_pItem    {nullptr};
     QQmlContext*     m_pContent {nullptr};
     int              m_Index    {   0   };
@@ -59,7 +58,15 @@ struct ListViewSection final
 
     // Helpers
     void reparentSection(ListViewItem* newParent, ViewBase* view);
-    void setOwner(ListViewItem* newOwner);
+
+    // Getter
+    ListViewItem *owner() const;
+
+    // Setter
+    void setOwner(ListViewItem *o);
+
+private:
+    ListViewItem *m_pOwner {nullptr};
 };
 
 class ListViewItem : public AbstractItemAdapter
@@ -121,8 +128,8 @@ ListView::ListView(QQuickItem* parent) : SingleModelViewBase(new ItemFactory<Lis
 ListViewItem::~ListViewItem()
 {
     // If this item is the section owner, assert before crashing
-    if (m_pSection && m_pSection->m_pOwner == this) {
-        Q_ASSERT(false);
+    if (m_pSection && m_pSection->owner() == this) {
+        Q_ASSERT(false); //TODO
     }
 }
 
@@ -183,17 +190,12 @@ ListViewSections* ListView::section() const
     return d_ptr->m_pSections;
 }
 
-ListViewSection::ListViewSection(
-    ListViewItem* owner,
-    const QVariant& value
-)
+ListViewSection::ListViewSection(ListViewItem* owner, const QVariant& value) :
+    m_pOwner(owner), m_Value(value), d_ptr(owner->d())
 {
-    m_pOwner = owner;
-    m_Value  = value;
-    d_ptr    = owner->d();
-
     m_pContent = new QQmlContext(owner->view()->rootContext());
     m_pContent->setContextProperty("section", value);
+    owner->setBorderDecoration(Qt::TopEdge, 45.0);
 }
 
 QQuickItem* ListViewSection::item(QQmlComponent* component)
@@ -205,7 +207,7 @@ QQuickItem* ListViewSection::item(QQmlComponent* component)
         m_pContent
     ));
 
-    m_pItem->setParentItem(m_pOwner->view()->contentItem());
+    m_pItem->setParentItem(owner()->view()->contentItem());
 
     return m_pItem;
 }
@@ -408,7 +410,15 @@ void ListViewSection::setOwner(ListViewItem* newParent)
     else
         newParent->item()->setY(0);
 
+    // Cleanup the previous owner decoration
+    if (m_pOwner) {
+        m_pOwner->setBorderDecoration(Qt::TopEdge, 0);
+    }
+
     m_pOwner = newParent;
+
+    // Update the owner decoration size
+    m_pOwner->setBorderDecoration(Qt::TopEdge, 45.0);
 }
 
 void ListViewSection::reparentSection(ListViewItem* newParent, ViewBase* view)
@@ -420,7 +430,7 @@ void ListViewSection::reparentSection(ListViewItem* newParent, ViewBase* view)
         auto anchors = qvariant_cast<QObject*>(m_pItem->property("anchors"));
         anchors->setProperty("top", newParent->item()->property("bottom"));
 
-        m_pItem->setParentItem(m_pOwner->view()->contentItem());
+        m_pItem->setParentItem(owner()->view()->contentItem());
     }
     else {
         auto anchors = qvariant_cast<QObject*>(m_pItem->property("anchors"));
@@ -461,7 +471,7 @@ bool ListViewItem::move()
     if (d()->m_pSections)
         if (auto sec = d()->getSection(this)) {
             // The item is no longer the first in the section
-            if (sec->m_pOwner == this) {
+            if (sec->owner() == this) {
 
                 ListViewItem* newOwner = nullptr;
                 while (prev && prev->m_pSection == sec) {
@@ -481,7 +491,7 @@ bool ListViewItem::move()
                     prevItem = sec->m_pItem;
 
             }
-            else if (sec->m_pOwner->row() > row()) { //TODO remove once correctly implemented
+            else if (sec->owner()->row() > row()) { //TODO remove once correctly implemented
                 //HACK to force reparenting when the elements move up
                 sec->setOwner(this);
                 sec->reparentSection(prev, view());
@@ -534,11 +544,11 @@ bool ListViewItem::remove()
     if (m_pSection && --m_pSection->m_RefCount <= 0) {
         delete m_pSection;
     }
-    else if (m_pSection && m_pSection->m_pOwner == this) {
+    else if (m_pSection && m_pSection->owner() == this) {
         // Reparent the section
         if (auto n = static_cast<ListViewItem*>(down())) {
             if (n->m_pSection == m_pSection)
-                m_pSection->m_pOwner = n;
+                m_pSection->setOwner(n);
             /*else
                 Q_ASSERT(false);*/
         }
@@ -673,6 +683,11 @@ void ListViewPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& 
 //             tli->move();
 //
 //     } while(tli != bri && (tli = static_cast<ListViewItem*>(tli->down())));
+}
+
+ListViewItem *ListViewSection::owner() const
+{
+    return m_pOwner;
 }
 
 #include <listview.moc>

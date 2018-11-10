@@ -268,7 +268,7 @@ QVariant RoleGroup::getProperty(AbstractItemAdapter* item, uint id, const QModel
     // Keep track of the accessed roles
     if (!(metaRole->flags & MetaProperty::Flags::READ)) {
         d_ptr->m_pMetaType->used << metaRole;
-        qDebug() << "\n NEW ROLE!" << (*metaRole->name) << d_ptr->m_pMetaType->used.size();
+        //qDebug() << "\n NEW ROLE!" << (*metaRole->name) << d_ptr->m_pMetaType->used.size();
     }
 
     metaRole->flags |= MetaProperty::Flags::READ;

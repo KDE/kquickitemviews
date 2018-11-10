@@ -19,6 +19,7 @@
 
 // Qt
 #include <QtCore/QRectF>
+#include <QtGlobal>
 
 struct BlockMetadata;
 
@@ -34,58 +35,76 @@ struct BlockMetadata;
  * This structure tries to allow delaying the geometry computation as late
  * as possible.
  *
- * TODO add some kind of Frame to reduce the number of iterations to update
- * larger models with scrollbars
+ * The geometry is built using 3 components:
+ *
+ * * The content size
+ * * The outer decoration size
+ * * The position
+ *
+ * What this entity doesn't known (and should not ever know)
+ *
+ * * Anything related about its neighbor.
+ *
  */
 struct GeometryCache
 {
     enum class State {
-        INIT    , /*!< The value has not been computed */
-        SIZE    , /*!< The size had been computed      */
-        POSITION, /*!< The position has been computed  */
-        VALID   , /*!< The geometry has been computed  */
+        INIT    , /*!< The value has not been computed        */
+        SIZE    , /*!< The size had been computed             */
+        POSITION, /*!< The position has been computed         */
+        PENDING , /*!< Has all information, but not assembled */
+        VALID   , /*!< The geometry has been computed         */
     };
 
     enum class Action {
-        INSERT ,
-        MOVE   ,
-        REMOVE ,
-        RESIZE ,
-        VIEW   ,
-        PLACE  ,
-        RESET  , /*!<  */
-        MODIFY , /*!< When the QModelIndex role change */
+        MOVE    , /*!< When moved                              */
+        RESIZE  , /*!< When the content size changes           */
+        PLACE   , /*!< When setting the position               */
+        RESET   , /*!< The delegate, layout changes, or pooled */
+        MODIFY  , /*!< When the QModelIndex role changes       */
+        DECORATE, /*!< When the decoration size changes        */
+        VIEW    , /*!< When the geometry is accessed           */
     };
 
-    // actions
-    void nothing(BlockMetadata* topLeft, BlockMetadata* bottomRight);
-    void discardPosition(BlockMetadata* topLeft, BlockMetadata* bottomRight);
-    void discardSize(BlockMetadata* topLeft, BlockMetadata* bottomRight);
-    void invalidate(BlockMetadata* topLeft, BlockMetadata* bottomRight);
 
-    void split(BlockMetadata* topLeft, State above, State below);
 
-    State performAction(Action, BlockMetadata*, BlockMetadata*);
+    State performAction(Action);
 
     void setPosition(const QPointF& pos);
     void setSize(const QSizeF& size);
-    QRectF geometry() const;
     QSizeF size() const;
     QPointF position() const;
+    QRectF decoratedGeometry() const;
+    QRectF contentGeometry() const;
+
+    qreal borderDecoration(Qt::Edge e) const;
+    void setBorderDecoration(Qt::Edge e, qreal r);
+
+    /// When the geometry can be used
+    bool isReady() const;
 
     State state() const;
 private:
+    QRectF rawGeometry() const;
 
     QPointF m_Position;
     QSizeF  m_Size;
 
-    typedef void(GeometryCache::*StateF)(BlockMetadata*, BlockMetadata*);
+    qreal m_lBorderDecoration[4] {0.0, 0.0, 0.0, 0.0};
 
-    static const State  m_fStateMap    [4][8];
-    static const StateF m_fStateMachine[4][8];
+    typedef void(GeometryCache::*StateF)();
 
-    BlockMetadata *m_pFirst {nullptr};
-    BlockMetadata *m_pLast  {nullptr};
+    static const State  m_fStateMap    [5][7];
+    static const StateF m_fStateMachine[5][7];
+
+    // Actions
+    void nothing();
+    void invalidate();
+    void error();
+    void dropCache();
+    void dropSize();
+    void dropPos();
+    void buildCache();
 
     State m_State {State::INIT};
 };

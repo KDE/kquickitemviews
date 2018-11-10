@@ -211,6 +211,22 @@ public:
      */
     virtual QRectF geometry() const;
 
+    QRectF decoratedGeometry() const;
+
+    /**
+     * In many case, it is useful or necessary to place additional components
+     * or just empty space around a delegate instance.
+     *
+     * This can be, for example, the treeview vertical indentation/expand
+     * indicator or the listview category delegate.
+     *
+     * Note that the top and bottom edge decoration include the width of the
+     * left and right ones.
+     */
+    qreal borderDecoration(Qt::Edge e) const;
+
+    void setBorderDecoration(Qt::Edge e, qreal r);
+
     /**
      * Set if the children of this item should be skipped from the view.
      */

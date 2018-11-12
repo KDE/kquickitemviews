@@ -31,7 +31,6 @@ INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR})
 
 SET(modelviewtester_SRC
 modelviewtester.cpp
-listmodeltester.cpp
 testmain.cpp
 )
 

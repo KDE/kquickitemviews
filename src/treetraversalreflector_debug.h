@@ -24,8 +24,8 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItem* p)
         return;
     }*/
 
-//     if (p->parent() == m_pRoot && m_pRoot->firstChild() == p && p->m_Geometry.visualItem()) {
-//         Q_ASSERT(!p->m_Geometry.visualItem()->up());
+//     if (p->parent() == m_pRoot && m_pRoot->firstChild() == p && p->m_Geometry.viewTracker()) {
+//         Q_ASSERT(!p->m_Geometry.viewTracker()->up());
 //     }
 
     // First, let's check the linked list to avoid running more test on really
@@ -97,7 +97,7 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItem* p)
             old = TTI(item);
 
         // Check that m_FailedCount is valid
-        //Q_ASSERT(!item->m_Geometry.visualItem()->hasFailed());
+        //Q_ASSERT(!item->m_Geometry.viewTracker()->hasFailed());
 
         // Test the indices
         Q_ASSERT(p == m_pRoot || i->index().internalPointer() == item->index().internalPointer());
@@ -213,7 +213,7 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
 
     qDebug() << "";
     while ((prev = cur) && (cur = TTI(cur->down()))) {
-        BlockMetadata *md = &cur->m_Geometry;
+        IndexMetadata *md = &cur->m_Geometry;
         qDebug() << "TREE"
             << cur << (int)md->m_State.state()
             << (cur->m_State == TreeTraversalItem::State::VISIBLE);
@@ -247,7 +247,7 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
             lastVisible = prev;
         }
 
-        auto vi = cur->m_Geometry.visualItem();
+        auto vi = cur->m_Geometry.viewTracker();
 
 //         if (vi) {
 //             if (vi->m_State == VisualTreeItem::State::ACTIVE) {
@@ -295,8 +295,8 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
             // Prevent accidental overlapping until a view with on-purpose
             // overlapping exists
 //             Q_ASSERT(geo.y() >= maxY); // The `=` because it starts at 0
-//             Q_ASSERT(cur->m_Geometry.visualItem()->item()->y() >= maxY); // The `=` because it starts at 0
-//             Q_ASSERT(cur->m_Geometry.visualItem()->item()->y() == cur->m_Geometry.geometry().y());
+//             Q_ASSERT(cur->m_Geometry.viewTracker()->item()->y() >= maxY); // The `=` because it starts at 0
+//             Q_ASSERT(cur->m_Geometry.viewTracker()->item()->y() == cur->m_Geometry.geometry().y());
 
             // 0x0 elements are generally evil, but this is more about making
             // sure it works at all.
@@ -362,8 +362,8 @@ void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)
             (skipVItemState && item->m_State == TreeTraversalItem::State::BUFFER)
         );
         if (!skipVItemState) {
-            Q_ASSERT(item->m_Geometry.visualItem());
-            Q_ASSERT(item->m_Geometry.visualItem()->m_State == VisualTreeItem::State::ACTIVE);
+            Q_ASSERT(item->m_Geometry.viewTracker());
+            Q_ASSERT(item->m_Geometry.viewTracker()->m_State == VisualTreeItem::State::ACTIVE);
         }
         Q_ASSERT(item->up() == old);
 
@@ -428,10 +428,10 @@ void TreeTraversalReflectorPrivate::_test_validate_edges()
     Q_ASSERT((!vStart) || (vStart && vEnd));
 
     if (vStart) {
-        Q_ASSERT(vStart->m_pTTI->m_State == TreeTraversalItem::State::VISIBLE);
-        Q_ASSERT(vEnd->m_pTTI->m_State == TreeTraversalItem::State::VISIBLE);
-        auto prev = TTI(vStart->m_pTTI->up());
-        auto next = TTI(vEnd->m_pTTI->down());
+        Q_ASSERT(vStart->modelTracker()->m_State == TreeTraversalItem::State::VISIBLE);
+        Q_ASSERT(vEnd->modelTracker()->m_State == TreeTraversalItem::State::VISIBLE);
+        auto prev = TTI(vStart->modelTracker()->up());
+        auto next = TTI(vEnd->modelTracker()->down());
 
         Q_ASSERT((!prev) || prev->m_State == TreeTraversalItem::State::REACHABLE);
         Q_ASSERT((!next) || next->m_State == TreeTraversalItem::State::REACHABLE);

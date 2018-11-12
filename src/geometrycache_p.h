@@ -21,7 +21,7 @@
 #include <QtCore/QRectF>
 #include <QtGlobal>
 
-struct BlockMetadata;
+struct IndexMetadata;
 
 /**
  * Computing the absolute geometry of items isn't always trivial.

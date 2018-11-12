@@ -31,6 +31,7 @@
 #include "adapters/selectionadapter.h"
 #include "adapters/selectionadapter_p.h"
 #include "viewport.h"
+#include "indexmetadata_p.h"
 #include "viewport_p.h"
 #include "modeladapter.h"
 #include "viewbase.h"
@@ -386,6 +387,8 @@ void AbstractItemAdapterPrivate::load()
 
     Q_ASSERT(q_ptr->s_ptr->m_pGeometry->contextAdapter()->context() == m_pContext);
 
+    qDebug() << "FOO" << (int) q_ptr->s_ptr->m_pGeometry->m_State.state();
+
     // Update the geometry cache
     switch (q_ptr->s_ptr->m_pRange->sizeHintStrategy()){
         case Viewport::SizeHintStrategy::JIT:
@@ -577,14 +580,14 @@ bool AbstractItemAdapter::isCollapsed() const
     return s_ptr->isCollapsed();
 }
 
-bool BlockMetadata::isInSync() const
+bool IndexMetadata::isInSync() const
 {
     if (m_State.state() != GeometryCache::State::VALID) {
         qDebug() << "INVALID";
         return false;
     }
 
-    const auto item = visualItem()->item();
+    const auto item = viewTracker()->item();
 
     // If it got that far, then it's probably not going to load, trying to fix
     // that should be done elsewhere. Lets just assume a null delegate.

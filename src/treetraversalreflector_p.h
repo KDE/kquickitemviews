@@ -27,7 +27,7 @@ class VisualTreeItem;
 class TreeTraversalReflectorPrivate;
 class AbstractItemAdapter;
 class Viewport;
-class BlockMetadata;
+class IndexMetadata;
 
 /**
  * This class refects a QAbstractItemModel (realtime) topology.
@@ -95,11 +95,11 @@ public:
 
     void setAvailableEdges(Qt::Edges edges, EdgeType type);
     Qt::Edges availableEdges(EdgeType type) const;
-    BlockMetadata *getEdge(EdgeType t, Qt::Edge e) const;
+    IndexMetadata *getEdge(EdgeType t, Qt::Edge e) const;
 
     // Getter
     AbstractItemAdapter* itemForIndex(const QModelIndex& idx) const; //TODO remove
-    BlockMetadata *geometryForIndex(const QModelIndex& idx) const;
+    IndexMetadata *geometryForIndex(const QModelIndex& idx) const;
     bool isActive(const QModelIndex& parent, int first, int last); //TODO move to range
 
     /**

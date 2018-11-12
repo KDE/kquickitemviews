@@ -24,7 +24,7 @@ struct TreeTraversalItem;
 class ViewItemContextAdapter;
 class ContextAdapter;
 class Viewport;
-struct BlockMetadata;
+struct IndexMetadata;
 
 // Qt
 class QQuickItem;
@@ -117,7 +117,7 @@ public:
     void setVisible(bool) {Q_ASSERT(false);}
 
     Viewport      *m_pRange    {nullptr};
-    BlockMetadata *m_pGeometry {nullptr};
+    IndexMetadata *m_pGeometry {nullptr};
 
     bool performAction(ViewAction); //FIXME make private, remove #include
 

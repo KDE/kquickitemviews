@@ -23,82 +23,12 @@ class ViewportPrivate;
 class Viewport;
 class ContextAdapter;
 class ViewItemContextAdapter;
+class IndexMetadata;
 
 #include <QtCore/QRectF>
 #include <QtCore/QModelIndex>
 
 #include "geometrycache_p.h"
-
-/**
- * For size modes like UniformRowHeight, it's pointless to keep track of
- * every single elements (potentially without a TreeTraversalItem).
- *
- * Even in the case of individual item, it may not be worth the extra memory
- * and recomputing them on demand may make sense.
- */
-struct BlockMetadata
-{
-    explicit BlockMetadata(ViewportPrivate* p) : m_pViewport(p) {}
-    ~BlockMetadata();
-    int removeMe = -1;
-
-    enum class Mode {
-        SINGLE,
-        BLOCK
-    };
-
-    enum class Source {
-        NONE,
-        HINTS,
-        WIDGETS,
-    };
-
-    enum class Action {
-        SHOW   = 0, /*!< Make visible on screen (or buffer) */
-        HIDE   = 1, /*!< Remove from the screen (or buffer) */
-        ATTACH = 2, /*!< Track, but do not show             */
-        DETACH = 3, /*!< Stop tracking for changes          */
-        UPDATE = 4, /*!< Update the element                 */
-        MOVE   = 5, /*!< Update the depth and lookup        */
-        RESET  = 6, /*!< Flush the visual item              */
-    };
-
-    QRectF geometry() const;
-    QModelIndex index() const;
-
-
-    Qt::Edge m_BufferEdge {Qt::TopEdge};
-    Qt::Edges m_IsEdge {};
-
-    bool performAction(Action);
-
-    Source  m_Source  {Source::NONE};
-    Mode    m_Mode    {Mode::SINGLE};
-    TreeTraversalItem *m_pTTI  {nullptr};
-
-    BlockMetadata *up   () const;
-    BlockMetadata *down () const;
-    BlockMetadata *left () const;
-    BlockMetadata *right() const;
-
-    bool isTopItem() const;
-
-    // Check of the QQuickItem exists and is in the right spot
-    bool isInSync() const;
-
-    void setVisualItem(VisualTreeItem *i);
-
-    VisualTreeItem *visualItem() const;
-
-    ContextAdapter* contextAdapter() const;
-
-    GeometryCache m_State; //FIXME I could not find a stable enough other way
-
-private:
-    ViewportPrivate *m_pViewport;
-    VisualTreeItem  *m_pItem {nullptr};
-    mutable ViewItemContextAdapter* m_pContextAdapter {nullptr};
-};
 
 /**
  * In order to keep the separation of concerns design goal intact, this
@@ -112,34 +42,34 @@ public:
     /**
      * From the model or feedback loop
      */
-    void updateGeometry(BlockMetadata* item);
+    void updateGeometry(IndexMetadata* item);
 
     /**
      * From the widget
      */
-    void geometryUpdated(BlockMetadata* item);
+    void geometryUpdated(IndexMetadata* item);
 
     /**
      * From the model or feedback loop
      */
-    void notifyRemoval(BlockMetadata* item);
+    void notifyRemoval(IndexMetadata* item);
 
     /**
      * From the model or feedback loop
      */
-    void notifyInsert(BlockMetadata* item);
+    void notifyInsert(IndexMetadata* item);
 
     /**
      * From the model when the QModelIndex role change
      */
-    void notifyChange(BlockMetadata* item);
+    void notifyChange(IndexMetadata* item);
 
     /**
      * Manually trigger the sizes and positions to be updated.
      */
     void refreshVisible();
 
-    inline void updateSingleItem(const QModelIndex& index, BlockMetadata* b);
+    inline void updateSingleItem(const QModelIndex& index, IndexMetadata* b);
 
     Viewport *q_ptr;
 };

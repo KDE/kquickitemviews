@@ -31,6 +31,7 @@
 #include "selectionadapter_p.h"
 #include "abstractitemadapter_p.h"
 #include "abstractitemadapter.h"
+#include "proxies/sizehintproxymodel.h"
 
 using QSharedItemModel = QSharedPointer<QAbstractItemModel>;
 
@@ -51,6 +52,7 @@ public:
     SelectionAdapter       *m_pSelectionManager   {nullptr};
     ViewBase               *m_pView               {nullptr};
     ContextAdapterFactory  *m_pRoleContextFactory {nullptr};
+    bool                    m_ModelHasSizeHints   { false };
 
     bool m_Collapsable {true };
     bool m_AutoExpand  {false};
@@ -116,6 +118,11 @@ void ModelAdapterPrivate::setModelCommon(QAbstractItemModel* m, QAbstractItemMod
 
     if (auto f = m_pRoleContextFactory)
         f->setModel(m);
+
+    // Check if the proxyModel is used
+    m_ModelHasSizeHints = m && m->metaObject()->inherits(
+        &SizeHintProxyModel::staticMetaObject
+    );
 }
 
 void ModelAdapter::setModel(const QVariant& var)
@@ -316,6 +323,11 @@ AbstractItemAdapter* ModelAdapter::itemForIndex(const QModelIndex& idx) const
 ViewBase *ModelAdapter::view() const
 {
     return d_ptr->m_pView;
+}
+
+bool ModelAdapter::hasSizeHints() const
+{
+    return d_ptr->m_ModelHasSizeHints;
 }
 
 #include <modeladapter.moc>

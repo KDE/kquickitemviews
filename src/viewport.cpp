@@ -32,6 +32,7 @@
 #include "adapters/abstractitemadapter_p.h"
 #include "adapters/abstractitemadapter.h"
 #include "viewbase.h"
+#include "indexmetadata_p.h"
 
 
 class ViewportPrivate : public QObject
@@ -43,7 +44,6 @@ public:
 
     Viewport::SizeHintStrategy m_SizeStrategy { Viewport::SizeHintStrategy::JIT };
 
-    bool m_ModelHasSizeHints {false};
     QByteArray m_SizeHintRole;
     int m_SizeHintRoleIndex {-1};
     bool m_KnowsRowHeight {false};
@@ -58,7 +58,6 @@ public:
     QRectF m_ViewRect;
     QRectF m_UsedRect;
 
-    QSizeF sizeHint(BlockMetadata* item) const;
     QPair<Qt::Edge,Qt::Edge> fromGravity() const;
     void updateAvailableEdges();
     qreal getSectionHeight(const QModelIndex& parent, int first, int last);
@@ -80,28 +79,6 @@ enum Pos {Top, Left, Right, Bottom};
 static constexpr const Qt::Edge edgeMap[] = {
     Qt::TopEdge, Qt::LeftEdge, Qt::RightEdge, Qt::BottomEdge
 };
-
-/**
- * Extend the class for the need of needs of the AbstractItemAdapter.
- */
-class ViewItemContextAdapter final : public ContextAdapter
-{
-public:
-    explicit ViewItemContextAdapter(QQmlContext* p) : ContextAdapter(p){}
-    virtual ~ViewItemContextAdapter() {
-        flushCache();
-    }
-
-// //     virtual QQmlContext         *context() const override;
-    virtual QModelIndex          index  () const override;
-    virtual AbstractItemAdapter *item   () const override;
-
-    mutable std::atomic_flag m_InitContext = ATOMIC_FLAG_INIT;
-
-    BlockMetadata* m_pGeometry;
-};
-
-
 
 Viewport::Viewport(ModelAdapter* ma) : QObject(),
     s_ptr(new ViewportSync()), d_ptr(new ViewportPrivate())
@@ -143,21 +120,6 @@ QSizeF AbstractItemAdapter::sizeHint() const
     return {};
 }
 
-// QSizeF Viewport::sizeHint(const QModelIndex& index) const
-// {
-//     if (!d_ptr->m_SizeHintRole.isEmpty())
-//         return index.data(d_ptr->m_SizeHintRoleIndex).toSize();
-//
-//     if (!d_ptr->m_pEngine)
-//         d_ptr->m_pEngine = d_ptr->m_pView->rootContext()->engine();
-//
-//     if (d_ptr->m_ModelHasSizeHints)
-//         return qobject_cast<SizeHintProxyModel*>(model().data())
-//             ->sizeHintForIndex(index);
-//
-//     return {};
-// }
-
 QPair<Qt::Edge,Qt::Edge> ViewportPrivate::fromGravity() const
 {
     switch (m_pModelAdapter->view()->gravity()) {
@@ -173,72 +135,6 @@ QPair<Qt::Edge,Qt::Edge> ViewportPrivate::fromGravity() const
 
     Q_ASSERT(false);
     return {};
-}
-
-QSizeF ViewportPrivate::sizeHint(BlockMetadata *item) const
-{
-    Q_ASSERT(item);
-    QSizeF ret;
-
-    auto s = item->m_State.state();
-
-    //TODO switch to function table
-    if (s == GeometryCache::State::POSITION || s == GeometryCache::State::INIT) {
-        switch (m_SizeStrategy) {
-            case Viewport::SizeHintStrategy::AOT:
-                Q_ASSERT(false);
-                break;
-            case Viewport::SizeHintStrategy::JIT:
-                if (item->visualItem())
-                    ret = item->visualItem()->geometry().size();
-                else {
-                    // JIT cannot be used past the loaded bounds, the value isn't known
-                    Q_ASSERT(false);
-                }
-                break;
-            case Viewport::SizeHintStrategy::UNIFORM:
-                Q_ASSERT(false);
-                break;
-            case Viewport::SizeHintStrategy::PROXY:
-                Q_ASSERT(m_ModelHasSizeHints);
-
-                ret = qobject_cast<SizeHintProxyModel*>(m_pModelAdapter->rawModel())
-                    ->sizeHintForIndex(item->index());
-
-                static int i = 0;
-
-                break;
-            case Viewport::SizeHintStrategy::ROLE:
-            case Viewport::SizeHintStrategy::DELEGATE:
-                Q_ASSERT(false);
-                break;
-        }
-
-        qDebug() << "\n\n\n\nSET SIZE" << ret << (int) m_SizeStrategy;
-        item->m_State.setSize(ret);
-    }
-
-    s = item->m_State.state();
-    Q_ASSERT(s != GeometryCache::State::INIT);
-    Q_ASSERT(s != GeometryCache::State::POSITION);
-
-    if (s == GeometryCache::State::SIZE) {
-        if (auto prev = item->up()) {
-
-            // A word of warning, this is recursive
-            const auto prevGeo = prev->geometry();
-            Q_ASSERT(prevGeo.y() != -1);
-            item->m_State.setPosition(QPointF(0.0, prevGeo.y() + prevGeo.height()));
-        }
-        else if (item->isTopItem()) {
-            item->m_State.setPosition(QPointF(0.0, 0.0));
-            Q_ASSERT(item->m_State.state() == GeometryCache::State::PENDING);
-        }
-    }
-
-    Q_ASSERT(item->m_State.isReady());
-
-    return ret;
 }
 
 QString Viewport::sizeHintRole() const
@@ -281,12 +177,9 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel
 
     m_pReflector->setModel(m);
 
-    // Check if the proxyModel is used
-    m_ModelHasSizeHints = m && m->metaObject()->inherits(
-        &SizeHintProxyModel::staticMetaObject
-    );
+    Q_ASSERT(m_pModelAdapter->rawModel() == m);
 
-    if (m_ModelHasSizeHints)
+    if (m_pModelAdapter->hasSizeHints())
         q_ptr->setSizeHintStrategy(Viewport::SizeHintStrategy::PROXY);
 
     if (!m_SizeHintRole.isEmpty() && m)
@@ -452,7 +345,7 @@ void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& 
                 // (maybe) dismiss geometry cache
                 q_ptr->s_ptr->notifyChange(item);
 
-                if (auto vi = item->visualItem())
+                if (auto vi = item->viewTracker())
                     vi->performAction(VisualTreeItem::ViewAction::UPDATE);
             }
         }
@@ -556,7 +449,7 @@ void ViewportPrivate::updateAvailableEdges()
     m_pReflector->performAction(TreeTraversalReflector::TrackingAction::TRIM);
 }
 
-void ViewportSync::geometryUpdated(BlockMetadata *item)
+void ViewportSync::geometryUpdated(IndexMetadata *item)
 {
     //TODO assert if the size hints don't match reality
 
@@ -567,7 +460,7 @@ void ViewportSync::geometryUpdated(BlockMetadata *item)
 //         geo = item->geometry();
 //     }
 
-//     Q_ASSERT((!item->visualItem()) || item->visualItem()->geometry().size() == geo.size());
+//     Q_ASSERT((!item->viewTracker()) || item->viewTracker()->geometry().size() == geo.size());
 
     // Update the used rect
     const QRectF r = q_ptr->d_ptr->m_UsedRect = q_ptr->d_ptr->m_UsedRect.united(geo);
@@ -578,10 +471,10 @@ void ViewportSync::geometryUpdated(BlockMetadata *item)
         q_ptr->d_ptr->updateAvailableEdges();
 }
 
-void ViewportSync::updateGeometry(BlockMetadata* item)
+void ViewportSync::updateGeometry(IndexMetadata* item)
 {
     if (q_ptr->d_ptr->m_SizeStrategy != Viewport::SizeHintStrategy::JIT)
-        q_ptr->d_ptr->sizeHint(item);
+        item->sizeHint();
 
     notifyInsert(item->down());
 
@@ -593,7 +486,7 @@ void ViewportSync::updateGeometry(BlockMetadata* item)
 }
 
 // When the QModelIndex role change
-void ViewportSync::notifyChange(BlockMetadata* item)
+void ViewportSync::notifyChange(IndexMetadata* item)
 {
     switch(q_ptr->d_ptr->m_SizeStrategy) {
         case Viewport::SizeHintStrategy::UNIFORM:
@@ -607,7 +500,7 @@ void ViewportSync::notifyChange(BlockMetadata* item)
     }
 }
 
-void ViewportSync::notifyRemoval(BlockMetadata* item)
+void ViewportSync::notifyRemoval(IndexMetadata* item)
 {
 
 //     auto tve = m_pReflector->getEdge(
@@ -642,7 +535,7 @@ void ViewportSync::notifyRemoval(BlockMetadata* item)
 void ViewportSync::refreshVisible()
 {
     qDebug() << "\n\nREFRESH!!!";
-    BlockMetadata *item = q_ptr->d_ptr->m_pReflector->getEdge(
+    IndexMetadata *item = q_ptr->d_ptr->m_pReflector->getEdge(
         TreeTraversalReflector::EdgeType::VISIBLE, Qt::TopEdge
     );
 
@@ -685,17 +578,17 @@ void ViewportSync::refreshVisible()
         Q_ASSERT(item->m_State.state() != GeometryCache::State::INIT);
         Q_ASSERT(item->m_State.state() != GeometryCache::State::POSITION);
 
-        q_ptr->d_ptr->sizeHint(item);
+        item->sizeHint();
         Q_ASSERT(item->m_State.isReady());
 
         if (!item->isInSync())
-            item->performAction(BlockMetadata::Action::MOVE);
+            item->performAction(IndexMetadata::Action::MOVE);
 //         qDebug() << "R" << item << item->down();
 
     } while((!hasSingleItem) && item->up() != bve && (item = item->down()));
 }
 
-void ViewportSync::notifyInsert(BlockMetadata* item)
+void ViewportSync::notifyInsert(IndexMetadata* item)
 {
     if (!item)
         return;
@@ -765,7 +658,7 @@ qreal ViewportPrivate::getSectionHeight(const QModelIndex& parent, int first, in
             Q_ASSERT(m_KnowsRowHeight);
             break;
         case Viewport::SizeHintStrategy::PROXY: {
-            Q_ASSERT(m_ModelHasSizeHints);
+            Q_ASSERT(q_ptr->modelAdapter()->hasSizeHints());
             const auto idx = m_pModelAdapter->rawModel()->index(first, 0, parent);
             return qobject_cast<SizeHintProxyModel*>(m_pModelAdapter->rawModel())
                 ->sizeHintForIndex(idx).height();
@@ -836,94 +729,5 @@ void ViewportPrivate::slotReset()
     m_DisableApply = false;
     applyDelayedSize();
 }
-
-void BlockMetadata::setVisualItem(VisualTreeItem *i)
-{
-    Q_ASSERT((!i) || removeMe == 4);
-    if (m_pItem && !i) {
-        auto old = m_pItem;
-        m_pItem = nullptr;
-        m_pViewport->q_ptr->s_ptr->notifyRemoval(old->m_pGeometry);
-    }
-
-    if ((m_pItem = i)) {
-        i->m_pGeometry = this;
-
-        // Assign the context object
-        contextAdapter()->context();
-    }
-}
-
-VisualTreeItem *BlockMetadata::visualItem() const
-{
-    return m_pItem;
-}
-
-QRectF BlockMetadata::geometry() const
-{
-    switch(m_State.state()) {
-        case GeometryCache::State::VALID:
-            break;
-        case GeometryCache::State::INIT:
-            Q_ASSERT(false);
-            break;
-        case GeometryCache::State::SIZE:
-        case GeometryCache::State::POSITION:
-            m_pViewport->sizeHint(const_cast<BlockMetadata*>(this));
-    }
-
-    const auto ret = m_State.decoratedGeometry();
-
-    Q_ASSERT(m_State.state() == GeometryCache::State::VALID);
-
-    return ret;
-}
-
-QModelIndex ViewItemContextAdapter::index() const
-{
-    return m_pGeometry->index();
-}
-
-// QQmlContext* ViewItemContextAdapter::context() const
-// {
-//     const auto vi = m_pGeometry->visualItem();
-//
-// //     if (vi && !m_InitContext.test_and_set()) {
-// //         vi->context()->setContextObject(contextObject());
-// //     }
-//
-//     return vi ? vi->context() : nullptr;
-// }
-
-AbstractItemAdapter* ViewItemContextAdapter::item() const
-{
-    return m_pGeometry->visualItem() ? m_pGeometry->visualItem()->d_ptr : nullptr;
-}
-
-ContextAdapter* BlockMetadata::contextAdapter() const
-{
-    if (!m_pContextAdapter) {
-        auto cm = m_pViewport->q_ptr->modelAdapter()->contextAdapterFactory();
-        m_pContextAdapter = cm->createAdapter<ViewItemContextAdapter>(
-            m_pViewport->q_ptr->modelAdapter()->view()->rootContext()
-        );
-        m_pContextAdapter->m_pGeometry = const_cast<BlockMetadata*>(this);
-
-        // This will init the context now.
-        contextAdapter()->context();
-    }
-
-    return m_pContextAdapter;
-}
-
-BlockMetadata::~BlockMetadata()
-{
-    if (m_pContextAdapter) {
-        if (m_pContextAdapter->isActive())
-            m_pContextAdapter->context()->setContextObject(nullptr);
-        delete m_pContextAdapter;
-    }
-}
-
 
 #include <viewport.moc>

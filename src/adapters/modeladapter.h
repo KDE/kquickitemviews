@@ -105,6 +105,8 @@ public:
 
     ViewBase *view() const;
 
+    bool hasSizeHints() const;
+
     AbstractItemAdapter* itemForIndex(const QModelIndex& idx) const; //FIXME remove
 
 protected:

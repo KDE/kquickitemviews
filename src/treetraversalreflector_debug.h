@@ -9,7 +9,7 @@
  *  * As a "sliding window" (viewport)
  */
 
-void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItem* p)
+void TreeTraversalReflectorPrivate::_test_validateTree(StateTracker::ModelItem* p)
 {
 // #ifdef QT_NO_DEBUG_OUTPUT
     return;
@@ -83,13 +83,13 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItem* p)
 
     //TODO remove once stable
     // Brute force recursive validations
-    TreeTraversalItem *old(nullptr), *newest(nullptr);
+    StateTracker::ModelItem *old(nullptr), *newest(nullptr);
 
     const auto children = p->allLoadedChildren();
 
     for (auto i : qAsConst(children)) {
         Q_ASSERT(i->parent() == p);
-        TreeTraversalItem *item = TTI(i);
+        StateTracker::ModelItem *item = TTI(i);
         if ((!newest) || i->effectiveRow() < newest->effectiveRow())
             newest = TTI(item);
 
@@ -105,7 +105,7 @@ void TreeTraversalReflectorPrivate::_test_validateTree(TreeTraversalItem* p)
         //Q_ASSERT(old == item || old->effectiveRow() > i->effectiveRow()); //FIXME
         //Q_ASSERT(newest == item || newest->effectiveRow() < i->effectiveRow()); //FIXME
 
-        // Test that there is no trivial duplicate TreeTraversalItem for the same index
+        // Test that there is no trivial duplicate StateTracker::ModelItem for the same index
         if(item->previousSibling() && !item->previousSibling()->loadedChildrenCount()) {
             const auto prev = item->up();
             Q_ASSERT(prev == item->previousSibling());
@@ -203,7 +203,7 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
 
     Q_ASSERT(!m_pRoot->firstChild()->up());
 
-    TreeTraversalItem *prev(nullptr), *cur(TTI(m_pRoot->firstChild()));
+    StateTracker::ModelItem *prev(nullptr), *cur(TTI(m_pRoot->firstChild()));
 
     static const constexpr qreal maxReal = std::numeric_limits<qreal>::max();
     qreal maxY(0), maxX(0), minY(maxReal), minX(maxReal);
@@ -215,14 +215,14 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
     while ((prev = cur) && (cur = TTI(cur->down()))) {
         IndexMetadata *md = &cur->m_Geometry;
         qDebug() << "TREE"
-            << (cur->m_State == TreeTraversalItem::State::VISIBLE);
+            << (cur->m_State == StateTracker::ModelItem::State::VISIBLE);
     }
     qDebug() << "DONE";
 
     prev = nullptr;
     cur  = TTI(m_pRoot->firstChild());
 
-    TreeTraversalItem *firstVisible(nullptr), *lastVisible(nullptr);
+    StateTracker::ModelItem *firstVisible(nullptr), *lastVisible(nullptr);
 
 //     qDebug() << "START";
     while ((prev = cur) && (cur = TTI(cur->down()))) {
@@ -237,11 +237,11 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
         else //FIXME wrong, only added to prevent forgetting
             Q_ASSERT(cur->m_Geometry.isValid());
 
-        if (cur->m_State == TreeTraversalItem::State::VISIBLE && !hadVisible) {
+        if (cur->m_State == StateTracker::ModelItem::State::VISIBLE && !hadVisible) {
             firstVisible = cur;
             hadVisible = true;
         }
-        else if (hadVisible && cur->m_State != TreeTraversalItem::State::VISIBLE) {
+        else if (hadVisible && cur->m_State != StateTracker::ModelItem::State::VISIBLE) {
             visibleFinished = true;
             lastVisible = prev;
         }
@@ -249,8 +249,8 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
         auto vi = cur->m_Geometry.viewTracker();
 
 //         if (vi) {
-//             if (vi->m_State == VisualTreeItem::State::ACTIVE) {
-//                 Q_ASSERT(cur->m_State == TreeTraversalItem::State::VISIBLE);
+//             if (vi->m_State == StateTracker::ViewItem::State::ACTIVE) {
+//                 Q_ASSERT(cur->m_State == StateTracker::ModelItem::State::VISIBLE);
 //                 Q_ASSERT(m_pViewport->currentRect().isValid());
 //                 Q_ASSERT(m_pViewport->currentRect().intersects(
 //                     vi->geometry()
@@ -258,18 +258,18 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
 //                 qDebug() << "LA!!!!";
 //             }
 //             else {
-//                 Q_ASSERT(vi->m_State == VisualTreeItem::State::BUFFER);
+//                 Q_ASSERT(vi->m_State == StateTracker::ViewItem::State::BUFFER);
 //                 Q_ASSERT(!m_pViewport->currentRect().intersects(
 //                     vi->geometry()
 //                 ));
 //             }
 //         }
 
-        Q_ASSERT((!visibleFinished) || visibleFinished ^ (cur->m_State == TreeTraversalItem::State::VISIBLE));
+        Q_ASSERT((!visibleFinished) || visibleFinished ^ (cur->m_State == StateTracker::ModelItem::State::VISIBLE));
 
         // skipVItemState is necessary to test some steps in between the tree and view
         if (!skipVItemState) {
-            Q_ASSERT(cur->m_State == TreeTraversalItem::State::VISIBLE || !vi);
+            Q_ASSERT(cur->m_State == StateTracker::ModelItem::State::VISIBLE || !vi);
             Q_ASSERT((!visibleFinished) || !vi);
         }
 
@@ -344,25 +344,25 @@ void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)
         auto d1 = TTI(edges(EdgeType::FREE)->getEdge(Qt::TopEdge)->down());
         auto u2 = TTI(edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)->up());
         auto d2 = TTI(edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)->down());
-        Q_ASSERT((!u1) || u1->m_State != TreeTraversalItem::State::VISIBLE);
-        Q_ASSERT((!u2) || u2->m_State != TreeTraversalItem::State::VISIBLE);
-        Q_ASSERT((!d1) || d1->m_State != TreeTraversalItem::State::VISIBLE);
-        Q_ASSERT((!d2) || d2->m_State != TreeTraversalItem::State::VISIBLE);
+        Q_ASSERT((!u1) || u1->m_State != StateTracker::ModelItem::State::VISIBLE);
+        Q_ASSERT((!u2) || u2->m_State != StateTracker::ModelItem::State::VISIBLE);
+        Q_ASSERT((!d1) || d1->m_State != StateTracker::ModelItem::State::VISIBLE);
+        Q_ASSERT((!d2) || d2->m_State != StateTracker::ModelItem::State::VISIBLE);
     }
 
     auto item = TTI(edges(EdgeType::FREE)->getEdge(Qt::TopEdge));
-    TreeTraversalItem *old = nullptr;
+    StateTracker::ModelItem *old = nullptr;
 
     QRectF oldGeo;
 
     do {
         Q_ASSERT(old != item);
-        Q_ASSERT(item->m_State == TreeTraversalItem::State::VISIBLE ||
-            (skipVItemState && item->m_State == TreeTraversalItem::State::BUFFER)
+        Q_ASSERT(item->m_State == StateTracker::ModelItem::State::VISIBLE ||
+            (skipVItemState && item->m_State == StateTracker::ModelItem::State::BUFFER)
         );
         if (!skipVItemState) {
             Q_ASSERT(item->m_Geometry.viewTracker());
-            Q_ASSERT(item->m_Geometry.viewTracker()->m_State == VisualTreeItem::State::ACTIVE);
+            Q_ASSERT(item->m_Geometry.viewTracker()->m_State == StateTracker::ViewItem::State::ACTIVE);
         }
         Q_ASSERT(item->up() == old);
 
@@ -427,13 +427,13 @@ void TreeTraversalReflectorPrivate::_test_validate_edges()
     Q_ASSERT((!vStart) || (vStart && vEnd));
 
     if (vStart) {
-        Q_ASSERT(vStart->modelTracker()->m_State == TreeTraversalItem::State::VISIBLE);
-        Q_ASSERT(vEnd->modelTracker()->m_State == TreeTraversalItem::State::VISIBLE);
+        Q_ASSERT(vStart->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE);
+        Q_ASSERT(vEnd->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE);
         auto prev = TTI(vStart->modelTracker()->up());
         auto next = TTI(vEnd->modelTracker()->down());
 
-        Q_ASSERT((!prev) || prev->m_State == TreeTraversalItem::State::REACHABLE);
-        Q_ASSERT((!next) || next->m_State == TreeTraversalItem::State::REACHABLE);
+        Q_ASSERT((!prev) || prev->m_State == StateTracker::ModelItem::State::REACHABLE);
+        Q_ASSERT((!next) || next->m_State == StateTracker::ModelItem::State::REACHABLE);
     }
 }
 

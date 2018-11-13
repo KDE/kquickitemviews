@@ -23,16 +23,16 @@
 #include <QQmlContext>
 
 // KQuickItemViews
-#include "viewport_p.h"
+#include "private/viewport_p.h"
 #include "proxies/sizehintproxymodel.h"
-#include "treetraversalreflector_p.h"
+#include "private/treetraversalreflector_p.h"
 #include "adapters/modeladapter.h"
 #include "contextadapterfactory.h"
 #include "adapters/contextadapter.h"
-#include "adapters/abstractitemadapter_p.h"
+#include "private/statetracker/viewitem_p.h"
 #include "adapters/abstractitemadapter.h"
 #include "viewbase.h"
-#include "indexmetadata_p.h"
+#include "private/indexmetadata_p.h"
 
 
 class ViewportPrivate : public QObject
@@ -346,7 +346,7 @@ void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& 
                 q_ptr->s_ptr->notifyChange(item);
 
                 if (auto vi = item->viewTracker())
-                    vi->performAction(VisualTreeItem::ViewAction::UPDATE);
+                    vi->performAction(StateTracker::ViewItem::ViewAction::UPDATE);
             }
         }
     }
@@ -380,8 +380,8 @@ void ViewportPrivate::updateAvailableEdges()
 
     // Size is normal as the state as not converged yet
     Q_ASSERT((!e) || (
-        e->removeMe() == (int)GeometryCache::State::VALID ||
-        e->removeMe() == (int)GeometryCache::State::SIZE)
+        e->removeMe() == (int)StateTracker::Geometry::State::VALID ||
+        e->removeMe() == (int)StateTracker::Geometry::State::SIZE)
     );
 
     // Resize the contend height
@@ -514,8 +514,8 @@ void ViewportSync::notifyRemoval(IndexMetadata* item)
 
 //     //FIXME this is horrible
 //     while(auto next = item->down()) { //FIXME dead code
-//         if (next->m_State.state() != GeometryCache::State::VALID ||
-//           next->m_State.state() != GeometryCache::State::POSITION)
+//         if (next->m_State.state() != StateTracker::Geometry::State::VALID ||
+//           next->m_State.state() != StateTracker::Geometry::State::POSITION)
 //             break;
 //
 //         next->m_State.performAction(
@@ -524,7 +524,7 @@ void ViewportSync::notifyRemoval(IndexMetadata* item)
 //
 //         Q_ASSERT(next != bve); //TODO
 //
-//         Q_ASSERT(next->m_State.state() != GeometryCache::State::VALID);
+//         Q_ASSERT(next->m_State.state() != StateTracker::Geometry::State::VALID);
 //     }
 //
 //     refreshVisible();
@@ -575,8 +575,8 @@ void ViewportSync::refreshVisible()
     const bool hasSingleItem = item == bve;
 
     do {
-        Q_ASSERT(item->removeMe() != (int)GeometryCache::State::INIT);
-        Q_ASSERT(item->removeMe() != (int)GeometryCache::State::POSITION);
+        Q_ASSERT(item->removeMe() != (int)StateTracker::Geometry::State::INIT);
+        Q_ASSERT(item->removeMe() != (int)StateTracker::Geometry::State::POSITION);
 
         item->sizeHint();
         Q_ASSERT(item->isValid());
@@ -607,7 +607,7 @@ void ViewportSync::notifyInsert(IndexMetadata* item)
         }
 
         if (!item->isValid() &&
-          item->removeMe() != (int)GeometryCache::State::POSITION) {
+          item->removeMe() != (int)StateTracker::Geometry::State::POSITION) {
 //             qDebug() << "BREAK2";
             break;
         }

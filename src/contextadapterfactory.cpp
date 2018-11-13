@@ -27,11 +27,11 @@
 #include "adapters/abstractitemadapter.h"
 #include "viewbase.h"
 #include "viewport.h"
-#include "viewport_p.h"
-#include "indexmetadata_p.h"
+#include "private/viewport_p.h"
+#include "private/indexmetadata_p.h"
 #include "extensions/contextextension.h"
 #include "adapters/modeladapter.h"
-#include "adapters/abstractitemadapter_p.h"
+#include "private/statetracker/viewitem_p.h"
 #include "adapters/contextadapter.h"
 
 using FactoryFunctor = std::function<ContextAdapter*(QQmlContext*)>;

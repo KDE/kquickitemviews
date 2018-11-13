@@ -28,8 +28,8 @@
 #include "viewbase.h"
 #include "selectionadapter.h"
 #include "contextadapterfactory.h"
-#include "selectionadapter_p.h"
-#include "abstractitemadapter_p.h"
+#include "private/selectionadapter_p.h"
+#include "private/statetracker/viewitem_p.h"
 #include "abstractitemadapter.h"
 #include "proxies/sizehintproxymodel.h"
 

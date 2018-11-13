@@ -25,15 +25,15 @@
 #include <functional>
 
 // KQuickItemViews
-#include "adapters/abstractitemadapter_p.h"
+#include "private/statetracker/viewitem_p.h"
 #include "adapters/abstractitemadapter.h"
 #include "adapters/selectionadapter.h"
-#include "treetraversalreflector_p.h"
+#include "private/treetraversalreflector_p.h"
 #include "viewport.h"
 #include "contextadapterfactory.h"
 #include "adapters/contextadapter.h"
 #include "adapters/modeladapter.h"
-#include "adapters/selectionadapter_p.h"
+#include "private/selectionadapter_p.h"
 #include "extensions/contextextension.h"
 
 class ViewBasePrivate final : public QObject

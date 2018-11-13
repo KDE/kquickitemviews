@@ -23,7 +23,11 @@ class QQuickItem;
 class QQmlContext;
 
 class AbstractItemAdapterPrivate;
-class VisualTreeItem;
+namespace StateTracker {
+    class ViewItem;
+    class ModelItem;
+}
+
 class ViewBase;
 class Viewport;
 class ContextExtension;
@@ -64,8 +68,8 @@ class ContextExtension;
  */
 class AbstractItemAdapter
 {
-    friend class VisualTreeItem; //its internally shared properties
-    friend struct TreeTraversalItem; //state tracking
+    friend class StateTracker::ViewItem; //its internally shared properties
+    friend struct StateTracker::ModelItem; //state tracking
     friend class ViewBasePrivate; //notify when the view is resized
     friend class AbstractItemAdapterPrivate; // d_ptr (Q_DECLARE_PRIVATE)
     friend class ViewItemContextAdapter;
@@ -282,5 +286,5 @@ protected:
 
 private:
     AbstractItemAdapterPrivate* d_ptr;
-    VisualTreeItem* s_ptr;
+    StateTracker::ViewItem* s_ptr;
 };

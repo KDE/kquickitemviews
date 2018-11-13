@@ -27,12 +27,12 @@
 #include <QQmlEngine>
 
 // KQuickItemViews
-#include "abstractitemadapter_p.h"
+#include "private/statetracker/viewitem_p.h"
 #include "adapters/selectionadapter.h"
-#include "adapters/selectionadapter_p.h"
+#include "private/selectionadapter_p.h"
 #include "viewport.h"
-#include "indexmetadata_p.h"
-#include "viewport_p.h"
+#include "private/indexmetadata_p.h"
+#include "private/viewport_p.h"
 #include "modeladapter.h"
 #include "viewbase.h"
 #include "contextadapterfactory.h"
@@ -70,7 +70,7 @@ public:
     bool detach ();
     bool hide   ();
 
-    static const VisualTreeItem::State  m_fStateMap    [7][7];
+    static const StateTracker::ViewItem::State  m_fStateMap    [7][7];
     static const StateF                 m_fStateMachine[7][7];
 
     mutable QSharedPointer<AbstractItemAdapter::SelectionLocker> m_pLocker;
@@ -92,8 +92,8 @@ public:
  * Note that the ::FAILED elements will always try to self-heal themselves and
  * go back into FAILED once the self-healing itself failed.
  */
-#define S VisualTreeItem::State::
-const VisualTreeItem::State AbstractItemAdapterPrivate::m_fStateMap[7][7] = {
+#define S StateTracker::ViewItem::State::
+const StateTracker::ViewItem::State AbstractItemAdapterPrivate::m_fStateMap[7][7] = {
 /*              ATTACH ENTER_BUFFER ENTER_VIEW UPDATE    MOVE   LEAVE_BUFFER  DETACH  */
 /*POOLING */ { S POOLING, S BUFFER, S ERROR , S ERROR , S ERROR , S ERROR  , S POOLED   },
 /*POOLED  */ { S POOLED , S BUFFER, S ACTIVE, S ERROR , S ERROR , S ERROR  , S DANGLING },
@@ -120,7 +120,7 @@ const AbstractItemAdapterPrivate::StateF AbstractItemAdapterPrivate::m_fStateMac
 
 AbstractItemAdapter::AbstractItemAdapter(Viewport* r) :
     d_ptr(new AbstractItemAdapterPrivate),
-    s_ptr(new VisualTreeItem(r->modelAdapter()->view(), r))
+    s_ptr(new StateTracker::ViewItem(r->modelAdapter()->view(), r))
 {
     d_ptr->q_ptr = this;
     s_ptr->d_ptr = this;
@@ -196,17 +196,17 @@ void AbstractItemAdapter::updateGeometry()
     s_ptr->updateGeometry();
 }
 
-void VisualTreeItem::setSelected(bool v)
+void StateTracker::ViewItem::setSelected(bool v)
 {
     d_ptr->setSelected(v);
 }
 
-QRectF VisualTreeItem::geometry() const
+QRectF StateTracker::ViewItem::geometry() const
 {
     return d_ptr->geometry();
 }
 
-QQuickItem* VisualTreeItem::item() const
+QQuickItem* StateTracker::ViewItem::item() const
 {
     return d_ptr->item();
 }
@@ -268,7 +268,7 @@ bool AbstractItemAdapterPrivate::detach()
     remove();
 
     //FIXME
-    q_ptr->s_ptr->m_State = VisualTreeItem::State::POOLED;
+    q_ptr->s_ptr->m_State = StateTracker::ViewItem::State::POOLED;
 
     return true;
 }
@@ -308,15 +308,15 @@ bool AbstractItemAdapterPrivate::destroy()
     return true;
 }
 
-bool VisualTreeItem::performAction(VisualTreeItem::ViewAction a)
+bool StateTracker::ViewItem::performAction(StateTracker::ViewItem::ViewAction a)
 {
-    //if (m_State == VisualTreeItem::State::FAILED)
+    //if (m_State == StateTracker::ViewItem::State::FAILED)
     //    m_pTTI->d_ptr->m_FailedCount--;
 
     const int s = (int)m_State;
 
     m_State     = d_ptr->d_ptr->m_fStateMap [s][(int)a];
-    Q_ASSERT(m_State != VisualTreeItem::State::ERROR);
+    Q_ASSERT(m_State != StateTracker::ViewItem::State::ERROR);
 
     const bool ret = (d_ptr->d_ptr ->* d_ptr->d_ptr->m_fStateMachine[s][(int)a])();
 
@@ -324,16 +324,16 @@ bool VisualTreeItem::performAction(VisualTreeItem::ViewAction a)
      * It can happen normally. For example, if the QML initialization sets the
      * model before the delegate.
      */
-    if (m_State == VisualTreeItem::State::FAILED || !ret) {
+    if (m_State == StateTracker::ViewItem::State::FAILED || !ret) {
         //Q_ASSERT(false);
-        m_State = VisualTreeItem::State::FAILED;
+        m_State = StateTracker::ViewItem::State::FAILED;
         //m_pTTI->d_ptr->m_FailedCount++;
     }
 
     return ret;
 }
 
-int VisualTreeItem::depth() const
+int StateTracker::ViewItem::depth() const
 {
     return 0;//FIXME m_pTTI->m_Depth;
 }
@@ -406,7 +406,7 @@ void AbstractItemAdapterPrivate::load()
             break;
     }
 
-    Q_ASSERT(q_ptr->s_ptr->m_pGeometry->removeMe() != (int)GeometryCache::State::INIT);
+    Q_ASSERT(q_ptr->s_ptr->m_pGeometry->removeMe() != (int)StateTracker::Geometry::State::INIT);
 }
 
 QQmlContext *AbstractItemAdapter::context() const
@@ -544,12 +544,12 @@ ViewBaseItemVariables *AbstractItemAdapterPrivate::sharedVariables() const
     return q_ptr->s_ptr->m_pView->m_pItemVars;
 }
 
-ViewBase* VisualTreeItem::view() const
+ViewBase* StateTracker::ViewItem::view() const
 {
     return m_pView;
 }
 
-void VisualTreeItem::updateGeometry()
+void StateTracker::ViewItem::updateGeometry()
 {
     const auto geo = geometry();
 
@@ -563,7 +563,7 @@ void VisualTreeItem::updateGeometry()
     m_pRange->s_ptr->geometryUpdated(m_pGeometry);
 }
 
-QQmlContext *VisualTreeItem::context() const
+QQmlContext *StateTracker::ViewItem::context() const
 {
     return d_ptr->d_ptr->m_pContext;
 }

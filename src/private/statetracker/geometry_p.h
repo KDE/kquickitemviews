@@ -21,7 +21,9 @@
 #include <QtCore/QRectF>
 #include <QtGlobal>
 
-#include <indexmetadata_p.h>
+#include <private/indexmetadata_p.h>
+
+namespace StateTracker {
 
 /**
  * Computing the absolute geometry of items isn't always trivial.
@@ -46,7 +48,7 @@
  * * Anything related about its neighbor.
  *
  */
-struct GeometryCache
+struct Geometry
 {
     enum class State {
         INIT    , /*!< The value has not been computed        */
@@ -77,7 +79,7 @@ private:
 
     qreal m_lBorderDecoration[4] {0.0, 0.0, 0.0, 0.0};
 
-    typedef void(GeometryCache::*StateF)();
+    typedef void(Geometry::*StateF)();
 
     static const State  m_fStateMap    [5][7];
     static const StateF m_fStateMachine[5][7];
@@ -94,3 +96,4 @@ private:
     State m_State {State::INIT};
 };
 
+}

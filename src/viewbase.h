@@ -33,6 +33,11 @@ class ModelAdapter;
 class Viewport;
 class ViewBaseItemVariables;
 
+namespace StateTracker {
+    class ViewItem;
+    class ModelItem;
+}
+
 /**
  * Second generation of QtQuick treeview.
  *
@@ -51,8 +56,8 @@ class ViewBaseItemVariables;
 class ViewBase : public Flickable
 {
     Q_OBJECT
-    friend struct TreeTraversalItem;
-    friend class VisualTreeItem;
+    friend struct StateTracker::ModelItem;
+    friend class StateTracker::ViewItem;
     friend class ViewBaseSync; // internal API
     friend class ModelAdapter; // call createItem
 public:

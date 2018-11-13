@@ -21,24 +21,28 @@
 #include <QtCore/QRectF>
 #include <QtCore/QModelIndex>
 
-class VisualTreeItem;
-class TreeTraversalItem;
+namespace StateTracker {
+    class ViewItem;
+    class Geometry;
+    class ModelItem;
+}
+
+class StateTracker::ModelItem;
 class ContextAdapter;
 class Viewport;
-class GeometryCache;
 
 class IndexMetadataPrivate;
 
 /**
  * The shared view of a QModelIndex between the various adapters. The
- * TreeTraversalReflector has `TreeTraversalItem` and the AbstractItemAdapter
- * has the `VisualTreeItem`. Both are the QModelIndex from their point of view
+ * TreeTraversalReflector has `StateTracker::ModelItem` and the AbstractItemAdapter
+ * has the `StateTracker::ViewItem`. Both are the QModelIndex from their point of view
  * (model for the former and view for the later).
  *
  * This class is the glue between those vision of the QModelIndex and holds
  * the little they can share.
  *
- * Also note that the TreeTraversalItem and AbstractItemAdapter have very
+ * Also note that the StateTracker::ModelItem and AbstractItemAdapter have very
  * different life cycle. It is why a more neutral entity is needed to bridge
  * them across the adapters.
  *
@@ -51,7 +55,7 @@ class IndexMetadata final
 {
 
 public:
-    explicit IndexMetadata(TreeTraversalItem *tti, Viewport *p);
+    explicit IndexMetadata(StateTracker::ModelItem *tti, Viewport *p);
     ~IndexMetadata();
 
     /**
@@ -84,9 +88,9 @@ public:
     QRectF decoratedGeometry() const;
     QModelIndex index() const;
 
-    VisualTreeItem    *viewTracker   () const;
-    TreeTraversalItem *modelTracker  () const;
-    ContextAdapter    *contextAdapter() const;
+    StateTracker::ViewItem *viewTracker   () const;
+    StateTracker::ModelItem      *modelTracker  () const;
+    ContextAdapter         *contextAdapter() const;
 
     // Mutator
     bool performAction(TrackingAction a);
@@ -107,7 +111,7 @@ public:
      */
     bool isInSync() const;
 
-    void setViewTracker(VisualTreeItem *i);
+    void setViewTracker(StateTracker::ViewItem *i);
 
     /**
      * Return true when the metadata is complete enough to be displayed.

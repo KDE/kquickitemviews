@@ -21,22 +21,22 @@
 #include <QQmlContext>
 
 //
-#include "adapters/abstractitemadapter_p.h"
+#include <private/statetracker/viewitem_p.h>
 #include "adapters/contextadapter.h"
 #include "adapters/modeladapter.h"
 #include "viewport.h"
 #include "viewport_p.h"
 #include "contextadapterfactory.h"
 #include "proxies/sizehintproxymodel.h"
-#include "geometrycache_p.h"
+#include "statetracker/geometry_p.h"
 
 class IndexMetadataPrivate
 {
 public:
 
-    GeometryCache          *m_pGeometryTracker { new GeometryCache() };
-    VisualTreeItem         *m_pViewTracker     {       nullptr       };
-    TreeTraversalItem      *m_pModelTracker    {       nullptr       };
+    StateTracker::Geometry          *m_pGeometryTracker { new StateTracker::Geometry() };
+    StateTracker::ViewItem         *m_pViewTracker     {       nullptr       };
+    StateTracker::ModelItem      *m_pModelTracker    {       nullptr       };
     ViewItemContextAdapter *m_pContextAdapter  {       nullptr       };
     Viewport               *m_pViewport        {       nullptr       };
 
@@ -77,7 +77,7 @@ const IndexMetadataPrivate::StateF IndexMetadataPrivate::m_fStateMachine[5][7] =
 };
 #undef A
 
-IndexMetadata::IndexMetadata(TreeTraversalItem *tti, Viewport *p) :
+IndexMetadata::IndexMetadata(StateTracker::ModelItem *tti, Viewport *p) :
     d_ptr(new IndexMetadataPrivate())
 {
     d_ptr->q_ptr           = this;
@@ -96,7 +96,7 @@ IndexMetadata::~IndexMetadata()
     delete d_ptr;
 }
 
-void IndexMetadata::setViewTracker(VisualTreeItem *i)
+void IndexMetadata::setViewTracker(StateTracker::ViewItem *i)
 {
     if (d_ptr->m_pViewTracker && !i) {
         auto old = d_ptr->m_pViewTracker;
@@ -112,12 +112,12 @@ void IndexMetadata::setViewTracker(VisualTreeItem *i)
     }
 }
 
-VisualTreeItem *IndexMetadata::viewTracker() const
+StateTracker::ViewItem *IndexMetadata::viewTracker() const
 {
     return d_ptr->m_pViewTracker;
 }
 
-TreeTraversalItem *IndexMetadata::modelTracker() const
+StateTracker::ModelItem *IndexMetadata::modelTracker() const
 {
     return d_ptr->m_pModelTracker;
 }
@@ -125,19 +125,19 @@ TreeTraversalItem *IndexMetadata::modelTracker() const
 QRectF IndexMetadata::decoratedGeometry() const
 {
     switch(d_ptr->m_pGeometryTracker->state()) {
-        case GeometryCache::State::VALID:
+        case StateTracker::Geometry::State::VALID:
             break;
-        case GeometryCache::State::INIT:
+        case StateTracker::Geometry::State::INIT:
             Q_ASSERT(false);
             break;
-        case GeometryCache::State::SIZE:
-        case GeometryCache::State::POSITION:
+        case StateTracker::Geometry::State::SIZE:
+        case StateTracker::Geometry::State::POSITION:
             const_cast<IndexMetadata*>(this)->sizeHint();
     }
 
     const auto ret = d_ptr->m_pGeometryTracker->decoratedGeometry();
 
-    Q_ASSERT(d_ptr->m_pGeometryTracker->state() == GeometryCache::State::VALID);
+    Q_ASSERT(d_ptr->m_pGeometryTracker->state() == StateTracker::Geometry::State::VALID);
 
     return ret;
 }
@@ -170,8 +170,8 @@ AbstractItemAdapter* ViewItemContextAdapter::item() const
 
 bool IndexMetadata::isValid() const
 {
-    return d_ptr->m_pGeometryTracker->state() == GeometryCache::State::VALID ||
-        d_ptr->m_pGeometryTracker->state() == GeometryCache::State::PENDING;
+    return d_ptr->m_pGeometryTracker->state() == StateTracker::Geometry::State::VALID ||
+        d_ptr->m_pGeometryTracker->state() == StateTracker::Geometry::State::PENDING;
 }
 
 QSizeF IndexMetadata::sizeHint()
@@ -181,7 +181,7 @@ QSizeF IndexMetadata::sizeHint()
     auto s = d_ptr->m_pGeometryTracker->state();
 
     //TODO switch to function table
-    if (s == GeometryCache::State::POSITION || s == GeometryCache::State::INIT) {
+    if (s == StateTracker::Geometry::State::POSITION || s == StateTracker::Geometry::State::INIT) {
         switch (d_ptr->m_pViewport->sizeHintStrategy()) {
             case Viewport::SizeHintStrategy::AOT:
                 Q_ASSERT(false);
@@ -218,10 +218,10 @@ QSizeF IndexMetadata::sizeHint()
     }
 
     s = d_ptr->m_pGeometryTracker->state();
-    Q_ASSERT(s != GeometryCache::State::INIT);
-    Q_ASSERT(s != GeometryCache::State::POSITION);
+    Q_ASSERT(s != StateTracker::Geometry::State::INIT);
+    Q_ASSERT(s != StateTracker::Geometry::State::POSITION);
 
-    if (s == GeometryCache::State::SIZE) {
+    if (s == StateTracker::Geometry::State::SIZE) {
         if (auto prev = up()) {
 
             // A word of warning, this is recursive
@@ -231,7 +231,7 @@ QSizeF IndexMetadata::sizeHint()
         }
         else if (isTopItem()) {
             d_ptr->m_pGeometryTracker->setPosition(QPointF(0.0, 0.0));
-            Q_ASSERT(d_ptr->m_pGeometryTracker->state() == GeometryCache::State::PENDING);
+            Q_ASSERT(d_ptr->m_pGeometryTracker->state() == StateTracker::Geometry::State::PENDING);
         }
     }
 
@@ -279,7 +279,7 @@ int IndexMetadata::removeMe() const
 
 bool IndexMetadata::isInSync() const
 {
-    if (d_ptr->m_pGeometryTracker->state() != GeometryCache::State::VALID) {
+    if (d_ptr->m_pGeometryTracker->state() != StateTracker::Geometry::State::VALID) {
         qDebug() << "INVALID";
         return false;
     }

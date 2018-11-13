@@ -27,6 +27,9 @@ class QQmlComponent;
 class SelectionAdapterSyncInterface;
 class SelectionAdapterPrivate;
 class ContextExtension;
+namespace StateTracker {
+    class ViewItem;
+}
 
 /**
  * This class adds support for multi-selection using selection models.
@@ -38,7 +41,7 @@ class SelectionAdapter : public QObject
     Q_OBJECT
     friend class ModelAdapter; // Notify of all relevant events
     friend class ModelAdapterPrivate; // Notify of all relevant events
-    friend class VisualTreeItem; // Notify of all relevant events
+    friend class StateTracker::ViewItem; // Notify of all relevant events
     friend class SelectionAdapterSyncInterface; // Its own internals
 public:
     explicit SelectionAdapter(QObject* parent = nullptr);

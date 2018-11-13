@@ -18,17 +18,21 @@
 #pragma once
 
 // KQuickItemViews
-#include "abstractitemadapter.h"
+#include "private/statetracker/viewitem_p.h"
+#include <adapters/abstractitemadapter.h>
 class ViewBase;
-struct TreeTraversalItem;
+struct StateTracker::ModelItem;
 class ViewItemContextAdapter;
 class ContextAdapter;
 class Viewport;
 struct IndexMetadata;
+class TreeTraversalReflectorPrivate;
 
 // Qt
 class QQuickItem;
 #include <QtCore/QSharedPointer>
+
+namespace StateTracker {
 
 /**
  * Polymorphic tree item for the ViewBase.
@@ -39,24 +43,24 @@ class QQuickItem;
  *
  * The state is managed by the ViewBase and it's own protected virtual methods.
  */
-class VisualTreeItem
+class ViewItem
 {
     //FIXME remove all that
     friend class ViewBase;
-    friend struct TreeTraversalItem;
+    friend struct ::StateTracker::ModelItem;
     friend class ViewBasePrivate;
-    friend class AbstractItemAdapterPrivate; //TODO remove
+    friend class ::AbstractItemAdapterPrivate; //TODO remove
     friend class TreeTraversalReflector;
-    friend class AbstractItemAdapter;
-    friend class TreeTraversalReflectorPrivate; //TODO remove. debug only
+    friend class ::AbstractItemAdapter;
+    friend class ::TreeTraversalReflectorPrivate; //TODO remove. debug only
     friend class ViewportPrivate; //TODO remove
 public:
     using StateFlags = AbstractItemAdapter::StateFlags;
 
-    explicit VisualTreeItem(ViewBase* p, Viewport* r) :
+    explicit ViewItem(ViewBase* p, Viewport* r) :
         m_pRange(r), m_pView(p) {}
 
-    virtual ~VisualTreeItem() {}
+    virtual ~ViewItem() {}
 
     enum class State {
         POOLING , /*!< Being currently removed from view                      */
@@ -85,10 +89,10 @@ public:
     bool isCollapsed() const;
 
     // Spacial navigation
-    VisualTreeItem* up   (StateFlags flags = StateFlags::NORMAL) const;
-    VisualTreeItem* down (StateFlags flags = StateFlags::NORMAL) const;
-    VisualTreeItem* left (StateFlags flags = StateFlags::NORMAL) const { Q_UNUSED(flags); return nullptr ;}
-    VisualTreeItem* right(StateFlags flags = StateFlags::NORMAL) const { Q_UNUSED(flags); return nullptr ;}
+    ViewItem* up   (StateFlags flags = StateFlags::NORMAL) const;
+    ViewItem* down (StateFlags flags = StateFlags::NORMAL) const;
+    ViewItem* left (StateFlags flags = StateFlags::NORMAL) const { Q_UNUSED(flags); return nullptr ;}
+    ViewItem* right(StateFlags flags = StateFlags::NORMAL) const { Q_UNUSED(flags); return nullptr ;}
     int row   () const;
     int column() const;
     int depth() const;
@@ -124,7 +128,9 @@ public:
     AbstractItemAdapter* d_ptr;
 private:
     State               m_State {State::POOLED};
-    TreeTraversalItem  *m_pTTI  {   nullptr   };
+    StateTracker::ModelItem  *m_pTTI  {   nullptr   };
     ViewBase           *m_pView {   nullptr   };
 
 };
+
+}

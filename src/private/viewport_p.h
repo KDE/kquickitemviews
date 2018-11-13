@@ -16,9 +16,9 @@
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
 
-struct TreeTraversalItem;
+struct StateTracker::ModelItem;
 class TreeTraversalReflector;
-class VisualTreeItem;
+class StateTracker::ViewItem;
 class ViewportPrivate;
 class Viewport;
 class ContextAdapter;
@@ -28,7 +28,7 @@ class IndexMetadata;
 #include <QtCore/QRectF>
 #include <QtCore/QModelIndex>
 
-#include "geometrycache_p.h"
+#include "statetracker/geometry_p.h"
 
 /**
  * In order to keep the separation of concerns design goal intact, this

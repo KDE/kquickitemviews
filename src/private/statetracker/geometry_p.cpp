@@ -15,14 +15,14 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#include "geometrycache_p.h"
+#include "geometry_p.h"
 
 #include <QtCore/QDebug>
 
-#include "viewport_p.h"
+#include <private/viewport_p.h>
 
-#define S GeometryCache::State::
-const GeometryCache::State GeometryCache::m_fStateMap[5][7] = {
+#define S StateTracker::Geometry::State::
+const StateTracker::Geometry::State StateTracker::Geometry::m_fStateMap[5][7] = {
 /*              MOVE      RESIZE      PLACE     RESET    MODIFY     DECORATE       VIEW   */
 /*INIT     */ { S INIT, S SIZE   , S POSITION, S INIT, S INIT    , S INIT    , S INIT     },
 /*SIZE     */ { S SIZE, S SIZE   , S PENDING , S INIT, S SIZE    , S SIZE    , S SIZE     },
@@ -32,8 +32,8 @@ const GeometryCache::State GeometryCache::m_fStateMap[5][7] = {
 };
 #undef S
 
-#define A &GeometryCache::
-const GeometryCache::StateF GeometryCache::m_fStateMachine[5][7] = {
+#define A &StateTracker::Geometry::
+const StateTracker::Geometry::StateF StateTracker::Geometry::m_fStateMachine[5][7] = {
 /*                 MOVE      RESIZE        PLACE         RESET         MODIFY      DECORATE       VIEW    */
 /*INIT     */ { A nothing, A nothing  , A nothing  , A nothing   , A nothing   , A nothing  , A error     },
 /*SIZE     */ { A nothing, A dropSize , A nothing  , A dropSize  , A nothing   , A nothing  , A error     },
@@ -43,64 +43,64 @@ const GeometryCache::StateF GeometryCache::m_fStateMachine[5][7] = {
 };
 #undef A
 
-void GeometryCache::nothing()
+void StateTracker::Geometry::nothing()
 {}
 
-void GeometryCache::invalidate()
+void StateTracker::Geometry::invalidate()
 {
     dropCache();
     qDebug() << "INVALIDATE" << m_Position << m_Size;
 }
 
-void GeometryCache::error()
+void StateTracker::Geometry::error()
 {
     Q_ASSERT(false);
 }
 
-void GeometryCache::dropCache()
+void StateTracker::Geometry::dropCache()
 {
     //TODO
 }
 
-void GeometryCache::buildCache()
+void StateTracker::Geometry::buildCache()
 {
     //TODO
 }
 
-void GeometryCache::dropSize()
+void StateTracker::Geometry::dropSize()
 {
     dropCache();
     m_Size = {};
 }
 
-void GeometryCache::dropPos()
+void StateTracker::Geometry::dropPos()
 {
     dropCache();
     m_Position = {};
 }
 
-GeometryCache::State GeometryCache::performAction(IndexMetadata::GeometryAction a)
+StateTracker::Geometry::State StateTracker::Geometry::performAction(IndexMetadata::GeometryAction a)
 {
     const int s = (int)m_State;
     m_State     = m_fStateMap[s][(int)a];
 
-    (this->*GeometryCache::m_fStateMachine[s][(int)a])();
+    (this->*StateTracker::Geometry::m_fStateMachine[s][(int)a])();
 
     // Validate the state
     //BEGIN debug
     switch(m_State) {
-        case GeometryCache::State::VALID:
-        case GeometryCache::State::PENDING:
+        case StateTracker::Geometry::State::VALID:
+        case StateTracker::Geometry::State::PENDING:
             Q_ASSERT(!(m_Position.x() == -1 && m_Position.y() == -1));
             Q_ASSERT(m_Size.isValid());
             break;
-        case GeometryCache::State::SIZE:
+        case StateTracker::Geometry::State::SIZE:
             Q_ASSERT(m_Size.isValid());
             break;
-        case GeometryCache::State::POSITION:
+        case StateTracker::Geometry::State::POSITION:
             Q_ASSERT(!(m_Position.x() == -1 && m_Position.y() == -1));
             break;
-        case GeometryCache::State::INIT:
+        case StateTracker::Geometry::State::INIT:
             break;
     }
     //END debug
@@ -108,16 +108,16 @@ GeometryCache::State GeometryCache::performAction(IndexMetadata::GeometryAction 
     return m_State;
 }
 
-QRectF GeometryCache::rawGeometry() const
+QRectF StateTracker::Geometry::rawGeometry() const
 {
-    const_cast<GeometryCache*>(this)->performAction(IndexMetadata::GeometryAction::VIEW);
+    const_cast<StateTracker::Geometry*>(this)->performAction(IndexMetadata::GeometryAction::VIEW);
 
-    Q_ASSERT(m_State == GeometryCache::State::VALID);
+    Q_ASSERT(m_State == StateTracker::Geometry::State::VALID);
 
     return QRectF(m_Position, m_Size);
 }
 
-QRectF GeometryCache::contentGeometry() const
+QRectF StateTracker::Geometry::contentGeometry() const
 {
     auto g = rawGeometry();
 
@@ -127,7 +127,7 @@ QRectF GeometryCache::contentGeometry() const
     return g;
 }
 
-QRectF GeometryCache::decoratedGeometry() const
+QRectF StateTracker::Geometry::decoratedGeometry() const
 {
     //TODO cache this, extend the state machine to have a "really valid" state
     auto g = rawGeometry();
@@ -143,28 +143,28 @@ QRectF GeometryCache::decoratedGeometry() const
     return g;
 }
 
-QSizeF GeometryCache::size() const
+QSizeF StateTracker::Geometry::size() const
 {
-    Q_ASSERT(m_State != GeometryCache::State::INIT);
-    Q_ASSERT(m_State != GeometryCache::State::POSITION);
+    Q_ASSERT(m_State != StateTracker::Geometry::State::INIT);
+    Q_ASSERT(m_State != StateTracker::Geometry::State::POSITION);
 
-    return m_State == GeometryCache::State::SIZE ?
+    return m_State == StateTracker::Geometry::State::SIZE ?
         m_Size : decoratedGeometry().size();
 }
 
-QPointF GeometryCache::position() const
+QPointF StateTracker::Geometry::position() const
 {
-    return m_State == GeometryCache::State::POSITION ?
+    return m_State == StateTracker::Geometry::State::POSITION ?
         m_Position : decoratedGeometry().topLeft();
 }
 
-void GeometryCache::setPosition(const QPointF& pos)
+void StateTracker::Geometry::setPosition(const QPointF& pos)
 {
     m_Position = pos;
     performAction(IndexMetadata::GeometryAction::PLACE);
 }
 
-void GeometryCache::setSize(const QSizeF& size)
+void StateTracker::Geometry::setSize(const QSizeF& size)
 {
     // setSize should not be used to reset the size
     Q_ASSERT(size.isValid());
@@ -173,7 +173,7 @@ void GeometryCache::setSize(const QSizeF& size)
     performAction(IndexMetadata::GeometryAction::RESIZE);
 }
 
-GeometryCache::State GeometryCache::state() const
+StateTracker::Geometry::State StateTracker::Geometry::state() const
 {
     return m_State;
 }
@@ -197,12 +197,12 @@ static Pos edgeToPos(Qt::Edge e)
     return {};
 }
 
-qreal GeometryCache::borderDecoration(Qt::Edge e) const
+qreal StateTracker::Geometry::borderDecoration(Qt::Edge e) const
 {
     return m_lBorderDecoration[edgeToPos(e)];
 }
 
-void GeometryCache::setBorderDecoration(Qt::Edge e, qreal r)
+void StateTracker::Geometry::setBorderDecoration(Qt::Edge e, qreal r)
 {
     const auto pos = edgeToPos(e);
 

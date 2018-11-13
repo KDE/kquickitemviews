@@ -59,7 +59,6 @@ SET( kquickview_LIB_SRCS
     src/plugin.cpp
     src/proxies/sizehintproxymodel.cpp
     src/singlemodelviewbase.cpp
-    src/treetraversalreflector_p.cpp
     src/viewbase.cpp
     src/views/comboboxview.cpp
     src/views/flickable.cpp
@@ -68,9 +67,10 @@ SET( kquickview_LIB_SRCS
     src/views/treeview.cpp
     src/viewport.cpp
     src/contextadapterfactory.cpp
-    src/treestructure_p.cpp
-    src/geometrycache_p.cpp
-    src/indexmetadata_p.cpp
+    src/private/treestructure_p.cpp
+    src/private/statetracker/geometry_p.cpp
+    src/private/indexmetadata_p.cpp
+    src/private/treetraversalreflector_p.cpp
 )
 
 set(AUTOMOC_MOC_OPTIONS -Muri=org.kde.playground.kquickview)

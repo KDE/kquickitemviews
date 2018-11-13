@@ -22,12 +22,18 @@
 #include <QtCore/QAbstractItemModel>
 
 // KQuickViews
-struct TreeTraversalItem;
-class VisualTreeItem;
+namespace StateTracker {
+    struct ModelItem;
+}
+
 class TreeTraversalReflectorPrivate;
 class AbstractItemAdapter;
 class Viewport;
 class IndexMetadata;
+
+namespace {
+    class ViewItem;
+}
 
 /**
  * This class refects a QAbstractItemModel (realtime) topology.
@@ -56,7 +62,7 @@ class IndexMetadata;
 class TreeTraversalReflector final : public QObject
 {
     Q_OBJECT
-    friend struct TreeTraversalItem; // Internal representation
+    friend struct StateTracker::ModelItem; // Internal representation
 public:
 
     enum class TrackingState {
@@ -107,8 +113,8 @@ public:
      * which may or may not be the same as the view. This method will detach
      * every element from the edge to the item)
      */
-//     bool detachUntil(Qt::Edge from, TreeTraversalItem *to);
-//     bool detachUntil(Qt::Edge from, VisualTreeItem *to);
+//     bool detachUntil(Qt::Edge from, StateTracker::ModelItem *to);
+//     bool detachUntil(Qt::Edge from, StateTracker::ViewItem *to);
 
     //TODO remove those temporary helpers once its encapsulated
 //     void moveEverything();sdfdsfdsf

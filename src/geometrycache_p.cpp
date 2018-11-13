@@ -79,7 +79,7 @@ void GeometryCache::dropPos()
     m_Position = {};
 }
 
-GeometryCache::State GeometryCache::performAction(Action a)
+GeometryCache::State GeometryCache::performAction(IndexMetadata::GeometryAction a)
 {
     const int s = (int)m_State;
     m_State     = m_fStateMap[s][(int)a];
@@ -110,7 +110,7 @@ GeometryCache::State GeometryCache::performAction(Action a)
 
 QRectF GeometryCache::rawGeometry() const
 {
-    const_cast<GeometryCache*>(this)->performAction(Action::VIEW);
+    const_cast<GeometryCache*>(this)->performAction(IndexMetadata::GeometryAction::VIEW);
 
     Q_ASSERT(m_State == GeometryCache::State::VALID);
 
@@ -161,7 +161,7 @@ QPointF GeometryCache::position() const
 void GeometryCache::setPosition(const QPointF& pos)
 {
     m_Position = pos;
-    performAction(Action::PLACE);
+    performAction(IndexMetadata::GeometryAction::PLACE);
 }
 
 void GeometryCache::setSize(const QSizeF& size)
@@ -170,7 +170,7 @@ void GeometryCache::setSize(const QSizeF& size)
     Q_ASSERT(size.isValid());
 
     m_Size = size;
-    performAction(Action::RESIZE);
+    performAction(IndexMetadata::GeometryAction::RESIZE);
 }
 
 GeometryCache::State GeometryCache::state() const
@@ -211,10 +211,5 @@ void GeometryCache::setBorderDecoration(Qt::Edge e, qreal r)
 
     m_lBorderDecoration[pos] = r;
 
-    performAction(Action::DECORATE);
-}
-
-bool GeometryCache::isReady() const
-{
-    return m_State == State::VALID || m_State == State::PENDING;
+    performAction(IndexMetadata::GeometryAction::DECORATE);
 }

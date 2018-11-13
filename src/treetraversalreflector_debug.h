@@ -215,7 +215,6 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
     while ((prev = cur) && (cur = TTI(cur->down()))) {
         IndexMetadata *md = &cur->m_Geometry;
         qDebug() << "TREE"
-            << cur << (int)md->m_State.state()
             << (cur->m_State == TreeTraversalItem::State::VISIBLE);
     }
     qDebug() << "DONE";
@@ -233,10 +232,10 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
 
         if (!visibleFinished) {
             // If hit, it means the visible rect wasn't refreshed.
-            Q_ASSERT(cur->m_Geometry.m_State.state() == GeometryCache::State::VALID);
+            Q_ASSERT(cur->m_Geometry.isValid());
         }
         else //FIXME wrong, only added to prevent forgetting
-            Q_ASSERT(cur->m_Geometry.m_State.state() != GeometryCache::State::VALID);
+            Q_ASSERT(cur->m_Geometry.isValid());
 
         if (cur->m_State == TreeTraversalItem::State::VISIBLE && !hadVisible) {
             firstVisible = cur;
@@ -288,8 +287,8 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
         }
 
         if (vi) {
-            Q_ASSERT(cur->m_Geometry.m_State.state() == GeometryCache::State::VALID);
-            auto geo = cur->m_Geometry.geometry();
+            Q_ASSERT(cur->m_Geometry.isValid());
+            auto geo = cur->m_Geometry.decoratedGeometry();
 
 // //             qDebug() << "BOO" << cur->index().row() << geo.y() << maxX;
             // Prevent accidental overlapping until a view with on-purpose
@@ -319,7 +318,7 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
     }
 
     if (lastVisible && !skipVItemState) {
-        Q_ASSERT(lastVisible->m_Geometry.geometry().y() <= m_pViewport->currentRect().bottomLeft().y());
+        Q_ASSERT(lastVisible->m_Geometry.decoratedGeometry().y() <= m_pViewport->currentRect().bottomLeft().y());
     }
 
 //     Q_ASSERT(maxY < m_pViewport->currentRect().bottomLeft().y() + 100);
@@ -372,7 +371,7 @@ void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)
 //         if (old)
 //             item->m_Geometry.m_State.setPosition(QPointF(0.0, oldGeo.y() + oldGeo.height()));
 
-        auto geo =  item->m_Geometry.geometry();
+        auto geo =  item->m_Geometry.decoratedGeometry();
 
         if (geo.width() || geo.height()) {
             Q_ASSERT((!oldGeo.isValid()) || oldGeo.y() < geo.y());

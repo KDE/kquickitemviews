@@ -380,14 +380,14 @@ void ViewportPrivate::updateAvailableEdges()
 
     // Size is normal as the state as not converged yet
     Q_ASSERT((!e) || (
-        e->m_State.state() == GeometryCache::State::VALID ||
-        e->m_State.state() == GeometryCache::State::SIZE)
+        e->removeMe() == (int)GeometryCache::State::VALID ||
+        e->removeMe() == (int)GeometryCache::State::SIZE)
     );
 
     // Resize the contend height
     if (e && m_SizeStrategy == Viewport::SizeHintStrategy::JIT) {
 
-        const auto geo = e->geometry();
+        const auto geo = e->decoratedGeometry();
 
         v->contentItem()->setHeight(std::max(
             geo.y()+geo.height(), v->height()
@@ -405,17 +405,17 @@ void ViewportPrivate::updateAvailableEdges()
     );
 
     // If they don't have a valid size, then there is a bug elsewhere
-    Q_ASSERT((!tve) || tve->m_State.state() == GeometryCache::State::VALID);
-    Q_ASSERT((!bve) || tve->m_State.state() == GeometryCache::State::VALID);
+    Q_ASSERT((!tve) || tve->isValid());
+    Q_ASSERT((!bve) || tve->isValid());
 
     // Do not attempt to load the geometry yet, let the loading code do it later
-    bool tveValid = tve && tve->m_State.state() == GeometryCache::State::VALID;
-    bool bveValid = bve && bve->m_State.state() == GeometryCache::State::VALID;
+    bool tveValid = tve && tve->isValid();
+    bool bveValid = bve && bve->isValid();
 
     // Given 42x0 sized item are possible. However just "fixing" this by adding
     // a minimum size wont help because it will trigger the out of sync view
     // correction in an infinite loop.
-    QRectF tvg(tve?tve->geometry():QRectF()), bvg(bve?bve->geometry():QRectF());
+    QRectF tvg(tve?tve->decoratedGeometry():QRectF()), bvg(bve?bve->decoratedGeometry():QRectF());
 
     const auto fixedIntersect = [](bool valid, QRectF& vp, QRectF& geo) -> bool {
         return vp.intersects(geo) || (
@@ -453,7 +453,7 @@ void ViewportSync::geometryUpdated(IndexMetadata *item)
 {
     //TODO assert if the size hints don't match reality
 
-    auto geo = item->geometry();
+    auto geo = item->decoratedGeometry();
 
 //     if (!geo.isValid()) {
 //         item->m_State.setSize(q_ptr->d_ptr->sizeHint(item));
@@ -496,7 +496,7 @@ void ViewportSync::notifyChange(IndexMetadata* item)
         case Viewport::SizeHintStrategy::AOT:
         case Viewport::SizeHintStrategy::JIT:
         case Viewport::SizeHintStrategy::PROXY:
-            item->m_State.performAction(GeometryCache::Action::MODIFY);
+            item->performAction(IndexMetadata::GeometryAction::MODIFY);
     }
 }
 
@@ -519,7 +519,7 @@ void ViewportSync::notifyRemoval(IndexMetadata* item)
 //             break;
 //
 //         next->m_State.performAction(
-//             GeometryCache::Action::MOVE, nullptr, nullptr
+//             GeometryAction::MOVE, nullptr, nullptr
 //         );
 //
 //         Q_ASSERT(next != bve); //TODO
@@ -551,7 +551,7 @@ void ViewportSync::refreshVisible()
     // First, make sure the previous elem has a valid size. If, for example,
     // rowsMoved moves a previously unloaded item to the front, this information
     // will be lost.
-    if (prev && prev->m_State.state() != GeometryCache::State::VALID) {
+    if (prev && !prev->isValid()) {
 
         // This is the slow path, it can be /very/ slow. Possible mitigation
         // include adding more lower level methods to never lose track of the
@@ -562,27 +562,27 @@ void ViewportSync::refreshVisible()
             qDebug() << "Slow path";
             //FIXME this is slow
             auto i = prev;
-            while((i = i->up()) && i && i->m_State.state() != GeometryCache::State::VALID);
+            while((i = i->up()) && i && !i->isValid());
             Q_ASSERT(i);
 
             while ((i = i->down()) != item)
-                i->geometry();
+                i->decoratedGeometry();
         }
         else
-            prev->m_State.setPosition({0.0, 0.0});
+            prev->setPosition({0.0, 0.0});
     }
 
     const bool hasSingleItem = item == bve;
 
     do {
-        Q_ASSERT(item->m_State.state() != GeometryCache::State::INIT);
-        Q_ASSERT(item->m_State.state() != GeometryCache::State::POSITION);
+        Q_ASSERT(item->removeMe() != (int)GeometryCache::State::INIT);
+        Q_ASSERT(item->removeMe() != (int)GeometryCache::State::POSITION);
 
         item->sizeHint();
-        Q_ASSERT(item->m_State.isReady());
+        Q_ASSERT(item->isValid());
 
         if (!item->isInSync())
-            item->performAction(IndexMetadata::Action::MOVE);
+            item->performAction(IndexMetadata::TrackingAction::MOVE);
 //         qDebug() << "R" << item << item->down();
 
     } while((!hasSingleItem) && item->up() != bve && (item = item->down()));
@@ -601,21 +601,21 @@ void ViewportSync::notifyInsert(IndexMetadata* item)
     //FIXME this is also horrible
     do {
         if (item == bve) {
-            item->m_State.performAction(GeometryCache::Action::MOVE);
+            item->performAction(IndexMetadata::GeometryAction::MOVE);
 //             qDebug() << "BREAK1" << item << item->m_pTTI << (item->down() != nullptr? (int) item->down()->m_State.state() : -1);
             break;
         }
 
-        if (item->m_State.state() != GeometryCache::State::VALID &&
-          item->m_State.state() != GeometryCache::State::POSITION) {
+        if (!item->isValid() &&
+          item->removeMe() != (int)GeometryCache::State::POSITION) {
 //             qDebug() << "BREAK2";
             break;
         }
 
-        item->m_State.performAction(GeometryCache::Action::MOVE);
+        item->performAction(IndexMetadata::GeometryAction::MOVE);
 
-        Q_ASSERT(item->m_State.state() != GeometryCache::State::VALID);
-//         qDebug() << "ONE" << (int) item->m_State.state();
+        Q_ASSERT(item->isValid());
+//         qDebug() << "ONE" << (int) item->removeMe();
     } while((item = item->down()));
 }
 

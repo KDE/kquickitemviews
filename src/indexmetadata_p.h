@@ -24,9 +24,10 @@
 class VisualTreeItem;
 class TreeTraversalItem;
 class ContextAdapter;
-class ViewItemContextAdapter;
 class Viewport;
-#include <geometrycache_p.h>
+class GeometryCache;
+
+class IndexMetadataPrivate;
 
 /**
  * The shared view of a QModelIndex between the various adapters. The
@@ -53,7 +54,10 @@ public:
     explicit IndexMetadata(TreeTraversalItem *tti, Viewport *p);
     ~IndexMetadata();
 
-    enum class Action {
+    /**
+     * The actions to perform on the model change tracking state machine.
+     */
+    enum class TrackingAction {
         SHOW   = 0, /*!< Make visible on screen (or buffer) */
         HIDE   = 1, /*!< Remove from the screen (or buffer) */
         ATTACH = 2, /*!< Track, but do not show             */
@@ -63,15 +67,30 @@ public:
         RESET  = 6, /*!< Flush the visual item              */
     };
 
+    /**
+     * The actions to perform on the geometry tracking state machine.
+     */
+    enum class GeometryAction {
+        MOVE    , /*!< When moved                              */
+        RESIZE  , /*!< When the content size changes           */
+        PLACE   , /*!< When setting the position               */
+        RESET   , /*!< The delegate, layout changes, or pooled */
+        MODIFY  , /*!< When the QModelIndex role changes       */
+        DECORATE, /*!< When the decoration size changes        */
+        VIEW    , /*!< When the geometry is accessed           */
+    };
+
     // Getters
-    QRectF geometry() const;
+    QRectF decoratedGeometry() const;
     QModelIndex index() const;
-    VisualTreeItem *viewTracker() const;
-    TreeTraversalItem *modelTracker() const;
-    ContextAdapter *contextAdapter() const;
+
+    VisualTreeItem    *viewTracker   () const;
+    TreeTraversalItem *modelTracker  () const;
+    ContextAdapter    *contextAdapter() const;
 
     // Mutator
-    bool performAction(Action);
+    bool performAction(TrackingAction a);
+    bool performAction(GeometryAction a);
 
     // Navigation
     IndexMetadata *up   () const;
@@ -90,17 +109,21 @@ public:
 
     void setViewTracker(VisualTreeItem *i);
 
-    GeometryCache m_State; //FIXME I could not find a stable enough other way
+    /**
+     * Return true when the metadata is complete enough to be displayed.
+     */
+    bool isValid() const;
 
     QSizeF sizeHint();
 
-private:
+    qreal borderDecoration(Qt::Edge e) const;
+    void setBorderDecoration(Qt::Edge e, qreal r);
 
-    Viewport *m_pViewport;
-    VisualTreeItem  *m_pItem {nullptr};
-    mutable ViewItemContextAdapter* m_pContextAdapter {nullptr};
-    Qt::Edges m_IsEdge {};
-//     Source  m_Source  {Source::NONE};
-//     Mode    m_Mode    {Mode::SINGLE};
-    TreeTraversalItem *m_pTTI  {nullptr};
+    void setSize(const QSizeF& s);
+    void setPosition(const QPointF& p);
+
+    int removeMe() const; //TODO remove when time permit
+
+private:
+    IndexMetadataPrivate *d_ptr;
 };

@@ -21,7 +21,7 @@
 #include <QtCore/QRectF>
 #include <QtGlobal>
 
-struct IndexMetadata;
+#include <indexmetadata_p.h>
 
 /**
  * Computing the absolute geometry of items isn't always trivial.
@@ -56,19 +56,7 @@ struct GeometryCache
         VALID   , /*!< The geometry has been computed         */
     };
 
-    enum class Action {
-        MOVE    , /*!< When moved                              */
-        RESIZE  , /*!< When the content size changes           */
-        PLACE   , /*!< When setting the position               */
-        RESET   , /*!< The delegate, layout changes, or pooled */
-        MODIFY  , /*!< When the QModelIndex role changes       */
-        DECORATE, /*!< When the decoration size changes        */
-        VIEW    , /*!< When the geometry is accessed           */
-    };
-
-
-
-    State performAction(Action);
+    State performAction(IndexMetadata::GeometryAction);
 
     void setPosition(const QPointF& pos);
     void setSize(const QSizeF& size);
@@ -79,9 +67,6 @@ struct GeometryCache
 
     qreal borderDecoration(Qt::Edge e) const;
     void setBorderDecoration(Qt::Edge e, qreal r);
-
-    /// When the geometry can be used
-    bool isReady() const;
 
     State state() const;
 private:

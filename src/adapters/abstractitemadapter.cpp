@@ -387,28 +387,26 @@ void AbstractItemAdapterPrivate::load()
 
     Q_ASSERT(q_ptr->s_ptr->m_pGeometry->contextAdapter()->context() == m_pContext);
 
-    qDebug() << "FOO" << (int) q_ptr->s_ptr->m_pGeometry->m_State.state();
-
     // Update the geometry cache
     switch (q_ptr->s_ptr->m_pRange->sizeHintStrategy()){
         case Viewport::SizeHintStrategy::JIT:
         case Viewport::SizeHintStrategy::AOT:
-            q_ptr->s_ptr->m_pGeometry->m_State.setSize(
+            q_ptr->s_ptr->m_pGeometry->setSize(
                 QSizeF(m_pItem->width(), m_pItem->height())
             );
             break;
         case Viewport::SizeHintStrategy::PROXY:
         case Viewport::SizeHintStrategy::ROLE:
         case Viewport::SizeHintStrategy::DELEGATE:
-            q_ptr->s_ptr->m_pGeometry->m_State.performAction(
-                GeometryCache::Action::MODIFY
+            q_ptr->s_ptr->m_pGeometry->performAction(
+                IndexMetadata::GeometryAction::MODIFY
             );
             break;
         case Viewport::SizeHintStrategy::UNIFORM:
             break;
     }
 
-    Q_ASSERT(q_ptr->s_ptr->m_pGeometry->m_State.state() != GeometryCache::State::INIT);
+    Q_ASSERT(q_ptr->s_ptr->m_pGeometry->removeMe() != (int)GeometryCache::State::INIT);
 }
 
 QQmlContext *AbstractItemAdapter::context() const
@@ -444,17 +442,17 @@ QRectF AbstractItemAdapter::geometry() const
 
 QRectF AbstractItemAdapter::decoratedGeometry() const
 {
-    return s_ptr->m_pGeometry->m_State.decoratedGeometry();
+    return s_ptr->m_pGeometry->decoratedGeometry();
 }
 
 qreal AbstractItemAdapter::borderDecoration(Qt::Edge e) const
 {
-    return s_ptr->m_pGeometry->m_State.borderDecoration(e);
+    return s_ptr->m_pGeometry->borderDecoration(e);
 }
 
 void AbstractItemAdapter::setBorderDecoration(Qt::Edge e, qreal r)
 {
-    s_ptr->m_pGeometry->m_State.setBorderDecoration(e, r);
+    s_ptr->m_pGeometry->setBorderDecoration(e, r);
 }
 
 bool AbstractItemAdapter::refresh()
@@ -580,35 +578,3 @@ bool AbstractItemAdapter::isCollapsed() const
     return s_ptr->isCollapsed();
 }
 
-bool IndexMetadata::isInSync() const
-{
-    if (m_State.state() != GeometryCache::State::VALID) {
-        qDebug() << "INVALID";
-        return false;
-    }
-
-    const auto item = viewTracker()->item();
-
-    // If it got that far, then it's probably not going to load, trying to fix
-    // that should be done elsewhere. Lets just assume a null delegate.
-    if (!item) {
-        qDebug() << "NO ITEM";
-        return true;
-    }
-
-    const auto geo = m_State.contentGeometry();
-
-    // The actual QQuickItem position adjusted for the decoration
-    QRectF correctedRect(
-        item->x(),
-        item->y(),
-        item->width(),
-        item->height()
-    );
-
-    //qDebug() << m_State.geometry();
-    qDebug() << geo << m_State.borderDecoration(Qt::TopEdge);
-    qDebug() << correctedRect;
-
-    return correctedRect == geo;
-}

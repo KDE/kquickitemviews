@@ -108,24 +108,8 @@ public:
     IndexMetadata *geometryForIndex(const QModelIndex& idx) const;
     bool isActive(const QModelIndex& parent, int first, int last); //TODO move to range
 
-    /**
-     * The relfector internally track its viewport from the model point of view,
-     * which may or may not be the same as the view. This method will detach
-     * every element from the edge to the item)
-     */
-//     bool detachUntil(Qt::Edge from, StateTracker::ModelItem *to);
-//     bool detachUntil(Qt::Edge from, StateTracker::ViewItem *to);
-
-    //TODO remove those temporary helpers once its encapsulated
-//     void moveEverything();sdfdsfdsf
-
-//     void resetGeometry();sdfdsfds
-
     // Setters
     void setItemFactory(std::function<AbstractItemAdapter*()> factory);
-
-// public Q_SLOTS:
-//     void resetEverything();
 
 Q_SIGNALS:
     void contentChanged();

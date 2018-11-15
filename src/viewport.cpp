@@ -575,6 +575,8 @@ void ViewportSync::refreshVisible()
     const bool hasSingleItem = item == bve;
 
     do {
+        item->sizeHint();
+
         Q_ASSERT(item->removeMe() != (int)StateTracker::Geometry::State::INIT);
         Q_ASSERT(item->removeMe() != (int)StateTracker::Geometry::State::POSITION);
 
@@ -614,7 +616,7 @@ void ViewportSync::notifyInsert(IndexMetadata* item)
 
         item->performAction(IndexMetadata::GeometryAction::MOVE);
 
-        Q_ASSERT(item->isValid());
+//         Q_ASSERT(item->isValid());
 //         qDebug() << "ONE" << (int) item->removeMe();
     } while((item = item->down()));
 }

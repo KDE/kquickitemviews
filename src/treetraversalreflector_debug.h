@@ -152,7 +152,7 @@ void TreeTraversalReflectorPrivate::_test_validateTree(StateTracker::ModelItem* 
 
     // Traverse as a list
     if (p == m_pRoot) {
-        TreeTraversalBase* oldTTI(nullptr);
+        StateTracker::Index* oldTTI(nullptr);
 
         int count(0), count2(0);
         for (auto i = m_pRoot->firstChild(); i; i = i->down()) {
@@ -385,7 +385,7 @@ void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)
     } while ((old = item) && (item = TTI(item->down())));
 }
 
-void TreeTraversalBase::_test_validate_chain() const
+void StateTracker::Index::_test_validate_chain() const
 {
 // #ifdef QT_NO_DEBUG_OUTPUT
     return;
@@ -398,7 +398,7 @@ void TreeTraversalBase::_test_validate_chain() const
     Q_ASSERT((!p->firstChild()) || !p->firstChild()->previousSibling());
     Q_ASSERT((!p->lastChild()) || !p->lastChild()->nextSibling());
     auto i = p->firstChild();
-    TreeTraversalBase *prev = nullptr;
+    StateTracker::Index *prev = nullptr;
     while(i) {
         Q_ASSERT(i->previousSibling() == prev);
         Q_ASSERT(i->parent() == p);
@@ -427,8 +427,8 @@ void TreeTraversalReflectorPrivate::_test_validate_edges()
     Q_ASSERT((!vStart) || (vStart && vEnd));
 
     if (vStart) {
-        Q_ASSERT(vStart->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE);
-        Q_ASSERT(vEnd->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE);
+        Q_ASSERT(TTI(vStart->modelTracker())->m_State == StateTracker::ModelItem::State::VISIBLE);
+        Q_ASSERT(TTI(vEnd->modelTracker())->m_State == StateTracker::ModelItem::State::VISIBLE);
         auto prev = TTI(vStart->modelTracker()->up());
         auto next = TTI(vEnd->modelTracker()->down());
 
@@ -437,11 +437,11 @@ void TreeTraversalReflectorPrivate::_test_validate_edges()
     }
 }
 
-void TreeTraversalReflectorPrivate::_test_validate_move(TreeTraversalBase* parentTTI,
-                                                        TreeTraversalBase* startTTI,
-                                                        TreeTraversalBase* endTTI,
-                                                        TreeTraversalBase* newPrevTTI,
-                                                        TreeTraversalBase* newNextTTI,
+void TreeTraversalReflectorPrivate::_test_validate_move(StateTracker::Index* parentTTI,
+                                                        StateTracker::Index* startTTI,
+                                                        StateTracker::Index* endTTI,
+                                                        StateTracker::Index* newPrevTTI,
+                                                        StateTracker::Index* newNextTTI,
                                                         int row)
 {
 // #ifdef QT_NO_DEBUG_OUTPUT

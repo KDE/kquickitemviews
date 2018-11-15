@@ -20,6 +20,8 @@
 #include <QtCore/QModelIndex>
 #include <QtCore/QList>
 
+namespace StateTracker {
+
 /**
  * Internal navigation structure designed to support partial tree loading.
  *
@@ -33,7 +35,7 @@
  * * Support moving and reparenting
  * * Provide both a geometric/cartesian and tree navigation API.
  */
-struct TreeTraversalBase
+class Index
 {
 public:
     enum class LifeCycleState {
@@ -43,39 +45,38 @@ public:
         ROOT       , /*!< This is the root element                            */
     };
 
-    virtual ~TreeTraversalBase();
+    virtual ~Index();
 
-    static void insertChildBefore(TreeTraversalBase* self, TreeTraversalBase* other, TreeTraversalBase* parent);
-    static void insertChildAfter(TreeTraversalBase* self, TreeTraversalBase* other, TreeTraversalBase* parent);
+    static void insertChildBefore(Index* self, StateTracker::Index* other, StateTracker::Index* parent);
+    static void insertChildAfter(Index* self, StateTracker::Index* other, StateTracker::Index* parent);
 
-    TreeTraversalBase *firstChild() const;
-    TreeTraversalBase *lastChild() const;
+    Index *firstChild() const;
+    Index *lastChild() const;
 
-    TreeTraversalBase *nextSibling() const;
-    TreeTraversalBase *previousSibling() const;
+    Index *nextSibling() const;
+    Index *previousSibling() const;
 
-    TreeTraversalBase *parent() const;
+    Index *parent() const;
 
     // Geometric navigation
-    TreeTraversalBase* up   () const;
-    TreeTraversalBase* down () const;
-    TreeTraversalBase* left () const;
-    TreeTraversalBase* right() const;
+    Index* up   () const; //TODO remove
+    Index* down () const; //TODO remove
+    Index* left () const; //TODO remove
+    Index* right() const; //TODO remove
+
+    Index* next(Qt::Edge e) const;
 
     int effectiveRow() const;
     int effectiveColumn() const;
     QPersistentModelIndex effectiveParentIndex() const;
 
-//     void reparentUntil(TreeTraversalBase *np, TreeTraversalBase *until);
-
     void remove(bool reparent = false);
-    static void bridgeGap(TreeTraversalBase* first, TreeTraversalBase* second);
-//     static void createGap(TreeTraversalBase* first, TreeTraversalBase* last  );
+    static void bridgeGap(Index* first, StateTracker::Index* second);
 
-    TreeTraversalBase *childrenLookup(const QPersistentModelIndex &index) const;
-    bool hasChildren(TreeTraversalBase *child) const;
+    Index *childrenLookup(const QPersistentModelIndex &index) const;
+    bool hasChildren(Index *child) const;
     int loadedChildrenCount() const;
-    QList<TreeTraversalBase*> allLoadedChildren() const;
+    QList<Index*> allLoadedChildren() const;
     bool withinRange(QAbstractItemModel* m, int last, int first) const;
 
     void resetTemporaryIndex();
@@ -88,7 +89,8 @@ public:
     QPersistentModelIndex index() const;
     void setModelIndex(const QPersistentModelIndex& idx);
 
-    LifeCycleState m_LifeCycleState {LifeCycleState::NEW};
+    LifeCycleState lifeCycleState() const {return m_LifeCycleState;}
+
 private:
     // Because slotRowsMoved is called before the change take effect, cache
     // the "new real row and column" since the current index()->row() is now
@@ -97,18 +99,23 @@ private:
     int m_MoveToColumn {-1};
     QPersistentModelIndex m_MoveToParent;
 
-    TreeTraversalBase* m_tSiblings[2] = {nullptr, nullptr};
-    TreeTraversalBase* m_tChildren[2] = {nullptr, nullptr};
+    LifeCycleState m_LifeCycleState {LifeCycleState::NEW};
+
+    Index* m_tSiblings[2] = {nullptr, nullptr};
+    Index* m_tChildren[2] = {nullptr, nullptr};
     // Keep the parent to be able to get back to the root
-    TreeTraversalBase* m_pParent {nullptr};
+    Index* m_pParent {nullptr};
     QPersistentModelIndex m_Index;
 
-
     //TODO use a btree, not an hash
-    QHash<QPersistentModelIndex, TreeTraversalBase*> m_hLookup;
+    QHash<QPersistentModelIndex, Index*> m_hLookup;
 };
 
+}
+
 /**
+ * TODO get rid of this and implement paging
+ *
  * Keep track of state "edges".
  *
  * This allows to manipulate rectangles of QModelIndex similar to QtCore
@@ -117,12 +124,12 @@ private:
 class ModelRect final
 {
 public:
-    TreeTraversalBase* getEdge(Qt::Edge e) const;
-    void setEdge(TreeTraversalBase* tti, Qt::Edge e);
+    StateTracker::Index* getEdge(Qt::Edge e) const;
+    void setEdge(StateTracker::Index* tti, Qt::Edge e);
 
     Qt::Edges m_Edges {Qt::TopEdge|Qt::LeftEdge|Qt::RightEdge|Qt::BottomEdge};
 private:
     enum Pos {Top, Left, Right, Bottom};
     int edgeToIndex(Qt::Edge e) const;
-    TreeTraversalBase *m_lpEdges[Pos::Bottom+1] {nullptr, nullptr, nullptr, nullptr}; //TODO port to ModelRect
+    StateTracker::Index *m_lpEdges[Pos::Bottom+1] {nullptr, nullptr, nullptr, nullptr}; //TODO port to ModelRect
 };

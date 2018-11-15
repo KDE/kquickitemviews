@@ -230,7 +230,7 @@ bool AbstractItemAdapterPrivate::move()
 
     // Views should apply the geometry they have been told to apply. Otherwise
     // all optimizations brakes.
-    Q_ASSERT((!ret) || q_ptr->s_ptr->m_pGeometry->isInSync());
+//     Q_ASSERT((!ret) || q_ptr->s_ptr->m_pGeometry->isInSync());
 
     return ret;
 }

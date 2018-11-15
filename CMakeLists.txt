@@ -67,8 +67,9 @@ SET( kquickview_LIB_SRCS
     src/views/treeview.cpp
     src/viewport.cpp
     src/contextadapterfactory.cpp
-    src/private/treestructure_p.cpp
+    src/private/statetracker/index_p.cpp
     src/private/statetracker/geometry_p.cpp
+    src/private/statetracker/proximity_p.cpp
     src/private/indexmetadata_p.cpp
     src/private/treetraversalreflector_p.cpp
 )

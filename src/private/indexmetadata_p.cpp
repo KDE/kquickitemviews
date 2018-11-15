@@ -29,16 +29,19 @@
 #include "contextadapterfactory.h"
 #include "proxies/sizehintproxymodel.h"
 #include "statetracker/geometry_p.h"
+#include "statetracker/proximity_p.h"
 
 class IndexMetadataPrivate
 {
 public:
+    explicit IndexMetadataPrivate(IndexMetadata *q) : q_ptr(q) {}
 
-    StateTracker::Geometry          *m_pGeometryTracker { new StateTracker::Geometry() };
-    StateTracker::ViewItem         *m_pViewTracker     {       nullptr       };
-    StateTracker::ModelItem      *m_pModelTracker    {       nullptr       };
-    ViewItemContextAdapter *m_pContextAdapter  {       nullptr       };
-    Viewport               *m_pViewport        {       nullptr       };
+    StateTracker::Geometry  *m_pGeometryTracker  { new StateTracker::Geometry() };
+    StateTracker::ViewItem  *m_pViewTracker      {             nullptr          };
+    StateTracker::ModelItem *m_pModelTracker     {             nullptr          };
+    StateTracker::Proximity *m_pProximityTracker {             nullptr          };
+    ViewItemContextAdapter  *m_pContextAdapter   {             nullptr          };
+    Viewport                *m_pViewport         {             nullptr          };
 
     typedef bool(IndexMetadataPrivate::*StateF)();
     static const IndexMetadataPrivate::StateF m_fStateMachine[5][7];
@@ -78,11 +81,13 @@ const IndexMetadataPrivate::StateF IndexMetadataPrivate::m_fStateMachine[5][7] =
 #undef A
 
 IndexMetadata::IndexMetadata(StateTracker::ModelItem *tti, Viewport *p) :
-    d_ptr(new IndexMetadataPrivate())
+    d_ptr(new IndexMetadataPrivate(this))
 {
-    d_ptr->q_ptr           = this;
-    d_ptr->m_pModelTracker = tti;
-    d_ptr->m_pViewport     = p;
+    d_ptr->m_pModelTracker     = tti;
+    d_ptr->m_pViewport         = p;
+    d_ptr->m_pProximityTracker = new StateTracker::Proximity(
+        this, modelTracker()
+    );
 }
 
 IndexMetadata::~IndexMetadata()
@@ -117,9 +122,14 @@ StateTracker::ViewItem *IndexMetadata::viewTracker() const
     return d_ptr->m_pViewTracker;
 }
 
-StateTracker::ModelItem *IndexMetadata::modelTracker() const
+StateTracker::Index *IndexMetadata::modelTracker() const
 {
-    return d_ptr->m_pModelTracker;
+    return (StateTracker::Index*) d_ptr->m_pModelTracker;
+}
+
+StateTracker::Proximity *IndexMetadata::proximityTracker() const
+{
+    return d_ptr->m_pProximityTracker;
 }
 
 QRectF IndexMetadata::decoratedGeometry() const

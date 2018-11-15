@@ -25,6 +25,8 @@ namespace StateTracker {
     class ViewItem;
     class Geometry;
     class ModelItem;
+    class Proximity;
+    class Index;
 }
 
 class StateTracker::ModelItem;
@@ -88,19 +90,20 @@ public:
     QRectF decoratedGeometry() const;
     QModelIndex index() const;
 
-    StateTracker::ViewItem *viewTracker   () const;
-    StateTracker::ModelItem      *modelTracker  () const;
-    ContextAdapter         *contextAdapter() const;
+    StateTracker::ViewItem  *viewTracker     () const;
+    StateTracker::Index     *modelTracker    () const;
+    StateTracker::Proximity *proximityTracker() const;
+    ContextAdapter          *contextAdapter  () const;
 
     // Mutator
     bool performAction(TrackingAction a);
     bool performAction(GeometryAction a);
 
     // Navigation
-    IndexMetadata *up   () const;
-    IndexMetadata *down () const;
-    IndexMetadata *left () const;
-    IndexMetadata *right() const;
+    IndexMetadata *up   () const; //TODO remove
+    IndexMetadata *down () const; //TODO remove
+    IndexMetadata *left () const; //TODO remove
+    IndexMetadata *right() const; //TODO remove
 
     bool isTopItem() const;
 

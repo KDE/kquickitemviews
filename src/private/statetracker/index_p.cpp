@@ -15,7 +15,7 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#include "treestructure_p.h"
+#include "index_p.h"
 
 
 // Use some constant for readability
@@ -24,37 +24,37 @@
 #define FIRST 0
 #define LAST 1
 
-TreeTraversalBase::~TreeTraversalBase()
+StateTracker::Index::~Index()
 {
     remove();
 }
 
-TreeTraversalBase* TreeTraversalBase::firstChild() const
+StateTracker::Index* StateTracker::Index::firstChild() const
 {
     return m_tChildren[FIRST];
 }
 
-TreeTraversalBase* TreeTraversalBase::lastChild() const
+StateTracker::Index* StateTracker::Index::lastChild() const
 {
     return m_tChildren[LAST];
 }
 
-TreeTraversalBase* TreeTraversalBase::nextSibling() const
+StateTracker::Index* StateTracker::Index::nextSibling() const
 {
     return m_tSiblings[NEXT];
 }
 
-TreeTraversalBase* TreeTraversalBase::previousSibling() const
+StateTracker::Index* StateTracker::Index::previousSibling() const
 {
     return m_tSiblings[PREVIOUS];
 }
 
-TreeTraversalBase *TreeTraversalBase::parent() const
+StateTracker::Index *StateTracker::Index::parent() const
 {
     return m_pParent;
 }
 
-void TreeTraversalBase::insertChildAfter(TreeTraversalBase* self, TreeTraversalBase* other, TreeTraversalBase* parent)
+void StateTracker::Index::insertChildAfter(StateTracker::Index* self, StateTracker::Index* other, StateTracker::Index* parent)
 {
     Q_ASSERT(!self->m_pParent);
     Q_ASSERT(parent);
@@ -106,7 +106,7 @@ void TreeTraversalBase::insertChildAfter(TreeTraversalBase* self, TreeTraversalB
     parent->_test_validate_chain();
 }
 
-void TreeTraversalBase::insertChildBefore(TreeTraversalBase* self, TreeTraversalBase* other, TreeTraversalBase* parent)
+void StateTracker::Index::insertChildBefore(StateTracker::Index* self, StateTracker::Index* other, StateTracker::Index* parent)
 {
     Q_ASSERT(!self->m_pParent);
     Q_ASSERT(parent);
@@ -174,7 +174,7 @@ void TreeTraversalBase::insertChildBefore(TreeTraversalBase* self, TreeTraversal
 }
 
 
-// void TreeTraversalBase::createGap(TreeTraversalBase* first, TreeTraversalBase* last)
+// void StateTracker::Index::createGap(StateTracker::Index* first, StateTracker::Index* last)
 // {
 //     Q_ASSERT(first->m_pParent == last->m_pParent);
 //
@@ -220,7 +220,7 @@ void TreeTraversalBase::insertChildBefore(TreeTraversalBase* self, TreeTraversal
 // }
 
 /// Fix the issues introduced by createGap (does not update m_pParent and m_hLookup)
-void TreeTraversalBase::bridgeGap(TreeTraversalBase* first, TreeTraversalBase* second)
+void StateTracker::Index::bridgeGap(StateTracker::Index* first, StateTracker::Index* second)
 {
     // 3 possible case: siblings, first child or last child
 
@@ -329,7 +329,7 @@ void TreeTraversalBase::bridgeGap(TreeTraversalBase* first, TreeTraversalBase* s
     Q_ASSERT((!second) || second->previousSibling() != second);
 }
 
-void TreeTraversalBase::remove(bool reparent)
+void StateTracker::Index::remove(bool reparent)
 {
     if (m_LifeCycleState == LifeCycleState::NEW)
         return;
@@ -405,9 +405,9 @@ void TreeTraversalBase::remove(bool reparent)
     m_pParent = nullptr;
 }
 
-TreeTraversalBase* TreeTraversalBase::up() const
+StateTracker::Index* StateTracker::Index::up() const
 {
-    TreeTraversalBase* ret = nullptr;
+    StateTracker::Index* ret = nullptr;
 
     // Another simple case, there is no parent
     if (!m_pParent) {
@@ -428,9 +428,27 @@ TreeTraversalBase* TreeTraversalBase::up() const
     return ret;
 }
 
-TreeTraversalBase* TreeTraversalBase::down() const
+StateTracker::Index* StateTracker::Index::next(Qt::Edge e) const
 {
-    TreeTraversalBase* ret = nullptr;
+    switch (e) {
+        case Qt::TopEdge:
+            return up();
+        case Qt::BottomEdge:
+            return down();
+        case Qt::LeftEdge:
+            return left();
+        case Qt::RightEdge:
+            return right();
+    }
+
+    Q_ASSERT(false);
+
+    return nullptr;
+}
+
+StateTracker::Index* StateTracker::Index::down() const
+{
+    StateTracker::Index* ret = nullptr;
     auto i = this;
 
     if (firstChild()) {
@@ -457,17 +475,17 @@ TreeTraversalBase* TreeTraversalBase::down() const
     return ret;
 }
 
-TreeTraversalBase* TreeTraversalBase::left() const
+StateTracker::Index* StateTracker::Index::left() const
 {
     return nullptr; //TODO
 }
 
-TreeTraversalBase* TreeTraversalBase::right() const
+StateTracker::Index* StateTracker::Index::right() const
 {
     return nullptr; //TODO
 }
 
-// void TreeTraversalBase::reparentUntil(TreeTraversalBase *np, TreeTraversalBase *until)
+// void StateTracker::Index::reparentUntil(StateTracker::Index *np, StateTracker::Index *until)
 // {
 //     const auto oldP = m_pParent;
 //
@@ -513,37 +531,37 @@ int ModelRect::edgeToIndex(Qt::Edge e) const
     return Pos::Top;
 }
 
-void ModelRect::setEdge(TreeTraversalBase* tti, Qt::Edge e)
+void ModelRect::setEdge(StateTracker::Index* tti, Qt::Edge e)
 {
     m_lpEdges[edgeToIndex(e)] = tti;
 }
 
-TreeTraversalBase* ModelRect::getEdge(Qt::Edge e) const
+StateTracker::Index* ModelRect::getEdge(Qt::Edge e) const
 {
     return m_lpEdges[edgeToIndex(e)];
 }
 
-TreeTraversalBase *TreeTraversalBase::childrenLookup(const QPersistentModelIndex &index) const
+StateTracker::Index *StateTracker::Index::childrenLookup(const QPersistentModelIndex &index) const
 {
     return m_hLookup.value(index);
 }
 
-bool TreeTraversalBase::hasChildren(TreeTraversalBase *child) const
+bool StateTracker::Index::hasChildren(StateTracker::Index *child) const
 {
     return !m_hLookup.keys(child).isEmpty();
 }
 
-int TreeTraversalBase::loadedChildrenCount() const
+int StateTracker::Index::loadedChildrenCount() const
 {
     return m_hLookup.size();
 }
 
-QList<TreeTraversalBase*> TreeTraversalBase::allLoadedChildren() const
+QList<StateTracker::Index*> StateTracker::Index::allLoadedChildren() const
 {
     return m_hLookup.values();
 }
 
-bool TreeTraversalBase::withinRange(QAbstractItemModel* m, int last, int first) const
+bool StateTracker::Index::withinRange(QAbstractItemModel* m, int last, int first) const
 {
     // Return true if the previous element or next element are loaded
     const QModelIndex prev = first ? m->index(first - 1, 0, m_Index) : QModelIndex();
@@ -553,25 +571,25 @@ bool TreeTraversalBase::withinRange(QAbstractItemModel* m, int last, int first) 
         || (next.isValid() && m_hLookup.contains(next));
 }
 
-int TreeTraversalBase::effectiveRow() const
+int StateTracker::Index::effectiveRow() const
 {
     return m_MoveToRow == -1 ?
         m_Index.row() : m_MoveToRow;
 }
 
-int TreeTraversalBase::effectiveColumn() const
+int StateTracker::Index::effectiveColumn() const
 {
     return m_MoveToColumn == -1 ?
         m_Index.column() : m_MoveToColumn;
 }
 
-QPersistentModelIndex TreeTraversalBase::effectiveParentIndex() const
+QPersistentModelIndex StateTracker::Index::effectiveParentIndex() const
 {
     return m_LifeCycleState == LifeCycleState::TRANSITION ?
         m_MoveToParent : m_pParent->index();
 }
 
-void TreeTraversalBase::resetTemporaryIndex()
+void StateTracker::Index::resetTemporaryIndex()
 {
     Q_ASSERT(m_pParent);
     Q_ASSERT(m_LifeCycleState == LifeCycleState::TRANSITION);
@@ -581,12 +599,12 @@ void TreeTraversalBase::resetTemporaryIndex()
     m_MoveToParent = QModelIndex();
 }
 
-bool TreeTraversalBase::hasTemporaryIndex()
+bool StateTracker::Index::hasTemporaryIndex()
 {
     return m_MoveToRow != -1 || m_MoveToColumn != -1;
 }
 
-void TreeTraversalBase::setTemporaryIndex(const QModelIndex& newParent, int row, int column)
+void StateTracker::Index::setTemporaryIndex(const QModelIndex& newParent, int row, int column)
 {
     //TODO handle parent
     Q_ASSERT(m_LifeCycleState == LifeCycleState::NORMAL);
@@ -596,12 +614,12 @@ void TreeTraversalBase::setTemporaryIndex(const QModelIndex& newParent, int row,
     m_LifeCycleState = LifeCycleState::TRANSITION;
 }
 
-QPersistentModelIndex TreeTraversalBase::index() const
+QPersistentModelIndex StateTracker::Index::index() const
 {
     return m_Index;
 }
 
-void TreeTraversalBase::setModelIndex(const QPersistentModelIndex& idx)
+void StateTracker::Index::setModelIndex(const QPersistentModelIndex& idx)
 {
     Q_ASSERT(m_LifeCycleState == LifeCycleState::NEW);
     m_Index = idx;

@@ -30,6 +30,7 @@
 #include "contextadapterfactory.h"
 #include "adapters/contextadapter.h"
 #include "private/statetracker/viewitem_p.h"
+#include "private/statetracker/model_p.h"
 #include "adapters/abstractitemadapter.h"
 #include "viewbase.h"
 #include "private/indexmetadata_p.h"
@@ -51,8 +52,6 @@ public:
     qreal m_CurrentHeight      {0};
     qreal m_DelayedHeightDelta {0};
     bool  m_DisableApply {false};
-
-    TreeTraversalReflector *m_pReflector {nullptr};
 
     // The viewport rectangle
     QRectF m_ViewRect;
@@ -86,7 +85,7 @@ Viewport::Viewport(ModelAdapter* ma) : QObject(),
     d_ptr->q_ptr = this;
     s_ptr->q_ptr = this;
     d_ptr->m_pModelAdapter = ma;
-    d_ptr->m_pReflector    = new TreeTraversalReflector(this);
+    s_ptr->m_pReflector    = new TreeTraversalReflector(this);
 
     resize(QRectF { 0.0, 0.0, ma->view()->width(), ma->view()->height() });
 
@@ -94,15 +93,15 @@ Viewport::Viewport(ModelAdapter* ma) : QObject(),
         d_ptr, &ViewportPrivate::slotModelChanged);
     connect(ma->view(), &Flickable::viewportChanged,
         d_ptr, &ViewportPrivate::slotViewportChanged);
-    connect(ma, &ModelAdapter::delegateChanged, d_ptr->m_pReflector, [this]() {
-        d_ptr->m_pReflector->performAction(
-            TreeTraversalReflector::TrackingAction::RESET
+    connect(ma, &ModelAdapter::delegateChanged, s_ptr->m_pReflector, [this]() {
+        s_ptr->m_pReflector->modelTracker()->performAction(
+            StateTracker::Model::Action::RESET
         );
     });
 
     d_ptr->slotModelChanged(ma->rawModel(), nullptr);
 
-    connect(d_ptr->m_pReflector, &TreeTraversalReflector::contentChanged,
+    connect(s_ptr->m_pReflector, &TreeTraversalReflector::contentChanged,
         this, &Viewport::contentChanged);
 }
 
@@ -175,7 +174,7 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel
 
     m_pModelAdapter->view()->setCurrentY(0);
 
-    m_pReflector->setModel(m);
+    q_ptr->s_ptr->m_pReflector->setModel(m);
 
     Q_ASSERT(m_pModelAdapter->rawModel() == m);
 
@@ -192,8 +191,8 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel
             this, &ViewportPrivate::slotDataChanged);
 
     if (m_ViewRect.size().isValid()) {
-        m_pReflector->performAction(TreeTraversalReflector::TrackingAction::POPULATE);
-        m_pReflector->performAction(TreeTraversalReflector::TrackingAction::ENABLE);
+        q_ptr->s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::POPULATE);
+        q_ptr->s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::ENABLE);
     }
 
     using SHS = Viewport::SizeHintStrategy;
@@ -218,7 +217,7 @@ void ViewportPrivate::slotViewportChanged(const QRectF &viewport)
     m_ViewRect = viewport;
     m_UsedRect = viewport; //FIXME remove wrong
     updateAvailableEdges();
-    m_pReflector->performAction(TreeTraversalReflector::TrackingAction::MOVE);
+    q_ptr->s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::MOVE);
 }
 
 ModelAdapter *Viewport::modelAdapter() const
@@ -253,7 +252,7 @@ void Viewport::setSizeHintStrategy(Viewport::SizeHintStrategy s)
     bool wasConnected = needConnect(old);
     bool willConnect  = needConnect( s );
 
-    d_ptr->m_pReflector->performAction(TreeTraversalReflector::TrackingAction::RESET);
+    s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::RESET);
     d_ptr->m_SizeStrategy = s;
 
     const auto m = d_ptr->m_pModelAdapter->rawModel();
@@ -306,7 +305,7 @@ QSizeF Viewport::totalSize() const
 
 AbstractItemAdapter* Viewport::itemForIndex(const QModelIndex& idx) const
 {
-    return d_ptr->m_pReflector->itemForIndex(idx);
+    return s_ptr->m_pReflector->itemForIndex(idx);
 }
 
 //TODO remove this content and check each range
@@ -325,7 +324,7 @@ void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& 
     if ((!tl.isValid()) || (!br.isValid()))
         return;
 
-    if (!m_pReflector->isActive(tl.parent(), tl.row(), br.row()))
+    if (!q_ptr->s_ptr->m_pReflector->isActive(tl.parent(), tl.row(), br.row()))
         return;
 
     //FIXME tolerate other cases
@@ -338,7 +337,7 @@ void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& 
     //itemForIndex(const QModelIndex& idx) const final override;
     for (int i = tl.row(); i <= br.row(); i++) {
         const auto idx = m_pModelAdapter->rawModel()->index(i, tl.column(), tl.parent());
-        if (auto item = m_pReflector->geometryForIndex(idx)) {
+        if (auto item = q_ptr->s_ptr->m_pReflector->geometryForIndex(idx)) {
             // Prevent performing action if we know the changes wont affect the
             // view.
             if (item->contextAdapter()->updateRoles(roles)) {
@@ -354,55 +353,41 @@ void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& 
 
 void Viewport::setItemFactory(ViewBase::ItemFactoryBase *factory)
 {
-    d_ptr->m_pReflector->setItemFactory([this, factory]() -> AbstractItemAdapter* {
+    s_ptr->m_pReflector->setItemFactory([this, factory]() -> AbstractItemAdapter* {
         return factory->create(this);
     });
 }
 
 Qt::Edges Viewport::availableEdges() const
 {
-    return d_ptr->m_pReflector->availableEdges(
-        TreeTraversalReflector::EdgeType::FREE
+    return s_ptr->m_pReflector->availableEdges(
+        IndexMetadata::EdgeType::FREE
     );
 }
 
 void ViewportPrivate::updateAvailableEdges()
 {
-    if (!m_pReflector->model())
+    if (q_ptr->s_ptr->m_pReflector->modelTracker()->state() == StateTracker::Model::State::RESETING)
+        return; //TODO it needs another state machine to get rid of the `if`
+
+    if (!q_ptr->s_ptr->m_pReflector->model())
         return;
 
     Qt::Edges available;
 
     auto v = m_pModelAdapter->view();
-    auto e = m_pReflector->getEdge(
-        TreeTraversalReflector::EdgeType::VISIBLE, Qt::BottomEdge
+
+    auto tve = q_ptr->s_ptr->m_pReflector->getEdge(
+        IndexMetadata::EdgeType::VISIBLE, Qt::TopEdge
     );
 
-    // Size is normal as the state as not converged yet
-    Q_ASSERT((!e) || (
-        e->removeMe() == (int)StateTracker::Geometry::State::VALID ||
-        e->removeMe() == (int)StateTracker::Geometry::State::SIZE)
+    Q_ASSERT((!tve) || (!tve->up()) || (!tve->up()->isVisible()));
+
+    auto bve = q_ptr->s_ptr->m_pReflector->getEdge(
+        IndexMetadata::EdgeType::VISIBLE, Qt::BottomEdge
     );
 
-    // Resize the contend height
-    if (e && m_SizeStrategy == Viewport::SizeHintStrategy::JIT) {
-
-        const auto geo = e->decoratedGeometry();
-
-        v->contentItem()->setHeight(std::max(
-            geo.y()+geo.height(), v->height()
-        ) + 200);
-
-        emit v->contentHeightChanged( v->contentItem()->height() );
-    }
-
-    auto tve = m_pReflector->getEdge(
-        TreeTraversalReflector::EdgeType::VISIBLE, Qt::TopEdge
-    );
-
-    auto bve = m_pReflector->getEdge(
-        TreeTraversalReflector::EdgeType::VISIBLE, Qt::BottomEdge
-    );
+    Q_ASSERT((!bve) || (!bve->down()) || (!bve->down()->isVisible()));
 
     // If they don't have a valid size, then there is a bug elsewhere
     Q_ASSERT((!tve) || tve->isValid());
@@ -418,39 +403,84 @@ void ViewportPrivate::updateAvailableEdges()
     QRectF tvg(tve?tve->decoratedGeometry():QRectF()), bvg(bve?bve->decoratedGeometry():QRectF());
 
     const auto fixedIntersect = [](bool valid, QRectF& vp, QRectF& geo) -> bool {
+        Q_UNUSED(valid) //TODO
         return vp.intersects(geo) || (
-            geo.y() >= vp.y() && geo.height() == 0 && geo.y() <= vp.y() + geo.height()
+            geo.y() >= vp.y() && geo.height() == 0 && geo.y() <= vp.y() + vp.height()
         );
     };
 
-    if ((!tve) || fixedIntersect(tveValid, m_ViewRect, tvg))
+    QRectF vp = m_ViewRect;
+
+    // Add an extra pixel to the height to prevent off-by-one where the view is
+    // perfectly full and can't scroll any more (and thus load the next item)
+    vp.setHeight(vp.height()+1.0);
+
+    if ((!tve) || fixedIntersect(tveValid, vp, tvg) && tvg.y() > 0)
         available |= Qt::TopEdge;
 
-    if ((!bve) || fixedIntersect(bveValid, m_ViewRect, bvg))
+    qDebug() << "B" << fixedIntersect(bveValid, vp, bvg) << (bvg.y() >= vp.y()) << (bvg.height() == 0) << (bvg.y() > 0);
+    if ((!bve) || fixedIntersect(bveValid, vp, bvg))
         available |= Qt::BottomEdge;
 
     qDebug() << "=====" << (bool)(available & Qt::TopEdge)
-        << (bool)(available & Qt::BottomEdge) << tvg << bvg;
+        << (bool)(available & Qt::BottomEdge) << tvg << bvg << vp << tveValid << bveValid;
 
-    m_pReflector->setAvailableEdges(
-        available, TreeTraversalReflector::EdgeType::FREE
+    q_ptr->s_ptr->m_pReflector->setAvailableEdges(
+        available, IndexMetadata::EdgeType::FREE
     );
 
-    m_pReflector->setAvailableEdges(
-        available, TreeTraversalReflector::EdgeType::VISIBLE
+    q_ptr->s_ptr->m_pReflector->setAvailableEdges(
+        available, IndexMetadata::EdgeType::VISIBLE
     );
 
 //     Q_ASSERT((~hasInvisible)&available == available || !available);
 //     m_pReflector->setAvailableEdges(
-//         (~hasInvisible)&15, TreeTraversalReflector::EdgeType::VISIBLE
+//         (~hasInvisible)&15, IndexMetadata::EdgeType::VISIBLE
 //     );
 //     qDebug() << "CHECK TOP" <<available << tve << (tve ? tve->geometry() : QRectF()) << (tve ? m_ViewRect.intersects(tve->geometry()) : true) << m_ViewRect;
 
-    m_pReflector->performAction(TreeTraversalReflector::TrackingAction::TRIM);
+    q_ptr->s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::TRIM);
+
+    bve = q_ptr->s_ptr->m_pReflector->getEdge(
+        IndexMetadata::EdgeType::VISIBLE, Qt::BottomEdge
+    );
+
+    //BEGIN test
+    tve = q_ptr->s_ptr->m_pReflector->getEdge(
+        IndexMetadata::EdgeType::VISIBLE, Qt::TopEdge
+    );
+
+    Q_ASSERT((!tve) || (!tve->up()) || (!tve->up()->isVisible()));
+
+
+    Q_ASSERT((!bve) || (!bve->down()) || (!bve->down()->isVisible()));
+    //END test
+
+    // Size is normal as the state as not converged yet
+    Q_ASSERT((!bve) || (
+        bve->removeMe() == (int)StateTracker::Geometry::State::VALID ||
+        bve->removeMe() == (int)StateTracker::Geometry::State::SIZE)
+    );
+
+    // Resize the contend height, it has to be done after the geometry has been
+    // updated.
+    if (bve && m_SizeStrategy == Viewport::SizeHintStrategy::JIT) {
+
+        const auto geo = bve->decoratedGeometry();
+
+        v->contentItem()->setHeight(std::max(
+            geo.y()+geo.height(), v->height()
+        ));
+
+        emit v->contentHeightChanged( v->contentItem()->height() );
+    }
 }
 
 void ViewportSync::geometryUpdated(IndexMetadata *item)
 {
+    if (m_pReflector->modelTracker()->state() == StateTracker::Model::State::RESETING)
+        return; //TODO it needs another state machine to get rid of the `if`
+
     //TODO assert if the size hints don't match reality
 
     auto geo = item->decoratedGeometry();
@@ -463,9 +493,9 @@ void ViewportSync::geometryUpdated(IndexMetadata *item)
 //     Q_ASSERT((!item->viewTracker()) || item->viewTracker()->geometry().size() == geo.size());
 
     // Update the used rect
-    const QRectF r = q_ptr->d_ptr->m_UsedRect = q_ptr->d_ptr->m_UsedRect.united(geo);
+    //const QRectF r = q_ptr->d_ptr->m_UsedRect = q_ptr->d_ptr->m_UsedRect.united(geo);
 
-    const bool hasSpaceOnTop = q_ptr->d_ptr->m_ViewRect.y();
+    //const bool hasSpaceOnTop = q_ptr->d_ptr->m_ViewRect.y();
 
     if (q_ptr->d_ptr->m_SizeStrategy == Viewport::SizeHintStrategy::JIT)
         q_ptr->d_ptr->updateAvailableEdges();
@@ -476,11 +506,12 @@ void ViewportSync::updateGeometry(IndexMetadata* item)
     if (q_ptr->d_ptr->m_SizeStrategy != Viewport::SizeHintStrategy::JIT)
         item->sizeHint();
 
-    notifyInsert(item->down());
-
-    refreshVisible();
+    if (auto i = item->down())
+        notifyInsert(i);
 
     q_ptr->d_ptr->updateAvailableEdges();
+
+    refreshVisible();
     //notifyInsert(item->down());
 
 }
@@ -502,13 +533,15 @@ void ViewportSync::notifyChange(IndexMetadata* item)
 
 void ViewportSync::notifyRemoval(IndexMetadata* item)
 {
+    if (m_pReflector->modelTracker()->state() == StateTracker::Model::State::RESETING)
+        return; //TODO it needs another state machine to get rid of the `if`
 
 //     auto tve = m_pReflector->getEdge(
-//         TreeTraversalReflector::EdgeType::VISIBLE, Qt::TopEdge
+//         IndexMetadata::EdgeType::VISIBLE, Qt::TopEdge
 //     );
 
 //     auto bve = q_ptr->d_ptr->m_pReflector->getEdge(
-//         TreeTraversalReflector::EdgeType::VISIBLE, Qt::BottomEdge
+//         IndexMetadata::EdgeType::VISIBLE, Qt::BottomEdge
 //     );
 //     Q_ASSERT(item != bve); //TODO
 
@@ -532,18 +565,27 @@ void ViewportSync::notifyRemoval(IndexMetadata* item)
 //     q_ptr->d_ptr->updateAvailableEdges();
 }
 
+//FIXME temporary hack to avoid having to implement a complex way to move the
+// limited number of loaded elements.
 void ViewportSync::refreshVisible()
 {
-    qDebug() << "\n\nREFRESH!!!";
-    IndexMetadata *item = q_ptr->d_ptr->m_pReflector->getEdge(
-        TreeTraversalReflector::EdgeType::VISIBLE, Qt::TopEdge
+    if (m_pReflector->modelTracker()->state() == StateTracker::Model::State::RESETING)
+        return; //TODO it needs another state machine to get rid of the `if`
+
+    //TODO eventually move to a relative origin so moving an item to the top
+    // doesn't need to move everything
+
+    IndexMetadata *item = m_pReflector->getEdge(
+        IndexMetadata::EdgeType::VISIBLE, Qt::TopEdge
     );
 
     if (!item)
         return;
 
-    auto bve = q_ptr->d_ptr->m_pReflector->getEdge(
-        TreeTraversalReflector::EdgeType::VISIBLE, Qt::BottomEdge
+    Q_ASSERT((!item->up()) || !item->up()->isVisible());
+
+    auto bve = m_pReflector->getEdge(
+        IndexMetadata::EdgeType::VISIBLE, Qt::BottomEdge
     );
 
     auto prev = item->up();
@@ -573,35 +615,76 @@ void ViewportSync::refreshVisible()
     }
 
     const bool hasSingleItem = item == bve;
+//     qDebug() << "VIS START";
 
     do {
+//         qDebug() << "VIT DO";
         item->sizeHint();
 
         Q_ASSERT(item->removeMe() != (int)StateTracker::Geometry::State::INIT);
         Q_ASSERT(item->removeMe() != (int)StateTracker::Geometry::State::POSITION);
 
+        if (prev) {
+            //FIXME this isn't ok, it needs to take into account the point size
+            //it could by multiple pixels
+            item->setPosition(prev->decoratedGeometry().bottomLeft());
+        }
+
         item->sizeHint();
+        Q_ASSERT(item->isVisible());
         Q_ASSERT(item->isValid());
+//         Q_ASSERT(item->isInSync());//TODO THIS_COMMIT
 
         if (!item->isInSync())
-            item->performAction(IndexMetadata::TrackingAction::MOVE);
+            item->performAction(IndexMetadata::LoadAction::MOVE);
 //         qDebug() << "R" << item << item->down();
 
     } while((!hasSingleItem) && item->up() != bve && (item = item->down()));
+
+//     qDebug() << "VIS END";
 }
 
 void ViewportSync::notifyInsert(IndexMetadata* item)
 {
+    Q_ASSERT(item);
+
+    volatile int edgs = m_pReflector->availableEdges(
+        IndexMetadata::EdgeType::FREE
+    );
+    qDebug() << "NOTIFY INSERT!" << item ;
+
+    if (m_pReflector->modelTracker()->state() == StateTracker::Model::State::RESETING)
+        return; //TODO it needs another state machine to get rid of the `if`
+
     if (!item)
         return;
 
-    auto bve = q_ptr->d_ptr->m_pReflector->getEdge(
-        TreeTraversalReflector::EdgeType::VISIBLE, Qt::BottomEdge
+    const bool needsPosition = item->removeMe() == (int)StateTracker::Geometry::State::INIT ||
+      item->removeMe() == (int)StateTracker::Geometry::State::SIZE;
+
+    if (needsPosition && item->up() && item->up()->isTopItem() && item->up()->removeMe() == (int)StateTracker::Geometry::State::SIZE) {
+        Q_ASSERT(false);
+    }
+
+    // If the item is new and is inserted near valid items, skip some back and
+    // forth and set the position now.
+    if (needsPosition && item->up() && item->up()->removeMe() == (int) StateTracker::Geometry::State::VALID) {
+        item->setPosition(item->up()->decoratedGeometry().bottomLeft());
+    }
+
+    // If the item is inserted in front, set the position
+    if (item->isTopItem()) {
+        item->setPosition({0.0, 0.0});
+    }
+
+    auto bve = m_pReflector->getEdge(
+        IndexMetadata::EdgeType::VISIBLE, Qt::BottomEdge
     );
 
 //     qDebug() << "START" << item;
     //FIXME this is also horrible
     do {
+//         qDebug() << "IN";
         if (item == bve) {
             item->performAction(IndexMetadata::GeometryAction::MOVE);
 //             qDebug() << "BREAK1" << item << item->m_pTTI << (item->down() != nullptr? (int) item->down()->m_State.state() : -1);
@@ -619,10 +702,18 @@ void ViewportSync::notifyInsert(IndexMetadata* item)
 //         Q_ASSERT(item->isValid());
 //         qDebug() << "ONE" << (int) item->removeMe();
     } while((item = item->down()));
+
+//     qDebug() << "END" << (item == bve);
+    refreshVisible();
+
+    q_ptr->d_ptr->updateAvailableEdges();
 }
 
 void Viewport::resize(const QRectF& rect)
 {
+    if (s_ptr->m_pReflector->modelTracker()->state() == StateTracker::Model::State::RESETING)
+        return; //TODO it needs another state machine to get rid of the `if`
+
     const bool wasValid = d_ptr->m_ViewRect.size().isValid();
 
     Q_ASSERT(rect.x() == 0);
@@ -636,19 +727,24 @@ void Viewport::resize(const QRectF& rect)
     // anything. This could eventually change
     d_ptr->m_UsedRect.setSize(rect.size()); //FIXME remove, wrong
 
+    s_ptr->refreshVisible();
+
     d_ptr->updateAvailableEdges();
+    qDebug() << "\n\nRESIZE!" << wasValid << rect.isValid() << (int)s_ptr->m_pReflector->modelTracker()->state();
 
     if ((!wasValid) && rect.isValid()) {
-        d_ptr->m_pReflector->performAction(TreeTraversalReflector::TrackingAction::POPULATE);
-        d_ptr->m_pReflector->performAction(TreeTraversalReflector::TrackingAction::ENABLE);
+        qDebug() << "TRY POP";
+        s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::POPULATE);
+        s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::ENABLE);
     }
     else if (rect.isValid()) {
-        d_ptr->m_pReflector->performAction(TreeTraversalReflector::TrackingAction::MOVE);
+        s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::MOVE);
     }
 }
 
 qreal ViewportPrivate::getSectionHeight(const QModelIndex& parent, int first, int last)
 {
+    Q_UNUSED(last) //TODO
     Q_ASSERT(m_pModelAdapter->rawModel());
     switch(m_SizeStrategy) {
         case Viewport::SizeHintStrategy::AOT:

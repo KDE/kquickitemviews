@@ -43,8 +43,8 @@ Kirigami.ApplicationWindow {
                 iconName: "document-edit"
                 text: "HierarchyView (list)"
                 onTriggered: {
-                    listview.model = treeTester2
-                    treeTester2.run()
+//                     listview.model = treeTester2
+//                     treeTester2.run()
                 }
             },
             Kirigami.Action {
@@ -66,9 +66,9 @@ Kirigami.ApplicationWindow {
         id: treeTester
     }
 
-    ListModelTester {
-        id: treeTester2
-    }
+//     ListModelTester {
+//         id: treeTester2
+//     }
 
     ColumnLayout {
         anchors.fill: parent

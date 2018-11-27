@@ -24,12 +24,13 @@
 // KQuickViews
 namespace StateTracker {
     struct ModelItem;
+    struct Model;
 }
 
 class TreeTraversalReflectorPrivate;
 class AbstractItemAdapter;
 class Viewport;
-class IndexMetadata;
+#include "indexmetadata_p.h"
 
 namespace {
     class ViewItem;
@@ -65,43 +66,17 @@ class TreeTraversalReflector final : public QObject
     friend struct StateTracker::ModelItem; // Internal representation
 public:
 
-    enum class TrackingState {
-        NO_MODEL , /*!< The model is not set, there is nothing to do                  */
-        PAUSED   , /*!< The model is set, but the reflector is not listening          */
-        POPULATED, /*!< The initial insertion has been done, it is ready for tracking */
-        TRACKING , /*!< The model is set and the reflector is listening to changes    */
-    };
-
-    enum class TrackingAction {
-        POPULATE, /*!< Fetch the model content and fill the view */
-        DISABLE , /*!< Disconnect the model tracking             */
-        ENABLE  , /*!< Connect the pending model                 */
-        RESET   , /*!< Remove the delegates but keep the trackers*/
-        FREE    , /*!< Free the whole tracking tree              */
-        MOVE    , /*!< Try to fix the viewport with content      */
-        TRIM    , /*!< Remove the elements until the edge is free*/
-    };
-
-    enum class EdgeType {
-        FREE    , /*!<  */
-        VISIBLE , /*!<  */
-        BUFFERED, /*!<  */
-    };
-
     explicit TreeTraversalReflector(Viewport* parent = nullptr);
     virtual ~TreeTraversalReflector();
-
-    /**
-     * Manipulate the tracking state.
-     */
-    TrackingState performAction(TrackingAction);
 
     QAbstractItemModel* model() const;
     void setModel(QAbstractItemModel* m);
 
-    void setAvailableEdges(Qt::Edges edges, EdgeType type);
-    Qt::Edges availableEdges(EdgeType type) const;
-    IndexMetadata *getEdge(EdgeType t, Qt::Edge e) const;
+    void setAvailableEdges(Qt::Edges edges, IndexMetadata::EdgeType type);
+    Qt::Edges availableEdges(IndexMetadata::EdgeType type) const;
+    IndexMetadata *getEdge(IndexMetadata::EdgeType t, Qt::Edge e) const;
+
+    StateTracker::Model *modelTracker() const;
 
     // Getter
     AbstractItemAdapter* itemForIndex(const QModelIndex& idx) const; //TODO remove

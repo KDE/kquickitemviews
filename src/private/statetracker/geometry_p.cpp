@@ -34,12 +34,12 @@ const StateTracker::Geometry::State StateTracker::Geometry::m_fStateMap[5][7] = 
 
 #define A &StateTracker::Geometry::
 const StateTracker::Geometry::StateF StateTracker::Geometry::m_fStateMachine[5][7] = {
-/*                 MOVE      RESIZE        PLACE         RESET         MODIFY      DECORATE       VIEW    */
-/*INIT     */ { A nothing, A nothing  , A nothing  , A nothing   , A nothing   , A nothing  , A error     },
-/*SIZE     */ { A nothing, A dropSize , A nothing  , A dropSize  , A nothing   , A nothing  , A error     },
-/*POSITION */ { A nothing, A nothing  , A nothing  , A dropPos   , A nothing   , A nothing  , A error     },
-/*PENDING  */ { A nothing, A nothing  , A nothing  , A invalidate, A invalidate, A nothing  , A buildCache},
-/*VALID    */ { A nothing, A dropCache, A dropCache, A invalidate, A dropCache , A dropCache, A buildCache},
+/*                  MOVE        RESIZE        PLACE         RESET         MODIFY      DECORATE       VIEW    */
+/*INIT     */ { A nothing   , A nothing  , A nothing  , A nothing   , A nothing   , A nothing  , A error     },
+/*SIZE     */ { A nothing   , A dropSize , A nothing  , A dropSize  , A nothing   , A nothing  , A error     },
+/*POSITION */ { A invalidate, A nothing  , A nothing  , A dropPos   , A nothing   , A nothing  , A error     },
+/*PENDING  */ { A nothing   , A nothing  , A nothing  , A invalidate, A invalidate, A nothing  , A buildCache},
+/*VALID    */ { A nothing   , A dropCache, A dropCache, A invalidate, A dropCache , A dropCache, A buildCache},
 };
 #undef A
 
@@ -59,6 +59,7 @@ void StateTracker::Geometry::error()
 
 void StateTracker::Geometry::dropCache()
 {
+    qDebug() << "==DROP CACHE";
     //TODO
 }
 

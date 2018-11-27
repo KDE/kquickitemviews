@@ -60,6 +60,8 @@ ModelViewTester::ModelViewTester(QObject* parent)
     DO(moveChildByOne);
     DO(moveChildByParent);
     DO(moveToGrandChildren);
+    //TODO moveFirst
+    //TODO moveLast
 
     // Insert
     DO(insertRoot);
@@ -77,6 +79,8 @@ ModelViewTester::ModelViewTester(QObject* parent)
     DO(largeFrontTree2);
     DO(removeLargeTree2);
     DO(removeLargeTree3);
+
+    // Larger move (with out of view)
 
 }
 

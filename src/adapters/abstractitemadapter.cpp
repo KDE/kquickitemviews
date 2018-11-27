@@ -34,6 +34,7 @@
 #include "private/indexmetadata_p.h"
 #include "private/viewport_p.h"
 #include "modeladapter.h"
+#include "private/statetracker/index_p.h"
 #include "viewbase.h"
 #include "contextadapterfactory.h"
 #include "contextadapter.h"
@@ -112,7 +113,7 @@ const AbstractItemAdapterPrivate::StateF AbstractItemAdapterPrivate::m_fStateMac
 /*POOLED  */ { A nothing, A attach , A move   , A error  , A error  , A error  , A destroy },
 /*BUFFER  */ { A error  , A error  , A move   , A refresh, A error  , A detach , A destroy },
 /*ACTIVE  */ { A error  , A nothing, A nothing, A refresh, A move   , A hide   , A detach  },
-/*FAILED  */ { A error  , A attach , A attach , A attach , A attach , A detach , A destroy },
+/*FAILED  */ { A error  , A nothing, A nothing, A nothing, A nothing, A nothing, A destroy },
 /*DANGLING*/ { A error  , A error  , A error  , A error  , A error  , A error  , A destroy },
 /*error   */ { A error  , A error  , A error  , A error  , A error  , A error  , A destroy },
 };
@@ -335,7 +336,7 @@ bool StateTracker::ViewItem::performAction(StateTracker::ViewItem::ViewAction a)
 
 int StateTracker::ViewItem::depth() const
 {
-    return 0;//FIXME m_pTTI->m_Depth;
+    return m_pGeometry->modelTracker()->depth();
 }
 
 QPair<QWeakPointer<AbstractItemAdapter::SelectionLocker>, AbstractItemAdapter*>

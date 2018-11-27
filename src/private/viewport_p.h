@@ -15,10 +15,9 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
+#pragma once
 
-struct StateTracker::ModelItem;
 class TreeTraversalReflector;
-class StateTracker::ViewItem;
 class ViewportPrivate;
 class Viewport;
 class ContextAdapter;
@@ -72,4 +71,5 @@ public:
     inline void updateSingleItem(const QModelIndex& index, IndexMetadata* b);
 
     Viewport *q_ptr;
+    TreeTraversalReflector *m_pReflector {nullptr};
 };

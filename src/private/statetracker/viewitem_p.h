@@ -21,7 +21,6 @@
 #include "private/statetracker/viewitem_p.h"
 #include <adapters/abstractitemadapter.h>
 class ViewBase;
-struct StateTracker::ModelItem;
 class ViewItemContextAdapter;
 class ContextAdapter;
 class Viewport;

@@ -26,7 +26,6 @@ endif()
 
 SET(CMAKE_AUTOMOC ON)
 SET(CMAKE_AUTORCC ON)
-SET(CMAKE_AUTOUIC ON)
 
 SET(CMAKE_CXX_STANDARD 14)
 
@@ -70,6 +69,7 @@ SET( kquickview_LIB_SRCS
     src/private/statetracker/index_p.cpp
     src/private/statetracker/geometry_p.cpp
     src/private/statetracker/proximity_p.cpp
+    src/private/statetracker/model_p.cpp
     src/private/indexmetadata_p.cpp
     src/private/treetraversalreflector_p.cpp
 )

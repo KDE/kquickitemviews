@@ -95,13 +95,16 @@ StateTracker::Proximity::Proximity(IndexMetadata *q, StateTracker::Index *self) 
     d_ptr->m_pSelf = self;
 }
 
-void StateTracker::Proximity::performAction(Proximity::Action a, Qt::Edge e)
+void StateTracker::Proximity::performAction(IndexMetadata::ProximityAction a, Qt::Edge e)
 {
-
+    Q_UNUSED(e)
+    Q_UNUSED(a)
+    Q_ASSERT(false);
 }
 
 bool StateTracker::Proximity::canLoadMore(Qt::Edge e)
 {
+    Q_UNUSED(e)
     Q_ASSERT(false);
     return false;
 }
@@ -186,20 +189,51 @@ QModelIndexList ProximityPrivate::up() const
 QModelIndexList ProximityPrivate::down() const
 {
     int effRow = m_pSelf->effectiveRow();
-    auto par   = m_pSelf->effectiveParentIndex();
+    QModelIndex par = m_pSelf->effectiveParentIndex();
 
     // In *theory*, all relevant parents should be loaded, so it's always
     // returning a single item
 
-    do {
-        if (effRow + 1 < m_pSelf->index().model()->rowCount(par)) {
-            return {
-                m_pSelf->index().model()->index(effRow + 1, m_pSelf->index().column(), par)
-            };
-        }
+    // Return the first child
+    if (auto rc = m_pSelf->index().model()->rowCount(m_pSelf->index()))
+        return {m_pSelf->index().model()->index(0, 0, m_pSelf->index())};
 
-        effRow = par.row();
-    } while ((par = par.parent()).isValid());
+    // Return the next sibling
+    if (m_pSelf->index().model()->rowCount(par)-1 > effRow)
+        return {m_pSelf->index().model()->index(effRow+1, 0, par)};
+
+    while (par.isValid()) {
+        auto sib = par.siblingAtRow(par.row()+1);
+        if (sib.isValid())
+            return {sib};
+
+        par = par.parent();
+    }
 
     return {};
 }
+
+/*
+    if (auto rc = m_pModel->rowCount(idx))
+        return m_pModel->index(0,0, idx);
+
+    auto sib = idx.siblingAtRow(idx.row()+1);
+
+    if (sib.isValid())
+        return sib;
+
+    if (!idx.parent().isValid())
+        return {};
+
+    auto p = idx.parent();
+
+    while (p.isValid()) {
+        sib = p.siblingAtRow(p.row()+1);
+        if (sib.isValid())
+            return sib;
+
+        p = p.parent();
+    }
+
+    return {};
+*/

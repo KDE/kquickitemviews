@@ -625,6 +625,18 @@ void StateTracker::Index::setModelIndex(const QPersistentModelIndex& idx)
     m_Index = idx;
 }
 
+int StateTracker::Index::depth() const
+{
+    int d = 0;
+
+    auto s = this;
+
+    while(s = s->parent())
+        d++;
+
+    return d;//FIXME m_pTTI->m_Depth;
+}
+
 #undef PREVIOUS
 #undef NEXT
 #undef FIRST

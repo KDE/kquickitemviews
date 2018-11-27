@@ -136,6 +136,7 @@ QRectF IndexMetadata::decoratedGeometry() const
 {
     switch(d_ptr->m_pGeometryTracker->state()) {
         case StateTracker::Geometry::State::VALID:
+        case StateTracker::Geometry::State::PENDING:
             break;
         case StateTracker::Geometry::State::INIT:
             Q_ASSERT(false);
@@ -188,46 +189,50 @@ QSizeF IndexMetadata::sizeHint()
 {
     QSizeF ret;
 
-    auto s = d_ptr->m_pGeometryTracker->state();
+    switch(d_ptr->m_pGeometryTracker->state()) {
+        case StateTracker::Geometry::State::VALID:
+        case StateTracker::Geometry::State::PENDING:
+            break;
 
-    //TODO switch to function table
-    if (s == StateTracker::Geometry::State::POSITION || s == StateTracker::Geometry::State::INIT) {
-        switch (d_ptr->m_pViewport->sizeHintStrategy()) {
-            case Viewport::SizeHintStrategy::AOT:
-                Q_ASSERT(false);
-                break;
-            case Viewport::SizeHintStrategy::JIT:
-                if (viewTracker())
-                    ret = viewTracker()->geometry().size();
-                else {
-                    // JIT cannot be used past the loaded bounds, the value isn't known
+        case StateTracker::Geometry::State::POSITION:
+        case StateTracker::Geometry::State::INIT:
+            switch (d_ptr->m_pViewport->sizeHintStrategy()) {
+                case Viewport::SizeHintStrategy::AOT:
                     Q_ASSERT(false);
-                }
-                break;
-            case Viewport::SizeHintStrategy::UNIFORM:
-                Q_ASSERT(false);
-                break;
-            case Viewport::SizeHintStrategy::PROXY:
-                Q_ASSERT(d_ptr->m_pViewport->modelAdapter()->hasSizeHints());
+                    break;
+                case Viewport::SizeHintStrategy::JIT:
+                    if (viewTracker())
+                        ret = viewTracker()->geometry().size();
+                    else {
+                        // JIT cannot be used past the loaded bounds, the value isn't known
+                        Q_ASSERT(false);
+                    }
+                    break;
+                case Viewport::SizeHintStrategy::UNIFORM:
+                    Q_ASSERT(false);
+                    break;
+                case Viewport::SizeHintStrategy::PROXY:
+                    Q_ASSERT(d_ptr->m_pViewport->modelAdapter()->hasSizeHints());
 
-                ret = qobject_cast<SizeHintProxyModel*>(
-                    d_ptr->m_pViewport->modelAdapter()->rawModel()
-                )->sizeHintForIndex(index());
+                    ret = qobject_cast<SizeHintProxyModel*>(
+                        d_ptr->m_pViewport->modelAdapter()->rawModel()
+                    )->sizeHintForIndex(index());
 
-                static int i = 0;
+                    break;
+                case Viewport::SizeHintStrategy::ROLE:
+                case Viewport::SizeHintStrategy::DELEGATE:
+                    Q_ASSERT(false);
+                    break;
+            }
 
-                break;
-            case Viewport::SizeHintStrategy::ROLE:
-            case Viewport::SizeHintStrategy::DELEGATE:
-                Q_ASSERT(false);
-                break;
-        }
+            d_ptr->m_pGeometryTracker->setSize(ret);
 
-        qDebug() << "\n\n\n\nSET SIZE" << ret << (int) d_ptr->m_pViewport->sizeHintStrategy();
-        d_ptr->m_pGeometryTracker->setSize(ret);
+            break;
+        case StateTracker::Geometry::State::SIZE:
+            break;
     }
 
-    s = d_ptr->m_pGeometryTracker->state();
+    auto s = d_ptr->m_pGeometryTracker->state();
     Q_ASSERT(s != StateTracker::Geometry::State::INIT);
     Q_ASSERT(s != StateTracker::Geometry::State::POSITION);
 
@@ -262,6 +267,12 @@ bool IndexMetadata::performAction(GeometryAction a)
     return false;
 }
 
+bool IndexMetadata::performAction(ProximityAction a, Qt::Edge e)
+{
+    proximityTracker()->performAction(a, e);
+    return true;
+}
+
 qreal IndexMetadata::borderDecoration(Qt::Edge e) const
 {
     return d_ptr->m_pGeometryTracker->borderDecoration(e);
@@ -289,9 +300,12 @@ int IndexMetadata::removeMe() const
 
 bool IndexMetadata::isInSync() const
 {
-    if (d_ptr->m_pGeometryTracker->state() != StateTracker::Geometry::State::VALID) {
-        qDebug() << "INVALID";
-        return false;
+    switch(d_ptr->m_pGeometryTracker->state()) {
+        case StateTracker::Geometry::State::VALID:
+        case StateTracker::Geometry::State::PENDING:
+            break;
+        default:
+            return false;
     }
 
     const auto item = viewTracker()->item();
@@ -299,7 +313,6 @@ bool IndexMetadata::isInSync() const
     // If it got that far, then it's probably not going to load, trying to fix
     // that should be done elsewhere. Lets just assume a null delegate.
     if (!item) {
-        qDebug() << "NO ITEM";
         return true;
     }
 
@@ -313,9 +326,10 @@ bool IndexMetadata::isInSync() const
         item->height()
     );
 
-    //qDebug() << m_State.geometry();
-    qDebug() << geo << d_ptr->m_pGeometryTracker->borderDecoration(Qt::TopEdge);
-    qDebug() << correctedRect;
+//DEBUG
+//     qDebug() << "EXPECT" << geo << d_ptr->m_pGeometryTracker->borderDecoration(Qt::TopEdge);
+//     qDebug() << "GOT   " << correctedRect;
 
     return correctedRect == geo;
 }
+

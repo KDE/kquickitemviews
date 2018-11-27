@@ -66,11 +66,13 @@ public:
 
     Index* next(Qt::Edge e) const;
 
+    int depth() const;
+
     int effectiveRow() const;
     int effectiveColumn() const;
     QPersistentModelIndex effectiveParentIndex() const;
 
-    void remove(bool reparent = false);
+    virtual void remove(bool reparent = false);
     static void bridgeGap(Index* first, StateTracker::Index* second);
 
     Index *childrenLookup(const QPersistentModelIndex &index) const;

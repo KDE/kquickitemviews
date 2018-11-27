@@ -29,7 +29,6 @@ namespace StateTracker {
     class Index;
 }
 
-class StateTracker::ModelItem;
 class ContextAdapter;
 class Viewport;
 
@@ -63,14 +62,15 @@ public:
     /**
      * The actions to perform on the model change tracking state machine.
      */
-    enum class TrackingAction {
-        SHOW   = 0, /*!< Make visible on screen (or buffer) */
-        HIDE   = 1, /*!< Remove from the screen (or buffer) */
-        ATTACH = 2, /*!< Track, but do not show             */
-        DETACH = 3, /*!< Stop tracking for changes          */
-        UPDATE = 4, /*!< Update the element                 */
-        MOVE   = 5, /*!< Update the depth and lookup        */
-        RESET  = 6, /*!< Flush the visual item              */
+    enum class LoadAction {
+        SHOW     = 0, /*!< Make visible on screen (or buffer) */
+        HIDE     = 1, /*!< Remove from the screen (or buffer) */
+        ATTACH   = 2, /*!< Track, but do not show             */
+        DETACH   = 3, /*!< Stop tracking for changes          */
+        UPDATE   = 4, /*!< Update the element                 */
+        MOVE     = 5, /*!< Update the depth and lookup        */
+        RESET    = 6, /*!< Flush the visual item              */
+        REPARENT = 7, /*!< Move in the item tree                     */
     };
 
     /**
@@ -86,6 +86,26 @@ public:
         VIEW    , /*!< When the geometry is accessed           */
     };
 
+    /**
+     * The actions associated with the state of the (cartesian) siblings status
+     * if this index.
+     */
+    enum class ProximityAction {
+        QUERY  , /*!<  */
+        DISCARD, /*!<  */
+        MOVE   , /*!<  */
+    };
+
+    /**
+     *
+     */
+    enum class EdgeType {
+        FREE    , /*!<  */
+        VISIBLE , /*!<  */
+        BUFFERED, /*!<  */
+        NONE    , /*!<  */
+    };
+
     // Getters
     QRectF decoratedGeometry() const;
     QModelIndex index() const;
@@ -96,14 +116,15 @@ public:
     ContextAdapter          *contextAdapter  () const;
 
     // Mutator
-    bool performAction(TrackingAction a);
-    bool performAction(GeometryAction a);
+    bool performAction(LoadAction      a);
+    bool performAction(GeometryAction  a);
+    bool performAction(ProximityAction a, Qt::Edge e);
 
     // Navigation
-    IndexMetadata *up   () const; //TODO remove
-    IndexMetadata *down () const; //TODO remove
-    IndexMetadata *left () const; //TODO remove
-    IndexMetadata *right() const; //TODO remove
+    IndexMetadata *up   () const; //TODO remove, use `next(Qt::Edge)`
+    IndexMetadata *down () const; //TODO remove, use `next(Qt::Edge)`
+    IndexMetadata *left () const; //TODO remove, use `next(Qt::Edge)`
+    IndexMetadata *right() const; //TODO remove, use `next(Qt::Edge)`
 
     bool isTopItem() const;
 
@@ -118,8 +139,26 @@ public:
 
     /**
      * Return true when the metadata is complete enough to be displayed.
+     *
+     * This means the following thing:
+     *
+     *  * The QModelIndex is valid
+     *  * The position is known
+     *  * The size is known
      */
     bool isValid() const;
+
+    /**
+     * If the object is considered visible by the viewport.
+     *
+     * Note that it doesn't always means it is directly in on screen. It can
+     * be shadowed by something else, 99% out of view or the view decided not
+     * to actually display it.
+     *
+     * It only means the engine fully tracks it and assumes the tracking
+     * overhead isn't wasted.
+     */
+    bool isVisible() const;
 
     QSizeF sizeHint();
 

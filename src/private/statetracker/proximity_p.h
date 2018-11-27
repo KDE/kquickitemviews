@@ -20,7 +20,7 @@
 #include <QtCore/QRectF>
 #include <QtCore/QModelIndexList>
 
-class IndexMetadata;
+#include <private/indexmetadata_p.h>
 
 class ProximityPrivate;
 
@@ -45,19 +45,13 @@ public:
     explicit Proximity(IndexMetadata *q, StateTracker::Index *self);
 
     enum class State {
-        UNKNOWN ,
-        LOADED  ,
-        MOVED   ,
-        UNLOADED,
+        UNKNOWN , /*!< The information is not availablr           */
+        LOADED  , /*!< The edges are valid                        */
+        MOVED   , /*!< It was valid, but some elements moved      */
+        UNLOADED, /*!< It is known that some edges are not loaded */
     };
 
-    enum class Action {
-        QUERY  ,
-        DISCARD,
-        MOVE   ,
-    };
-
-    void performAction(Action a, Qt::Edge e);
+    void performAction(IndexMetadata::ProximityAction a, Qt::Edge e);
 
     bool canLoadMore(Qt::Edge e);
 

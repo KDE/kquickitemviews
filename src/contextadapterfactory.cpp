@@ -227,6 +227,8 @@ void ContextExtension::setProperty(AbstractItemAdapter* item, uint id, const QVa
 
 void ContextExtension::changeProperty(AbstractItemAdapter* item, uint id)
 {
+    Q_UNUSED(item)
+    Q_UNUSED(id)
     Q_ASSERT(false);
 /*
     const auto metaRole = &d_ptr->d_ptr->m_pMetaType->roles[id];
@@ -571,7 +573,9 @@ ContextAdapter* ContextAdapterFactory::createAdapter(QQmlContext *parentContext)
 }
 
 ContextAdapter::ContextAdapter(QQmlContext *parentContext)
-{}
+{
+    Q_UNUSED(parentContext)
+}
 
 ContextAdapter::~ContextAdapter()
 {}

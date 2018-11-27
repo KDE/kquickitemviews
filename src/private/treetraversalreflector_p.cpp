@@ -468,9 +468,6 @@ bool StateTracker::ModelItem::show()
 
 //     Q_ASSERT((!down()) || !TTI(down())->m_Geometry.isValid());
 
-    if (auto item = m_Geometry.viewTracker()->item())
-        qDebug() << "IN SHOW" << this << item->y() << item->height();
-
     Q_ASSERT(m_State == State::VISIBLE);
 
 //     Q_ASSERT((!down()) || TTI(down())->m_Geometry.m_State.state() != StateTracker::Geometry::State::VALID);
@@ -1369,20 +1366,18 @@ void StateTracker::Model::populate()
     if (!d_ptr->edges(EdgeType::FREE)->m_Edges)
         return;
 
-    qDebug() << "STILL POP" << d_ptr->m_pModel << d_ptr->m_pModel->rowCount()  << d_ptr->m_pRoot->firstChild() << ((d_ptr->edges(EdgeType::FREE)->m_Edges & (Qt::TopEdge|Qt::BottomEdge)));
     if (d_ptr->m_pRoot->firstChild() && (d_ptr->edges(EdgeType::FREE)->m_Edges & (Qt::TopEdge|Qt::BottomEdge))) {
         //Q_ASSERT(edges(EdgeType::FREE)->getEdge(Qt::TopEdge));
 
-    qDebug() << "STILL POP2";
         while (d_ptr->edges(EdgeType::FREE)->m_Edges & Qt::TopEdge) {
-    qDebug() << "STILL POP3";
+            qDebug() << "S";
             const auto was = TTI(d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge));
-
             //FIXME when everything fails to load, it would otherwise make an infinite loop
             if (!was)
                 break;
 
             auto u = was->load(Qt::TopEdge);
+qDebug() << "T" << u;
 
             Q_ASSERT(u || d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge)->effectiveRow() == 0);
             Q_ASSERT(u || !d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge)->effectiveParentIndex().isValid());
@@ -1394,16 +1389,16 @@ void StateTracker::Model::populate()
         }
 
         while (d_ptr->edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge) {
+            qDebug() << "S2";
             const auto was = TTI(d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge));
-    qDebug() << "STILL POP4" << was << (was ? was->index().row() : -2);
 
             //FIXME when everything fails to load, it would otherwise make an infinite loop
             if (!was)
                 break;
 
             auto u = was->load(Qt::BottomEdge);
+qDebug() << "B" << u;
 
-            qDebug() << "STILL POP8" << was->index().row() <<  u;
 
             //Q_ASSERT(u || edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)->effectiveRow() == 0);
             //Q_ASSERT(u || !edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)->effectiveParentIndex().isValid());
@@ -1415,13 +1410,11 @@ void StateTracker::Model::populate()
         }
     }
     else if (auto rc = d_ptr->m_pModel->rowCount()) {
-    qDebug() << "STILL POP4";
         //FIX support anchors
         d_ptr->slotRowsInserted({}, 0, rc - 1);
     }
 
     if (d_ptr->edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge) {
-        qDebug() << "\n\nNO MORE TO LOAD?";
         d_ptr->_test_validateAtEnd();
     }
 }

@@ -418,12 +418,8 @@ void ViewportPrivate::updateAvailableEdges()
     if ((!tve) || fixedIntersect(tveValid, vp, tvg) && tvg.y() > 0)
         available |= Qt::TopEdge;
 
-    qDebug() << "B" << fixedIntersect(bveValid, vp, bvg) << (bvg.y() >= vp.y()) << (bvg.height() == 0) << (bvg.y() > 0);
     if ((!bve) || fixedIntersect(bveValid, vp, bvg))
         available |= Qt::BottomEdge;
-
-    qDebug() << "=====" << (bool)(available & Qt::TopEdge)
-        << (bool)(available & Qt::BottomEdge) << tvg << bvg << vp << tveValid << bveValid;
 
     q_ptr->s_ptr->m_pReflector->setAvailableEdges(
         available, IndexMetadata::EdgeType::FREE
@@ -733,7 +729,6 @@ void Viewport::resize(const QRectF& rect)
     qDebug() << "\n\nRESIZE!" << wasValid << rect.isValid() << (int)s_ptr->m_pReflector->modelTracker()->state();
 
     if ((!wasValid) && rect.isValid()) {
-        qDebug() << "TRY POP";
         s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::POPULATE);
         s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::ENABLE);
     }

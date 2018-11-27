@@ -11,8 +11,8 @@
 
 void TreeTraversalReflectorPrivate::_test_validateTree(StateTracker::ModelItem* p)
 {
-#ifdef QT_NO_DEBUG_OUTPUT
-//     return;
+#ifndef ENABLE_EXTRA_VALIDATION
+    return;
 #endif
 
     // The asserts below only work on valid models with valid delegates.
@@ -188,8 +188,8 @@ void TreeTraversalReflectorPrivate::_test_validateTree(StateTracker::ModelItem* 
 
 void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState)
 {
-#ifdef QT_NO_DEBUG_OUTPUT
-//     return;
+#ifndef ENABLE_EXTRA_VALIDATION
+    return;
 #endif
     _test_validateTree(m_pRoot);
 
@@ -345,9 +345,9 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
 
 void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)
 {
-// #ifdef QT_NO_DEBUG_OUTPUT
-//     return;
-// #endif
+#ifndef ENABLE_EXTRA_VALIDATION
+    return;
+#endif
     _test_validateLinkedList(skipVItemState);
     int activeCount = 0;
 
@@ -405,9 +405,9 @@ void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)
 
 void StateTracker::Index::_test_validate_chain() const
 {
-// #ifdef QT_NO_DEBUG_OUTPUT
-//     return;
-// #endif
+#ifndef ENABLE_EXTRA_VALIDATION
+    return;
+#endif
     auto p = this; //FIXME due to refactor
 
     int count = 0;
@@ -438,7 +438,9 @@ void StateTracker::Index::_test_validate_chain() const
 
 void TreeTraversalReflectorPrivate::_test_validate_edges()
 {
+#ifndef ENABLE_EXTRA_VALIDATION
     return;
+#endif
     auto vStart = q_ptr->getEdge(IndexMetadata::EdgeType::VISIBLE, Qt::TopEdge);
     auto vEnd   = q_ptr->getEdge(IndexMetadata::EdgeType::VISIBLE, Qt::BottomEdge);
 
@@ -462,9 +464,9 @@ void TreeTraversalReflectorPrivate::_test_validate_move(StateTracker::Index* par
                                                         StateTracker::Index* newNextTTI,
                                                         int row)
 {
-// #ifdef QT_NO_DEBUG_OUTPUT
-//     return;
-// #endif
+#ifndef ENABLE_EXTRA_VALIDATION
+    return;
+#endif
     Q_ASSERT((newPrevTTI || startTTI) && newPrevTTI != startTTI);
     Q_ASSERT((newNextTTI || endTTI  ) && newNextTTI != endTTI  );
 
@@ -498,6 +500,9 @@ void TreeTraversalReflectorPrivate::_test_validate_move(StateTracker::Index* par
 
 void TreeTraversalReflectorPrivate::_test_validate_edges_simple()
 {
+#ifndef ENABLE_EXTRA_VALIDATION
+    return;
+#endif
     //BEGIN test
     auto tve = edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
 
@@ -524,6 +529,9 @@ void TreeTraversalReflectorPrivate::_test_validate_geometry_cache()
 
 void TreeTraversalReflectorPrivate::_test_print_state()
 {
+#ifndef ENABLE_EXTRA_VALIDATION
+    return;
+#endif
     auto item = TTI(m_pRoot->firstChild());
 
     if (!item)
@@ -542,6 +550,9 @@ void TreeTraversalReflectorPrivate::_test_print_state()
 
 void TreeTraversalReflectorPrivate::_test_validateUnloaded(const QModelIndex& parent, int first, int last)
 {
+#ifndef ENABLE_EXTRA_VALIDATION
+    return;
+#endif
     Q_ASSERT(m_pModel);
     for (int i = first; i <= last; i++) {
         const auto idx = m_pModel->index(i, 0, parent);
@@ -553,6 +564,9 @@ void TreeTraversalReflectorPrivate::_test_validateUnloaded(const QModelIndex& pa
 // Validate that there is no holes in the view.
 void TreeTraversalReflectorPrivate::_test_validateContinuity()
 {
+#ifndef ENABLE_EXTRA_VALIDATION
+    return;
+#endif
     auto item = edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
     auto bve = edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
 
@@ -572,6 +586,9 @@ void TreeTraversalReflectorPrivate::_test_validateContinuity()
 
 void TreeTraversalReflectorPrivate::_test_validateAtEnd()
 {
+#ifndef ENABLE_EXTRA_VALIDATION
+    return;
+#endif
     _test_validateContinuity();
 
     auto bve = edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);

@@ -45,6 +45,10 @@ FIND_PACKAGE(Qt5 CONFIG REQUIRED
 
 add_definitions(-isystem ${Qt5Core_PRIVATE_INCLUDE_DIRS})
 
+if("${CMAKE_BUILD_TYPE}" MATCHES "DEBUG")
+    add_definitions(-DENABLE_EXTRA_VALIDATION=1)
+endif()
+
 SET(GENERIC_LIB_VERSION "1.0.0")
 
 #File to compile

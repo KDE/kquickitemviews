@@ -637,6 +637,11 @@ int StateTracker::Index::depth() const
     return d;//FIXME m_pTTI->m_Depth;
 }
 
+IndexMetadata *StateTracker::Index::metadata() const
+{
+    return &m_Geometry;
+}
+
 #undef PREVIOUS
 #undef NEXT
 #undef FIRST

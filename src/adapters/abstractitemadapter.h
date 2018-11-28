@@ -113,34 +113,15 @@ public:
         INVALID, /*!< You should not use this instance                        */
     };
 
-    enum StateFlags {
-        NORMAL       = 0x0 << 0, /*!< Will assert if it's not part of the viewport          */
-        FORCE_LOAD   = 0x1 << 0, /*!< Avoid at all cost, this will create the QQuiciItem    */
-        ALLOW_BUFFER = 0x1 << 1, /*!< If the item is part of the buffer, then get it anyway */
-    };
-
     /**
-     * The item above this one when viewing the model as a Cartesian map.
+     * Get the nearby element on the edge of this item.
      *
-     * It can either be a sibling (for example, if the model is a list or table),
-     * the parent (in case of a tree) or a (sub) children of the parent upper
-     * sibling.
-     *
+     * Note that this applies a Cartesian projection on the whole model, so
+     * a nearby element can be a parent, children or sibling. Also note that
+     * elements are lazy loaded and recycled, so there is no guarantee that
+     * the element will exits and it should never be stored.
      */
-    AbstractItemAdapter* up(StateFlags flags = StateFlags::NORMAL) const;
-
-    /**
-     * The item below this one when viewing the model as a Cartesian map.
-     *
-     * It can be a sibling or an item with a lower depth level.
-     */
-    AbstractItemAdapter* down (StateFlags flags = StateFlags::NORMAL) const;
-
-    ///TODO
-    AbstractItemAdapter* left (StateFlags flags = StateFlags::NORMAL) const;
-
-    ///TODO
-    AbstractItemAdapter* right(StateFlags flags = StateFlags::NORMAL) const;
+    AbstractItemAdapter *next(Qt::Edge e) const;
 
     /**
      * This method return the item representing the QModelIndex parent.

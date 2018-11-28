@@ -85,8 +85,6 @@ struct ModelItem : public StateTracker::Index
     // Managed by the Viewport
     bool m_IsCollapsed {false}; //TODO change the default to true
 
-    IndexMetadata m_Geometry;
-
     //TODO keep the absolute index of the GC circular buffer
 
     TreeTraversalReflectorPrivate* d_ptr;
@@ -254,7 +252,7 @@ const StateTracker::ModelItem::StateF StateTracker::ModelItem::m_fStateMachine[8
 #undef A
 
 StateTracker::ModelItem::ModelItem(TreeTraversalReflectorPrivate* d):
-  StateTracker::Index(), m_Geometry(this, d->m_pViewport), d_ptr(d)
+  StateTracker::Index(d->m_pViewport), d_ptr(d)
 {
 }
 
@@ -264,7 +262,7 @@ StateTracker::ModelItem* StateTracker::ModelItem::load(Qt::Edge e) const
     if (auto ret = next(e))
         return TTI(ret);
 
-    const auto t = m_Geometry.proximityTracker();
+    const auto t = metadata()->proximityTracker();
     const QModelIndexList l = t->getNext(e);
 
     // The consumer of this function only cares about the item above `this`,
@@ -309,7 +307,7 @@ bool IndexMetadata::performAction(IndexMetadata::LoadAction a)
     //WARNING, do not access mt form here, it might have been deleted
 /*
     Q_ASSERT(nextState == StateTracker::ModelItem::State::DANGLING ||
-        ((!mt->m_Geometry.viewTracker())
+        ((!mt->metadata()->viewTracker())
         ||  mt->m_State == StateTracker::ModelItem::State::BUFFER
         ||  mt->m_State == StateTracker::ModelItem::State::VISIBLE));*/
 
@@ -410,65 +408,65 @@ bool StateTracker::ModelItem::show()
 
     Q_ASSERT(m_State == State::VISIBLE);
 
-    if (auto item = m_Geometry.viewTracker()) {
+    if (auto item = metadata()->viewTracker()) {
         Q_UNUSED(item)
         //item->setVisible(true);
         Q_ASSERT(false); //TODO
     }
     else {
-        m_Geometry.setViewTracker(d_ptr->q_ptr->d_ptr->m_fFactory()->s_ptr);
-        Q_ASSERT(m_Geometry.viewTracker());
-        m_Geometry.viewTracker()->m_pTTI = this;
+        metadata()->setViewTracker(d_ptr->q_ptr->d_ptr->m_fFactory()->s_ptr);
+        Q_ASSERT(metadata()->viewTracker());
+        metadata()->viewTracker()->m_pTTI = this;
 
-        m_Geometry.viewTracker()->performAction(StateTracker::ViewItem::ViewAction::ATTACH);
-        Q_ASSERT(m_Geometry.viewTracker()->m_State == StateTracker::ViewItem::State::POOLED);
+        metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::ATTACH);
+        Q_ASSERT(metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::POOLED);
         Q_ASSERT(m_State == State::VISIBLE);
 
 
-        if (auto item = m_Geometry.viewTracker()->item())
+        if (auto item = metadata()->viewTracker()->item())
             qDebug() << "CREATE" << this << item->y() << item->height();
     }
 
     //d_ptr->m_pViewport->s_ptr->updateGeometry(&this->m_Geometry);
 
     //d_ptr->_test_validateViewport(true);
-    m_Geometry.viewTracker()->performAction(StateTracker::ViewItem::ViewAction::ENTER_BUFFER);
+    metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::ENTER_BUFFER);
     Q_ASSERT(m_State == State::VISIBLE);
 
-    if (m_Geometry.viewTracker()->m_State == StateTracker::ViewItem::State::FAILED)
+    if (metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::FAILED)
         return false;
 
     //d_ptr->_test_validateViewport(true);
-    Q_ASSERT(m_Geometry.viewTracker()->m_State == StateTracker::ViewItem::State::BUFFER);
-    //Q_ASSERT((!down()) || !TTI(down())->m_Geometry.isValid());
+    Q_ASSERT(metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::BUFFER);
+    //Q_ASSERT((!down()) || !TTI(down())->metadata()->isValid());
 
     //d_ptr->_test_validateViewport(true);
-    m_Geometry.viewTracker()->performAction(StateTracker::ViewItem::ViewAction::ENTER_VIEW);
+    metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::ENTER_VIEW);
     Q_ASSERT(m_State == State::VISIBLE);
     //d_ptr->_test_validateViewport();
-//     Q_ASSERT((!down()) || TTI(down())->m_Geometry.m_State.state() != StateTracker::Geometry::State::VALID);
+//     Q_ASSERT((!down()) || TTI(down())->metadata()->m_State.state() != StateTracker::Geometry::State::VALID);
 
-    d_ptr->m_pViewport->s_ptr->updateGeometry(&m_Geometry);
+    d_ptr->m_pViewport->s_ptr->updateGeometry(metadata());
 
     // For some reason creating the visual element failed, this can and will
     // happen and need to be recovered from.
-    if (m_Geometry.viewTracker()->hasFailed()) {
-        m_Geometry.viewTracker()->performAction(StateTracker::ViewItem::ViewAction::LEAVE_BUFFER);
+    if (metadata()->viewTracker()->hasFailed()) {
+        metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::LEAVE_BUFFER);
         Q_ASSERT(m_State == State::VISIBLE);
-        m_Geometry.setViewTracker(nullptr);
+        metadata()->setViewTracker(nullptr);
     }
-//     Q_ASSERT((!down()) || TTI(down())->m_Geometry.m_State.state() != StateTracker::Geometry::State::VALID);
+//     Q_ASSERT((!down()) || TTI(down())->metadata()->m_State.state() != StateTracker::Geometry::State::VALID);
 
     //FIXME do this less often
     // This has to be done after `setViewTracker` and performAction
-    if (down() && TTI(down())->m_Geometry.isValid())
-        d_ptr->m_pViewport->s_ptr->notifyInsert(&TTI(down())->m_Geometry);
+    if (down() && TTI(down())->metadata()->isValid())
+        d_ptr->m_pViewport->s_ptr->notifyInsert(down()->metadata());
 
-//     Q_ASSERT((!down()) || !TTI(down())->m_Geometry.isValid());
+//     Q_ASSERT((!down()) || !TTI(down())->metadata()->isValid());
 
     Q_ASSERT(m_State == State::VISIBLE);
 
-//     Q_ASSERT((!down()) || TTI(down())->m_Geometry.m_State.state() != StateTracker::Geometry::State::VALID);
+//     Q_ASSERT((!down()) || TTI(down())->metadata()->m_State.state() != StateTracker::Geometry::State::VALID);
 
     // Update the edges
     if (m_State == StateTracker::ModelItem::State::VISIBLE) {
@@ -478,8 +476,8 @@ bool StateTracker::ModelItem::show()
         auto last = d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
 
         // Make sure the geometry is up to data
-        m_Geometry.decoratedGeometry();
-        Q_ASSERT(m_Geometry.isValid());
+        metadata()->decoratedGeometry();
+        Q_ASSERT(metadata()->isValid());
 
         if (first == next) {
             Q_ASSERT((!up()) || (TTI(up())->m_State != StateTracker::ModelItem::State::VISIBLE));
@@ -499,7 +497,7 @@ bool StateTracker::ModelItem::show()
 
     //d_ptr->_test_validate_geometry_cache(); //TODO THIS_COMMIT
 
-    //Q_ASSERT(m_Geometry.isInSync()); //TODO THIS_COMMIT
+    //Q_ASSERT(metadata()->isInSync()); //TODO THIS_COMMIT
 
     d_ptr->_test_validateViewport();
 
@@ -508,9 +506,9 @@ bool StateTracker::ModelItem::show()
 
 bool StateTracker::ModelItem::hide()
 {
-    if (m_Geometry.viewTracker()) {
+    if (metadata()->viewTracker()) {
         //item->setVisible(false);
-        m_Geometry.viewTracker()->performAction(StateTracker::ViewItem::ViewAction::LEAVE_BUFFER);
+        metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::LEAVE_BUFFER);
     }
 
     return true;
@@ -519,22 +517,22 @@ bool StateTracker::ModelItem::hide()
 bool StateTracker::ModelItem::remove2()
 {
 
-    if (m_Geometry.viewTracker()) {
-        Q_ASSERT(m_Geometry.viewTracker()->m_State != StateTracker::ViewItem::State::POOLED);
-        Q_ASSERT(m_Geometry.viewTracker()->m_State != StateTracker::ViewItem::State::POOLING);
-        Q_ASSERT(m_Geometry.viewTracker()->m_State != StateTracker::ViewItem::State::DANGLING);
+    if (metadata()->viewTracker()) {
+        Q_ASSERT(metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::POOLED);
+        Q_ASSERT(metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::POOLING);
+        Q_ASSERT(metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::DANGLING);
 
         // Move the item lifecycle forward
-        while (m_Geometry.viewTracker()->m_State != StateTracker::ViewItem::State::POOLED
-          && m_Geometry.viewTracker()->m_State != StateTracker::ViewItem::State::DANGLING)
-            m_Geometry.viewTracker()->performAction(StateTracker::ViewItem::ViewAction::DETACH);
+        while (metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::POOLED
+          && metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::DANGLING)
+            metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::DETACH);
 
         // It should still exists, it may crash otherwise, so make sure early
-        Q_ASSERT(m_Geometry.viewTracker()->m_State == StateTracker::ViewItem::State::POOLED
-            || m_Geometry.viewTracker()->m_State == StateTracker::ViewItem::State::DANGLING
+        Q_ASSERT(metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::POOLED
+            || metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::DANGLING
         );
 
-        m_Geometry.setViewTracker(nullptr);
+        metadata()->setViewTracker(nullptr);
     }
 
     return true;
@@ -547,15 +545,15 @@ bool StateTracker::ModelItem::attach()
 //     Q_ASSERT(d_ptr->edges(EdgeType::FREE)->m_Edges & (Qt::TopEdge|Qt::BottomEdge));
 
 
-    Q_ASSERT(!m_Geometry.viewTracker());
+    Q_ASSERT(!metadata()->viewTracker());
 
-//     if (m_Geometry.viewTracker())
-//         m_Geometry.viewTracker()->performAction(StateTracker::ViewItem::ViewAction::ATTACH);
+//     if (metadata()->viewTracker())
+//         metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::ATTACH);
 
     d_ptr->_test_validate_edges_simple();
 
     //FIXME this ain't correct
-    return m_Geometry.performAction(IndexMetadata::LoadAction::SHOW);
+    return metadata()->performAction(IndexMetadata::LoadAction::SHOW);
 }
 
 bool StateTracker::ModelItem::detach()
@@ -567,8 +565,8 @@ bool StateTracker::ModelItem::detach()
     // First, detach any remaining children
     for (auto i : qAsConst(children)) {
         auto tti = TTI(i);
-        tti->m_Geometry.performAction(IndexMetadata::LoadAction::HIDE);
-        tti->m_Geometry.performAction(IndexMetadata::LoadAction::DETACH);
+        tti->metadata()->performAction(IndexMetadata::LoadAction::HIDE);
+        tti->metadata()->performAction(IndexMetadata::LoadAction::DETACH);
     }
 
     Q_ASSERT(!loadedChildrenCount());
@@ -603,7 +601,7 @@ bool StateTracker::ModelItem::detach()
     //FIXME set the parent firstChild() correctly and add an insert()/move() method
     // then drop bridgeGap
 
-    Q_ASSERT(!m_Geometry.viewTracker());
+    Q_ASSERT(!metadata()->viewTracker());
 
     return true;
 }
@@ -611,18 +609,18 @@ bool StateTracker::ModelItem::detach()
 bool StateTracker::ModelItem::refresh()
 {
 
-    d_ptr->m_pViewport->s_ptr->updateGeometry(&m_Geometry);
+    d_ptr->m_pViewport->s_ptr->updateGeometry(metadata());
 
     for (auto i = TTI(firstChild()); i; i = TTI(i->nextSibling())) {
         Q_ASSERT(i);
         Q_ASSERT(i != this);
-        i->m_Geometry.performAction(IndexMetadata::LoadAction::UPDATE);
+        i->metadata()->performAction(IndexMetadata::LoadAction::UPDATE);
 
         if (i == lastChild())
             break;
     }
 
-    Q_ASSERT(m_Geometry.viewTracker()); //FIXME
+    Q_ASSERT(metadata()->viewTracker()); //FIXME
 
     return true;
 }
@@ -635,7 +633,7 @@ bool StateTracker::ModelItem::move()
     for (auto i = TTI(firstChild()); i; i = TTI(i->nextSibling())) {
         Q_ASSERT(i);
         Q_ASSERT(i != this);
-        i->m_Geometry.performAction(IndexMetadata::LoadAction::MOVE);
+        i->metadata()->performAction(IndexMetadata::LoadAction::MOVE);
 
         if (i == lastChild())
             break;
@@ -643,27 +641,27 @@ bool StateTracker::ModelItem::move()
 
     //FIXME this if should not exists, this should be handled by the state
     // machine.
-    if (m_Geometry.viewTracker()) {
-        m_Geometry.viewTracker()->performAction(StateTracker::ViewItem::ViewAction::MOVE); //FIXME don't
-//         Q_ASSERT(m_Geometry.isInSync());//TODO THIS_COMMIT
+    if (metadata()->viewTracker()) {
+        metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::MOVE); //FIXME don't
+//         Q_ASSERT(metadata()->isInSync());//TODO THIS_COMMIT
     }
     else
         Q_ASSERT(false);
     //TODO update m_Geometry
 
-    Q_ASSERT(m_Geometry.isValid());
+    Q_ASSERT(metadata()->isValid());
 
     return true;
 
-//     if (!m_Geometry.viewTracker())
+//     if (!metadata()->viewTracker())
 //         return true;
 
 //FIXME this is better, but require having createItem() called earlier
-//     if (m_Geometry.viewTracker())
-//         m_Geometry.viewTracker()->performAction(StateTracker::ViewItem::ViewAction::MOVE); //FIXME don't
+//     if (metadata()->viewTracker())
+//         metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::MOVE); //FIXME don't
 //
-//     if (oldGeo != m_Geometry.viewTracker()->geometry())
-//         if (auto n = m_Geometry.viewTracker()->down())
+//     if (oldGeo != metadata()->viewTracker()->geometry())
+//         if (auto n = metadata()->viewTracker()->down())
 //             n->parent()->performAction(IndexMetadata::LoadAction::MOVE);
 
 //     return true;
@@ -677,11 +675,11 @@ bool StateTracker::ModelItem::destroy()
 
     detach();
 
-    if (m_Geometry.viewTracker()) {
-        m_Geometry.viewTracker()->performAction(StateTracker::ViewItem::ViewAction::DETACH);
+    if (metadata()->viewTracker()) {
+        metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::DETACH);
     }
 
-    m_Geometry.setViewTracker(nullptr);
+    metadata()->setViewTracker(nullptr);
 
     Q_ASSERT(!loadedChildrenCount());
 
@@ -697,24 +695,24 @@ bool StateTracker::ModelItem::reset()
     for (auto i = TTI(firstChild()); i; i = TTI(i->nextSibling())) {
         Q_ASSERT(i);
         Q_ASSERT(i != this);
-        i->m_Geometry.performAction(IndexMetadata::LoadAction::RESET);
+        i->metadata()->performAction(IndexMetadata::LoadAction::RESET);
 
         if (i == lastChild())
             break;
     }
 
-    if (m_Geometry.viewTracker()) {
+    if (metadata()->viewTracker()) {
         Q_ASSERT(this != d_ptr->m_pRoot);
-        m_Geometry.viewTracker()->performAction(StateTracker::ViewItem::ViewAction::LEAVE_BUFFER);
-        m_Geometry.viewTracker()->performAction(StateTracker::ViewItem::ViewAction::DETACH);
-        m_Geometry.setViewTracker(nullptr);
+        metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::LEAVE_BUFFER);
+        metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::DETACH);
+        metadata()->setViewTracker(nullptr);
     }
 
-    m_Geometry.performAction( IndexMetadata::GeometryAction::RESET );
+    metadata()->performAction( IndexMetadata::GeometryAction::RESET );
 
     return true;
     /*return this == d_ptr->m_pRoot ?
-        true : m_Geometry.performAction(IndexMetadata::LoadAction::UPDATE);*/
+        true : metadata()->performAction(IndexMetadata::LoadAction::UPDATE);*/
 }
 
 TreeTraversalReflector::TreeTraversalReflector(Viewport* parent) : QObject(parent),
@@ -769,21 +767,21 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         last = std::max(last, pitem->firstChild()->effectiveRow() - 1);
 
     if (prev && prev->down()) {
-        m_pViewport->s_ptr->notifyInsert(&TTI(prev->down())->m_Geometry);
-        //Q_ASSERT(!TTI(prev->down())->m_Geometry.isValid());
+        m_pViewport->s_ptr->notifyInsert(prev->down()->metadata());
+        //Q_ASSERT(!TTI(prev->down())->metadata()->isValid());
     }
     else if ((!prev) && (!pitem) && m_pRoot->firstChild()) {
         Q_ASSERT(!first);
         Q_ASSERT(!parent.isValid());
-        m_pViewport->s_ptr->notifyInsert(&TTI(m_pRoot->firstChild())->m_Geometry);
-        //Q_ASSERT(!TTI(m_pRoot->firstChild())->m_Geometry.isValid());
+        m_pViewport->s_ptr->notifyInsert(m_pRoot->firstChild()->metadata());
+        //Q_ASSERT(!TTI(m_pRoot->firstChild())->metadata()->isValid());
     }
     else if (pitem && pitem != m_pRoot && pitem->down()) {
         //Q_ASSERT(!first);
-        m_pViewport->s_ptr->notifyInsert(&TTI(pitem->down())->m_Geometry);
+        m_pViewport->s_ptr->notifyInsert(pitem->down()->metadata());
 
         //TODO check if this one is still correct, right now notifyInsert update the geo
-        //Q_ASSERT(!TTI(pitem->down())->m_Geometry.isValid());
+        //Q_ASSERT(!TTI(pitem->down())->metadata()->isValid());
     }
 
     //FIXME support smaller ranges
@@ -845,23 +843,23 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         if (needUpMove) {
 //             Q_ASSERT(false); //TODO merge with the other bridgeGap above
 
-            m_pViewport->s_ptr->notifyInsert(&TTI(m_pRoot->firstChild())->m_Geometry);
-            Q_ASSERT((!m_pRoot->firstChild()) || !TTI(m_pRoot->firstChild())->m_Geometry.isValid());
+            m_pViewport->s_ptr->notifyInsert(m_pRoot->firstChild()->metadata());
+            Q_ASSERT((!m_pRoot->firstChild()) || !TTI(m_pRoot->firstChild())->metadata()->isValid());
             StateTracker::Index::insertChildBefore(e, nullptr, pitem);
         }
         e->parent()->_test_validate_chain();
 
         e->parent()->_test_validate_chain();
 
-        Q_ASSERT(e->m_Geometry.removeMe() == (int)StateTracker::Geometry::State::INIT);
+        Q_ASSERT(e->metadata()->removeMe() == (int)StateTracker::Geometry::State::INIT);
 
 //         if (auto ne = TTI(e->down()))
-//             Q_ASSERT(ne->m_Geometry.m_State.state() != StateTracker::Geometry::State::VALID);
+//             Q_ASSERT(ne->metadata()->m_State.state() != StateTracker::Geometry::State::VALID);
 
         Q_ASSERT(e->m_State != StateTracker::ModelItem::State::VISIBLE);
 
         // NEW -> REACHABLE, this should never fail
-        if (!e->m_Geometry.performAction(IndexMetadata::LoadAction::ATTACH)) {
+        if (!e->metadata()->performAction(IndexMetadata::LoadAction::ATTACH)) {
             qDebug() << "\n\nATTACH FAILED";
             _test_validateLinkedList();
             break;
@@ -870,17 +868,17 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         if (needUpMove) {
             Q_ASSERT(pitem != e);
             if (auto pe = TTI(e->up()))
-                pe->m_Geometry.performAction(IndexMetadata::LoadAction::MOVE);
+                pe->metadata()->performAction(IndexMetadata::LoadAction::MOVE);
         }
 
         Q_ASSERT((!pitem->lastChild()) || !pitem->lastChild()->hasTemporaryIndex()); //TODO
 
         if (needDownMove) {
             if (auto ne = TTI(e->down())) {
-                Q_ASSERT(!ne->m_Geometry.isValid());
+                Q_ASSERT(!ne->metadata()->isValid());
 
-                ne->m_Geometry.performAction(IndexMetadata::LoadAction::MOVE);
-                Q_ASSERT(!ne->m_Geometry.isValid());
+                ne->metadata()->performAction(IndexMetadata::LoadAction::MOVE);
+                Q_ASSERT(!ne->metadata()->isValid());
             }
         }
 
@@ -940,8 +938,8 @@ void TreeTraversalReflectorPrivate::slotRowsRemoved(const QModelIndex& parent, i
         auto idx = q_ptr->model()->index(i, 0, parent);
 
         if (auto elem = TTI(pitem->childrenLookup(idx))) {
-            elem->m_Geometry.performAction(IndexMetadata::LoadAction::HIDE);
-            elem->m_Geometry.performAction(IndexMetadata::LoadAction::DETACH);
+            elem->metadata()->performAction(IndexMetadata::LoadAction::HIDE);
+            elem->metadata()->performAction(IndexMetadata::LoadAction::DETACH);
         }
     }
 
@@ -1123,18 +1121,14 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
 
     bool needRefreshVisibleTop    = false;
     bool needRefreshVisibleBottom = false;
-    bool needRefreshBufferTop     = false; //TODO
-    bool needRefreshBufferBottom  = false; //TODO
-    Q_UNUSED(needRefreshVisibleTop   )
-    Q_UNUSED(needRefreshVisibleBottom)
-    Q_UNUSED(needRefreshBufferTop    )
-    Q_UNUSED(needRefreshBufferBottom )
+    /*bool needRefreshBufferTop     = false;
+    bool needRefreshBufferBottom  = false;*/
 
     for (auto item : qAsConst(tmp2)) {
         needRefreshVisibleTop    |= item != topEdge;
         needRefreshVisibleBottom |= item != bottomEdge;
 
-        TTI(item)->m_Geometry.performAction(IndexMetadata::GeometryAction::MOVE);
+        TTI(item)->metadata()->performAction(IndexMetadata::GeometryAction::MOVE);
 
         item->remove();
 
@@ -1143,17 +1137,17 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
         Q_ASSERT((!dest) || item->down() == dest);
 
         if (dest)
-            TTI(dest)->m_Geometry.performAction(IndexMetadata::GeometryAction::MOVE);
+            TTI(dest)->metadata()->performAction(IndexMetadata::GeometryAction::MOVE);
 
         _test_validate_edges_simple();
-        m_pViewport->s_ptr->notifyInsert(&TTI(item)->m_Geometry);
+        m_pViewport->s_ptr->notifyInsert(item->metadata());
 
         dest = item;
         if (isRangeVisible) {
             if (TTI(item)->m_State == StateTracker::ModelItem::State::BUFFER)
-                TTI(item)->m_Geometry.performAction(IndexMetadata::LoadAction::ATTACH);
+                TTI(item)->metadata()->performAction(IndexMetadata::LoadAction::ATTACH);
 
-            TTI(item)->m_Geometry.performAction(IndexMetadata::LoadAction::SHOW);
+            TTI(item)->metadata()->performAction(IndexMetadata::LoadAction::SHOW);
         }
     }
 
@@ -1268,7 +1262,7 @@ void StateTracker::Model::track()
 
 void StateTracker::Model::free()
 {
-    d_ptr->m_pRoot->m_Geometry.performAction(IndexMetadata::LoadAction::RESET);
+    d_ptr->m_pRoot->metadata()->performAction(IndexMetadata::LoadAction::RESET);
 
     for (int i = 0; i < 3; i++)
         d_ptr->m_lRects[i] = {};
@@ -1285,7 +1279,7 @@ void StateTracker::Model::reset()
     if (wasTracked)
         untrack(); //TODO THIS_COMMIT
 
-    d_ptr->m_pRoot->m_Geometry.performAction(IndexMetadata::LoadAction::RESET);
+    d_ptr->m_pRoot->metadata()->performAction(IndexMetadata::LoadAction::RESET);
     d_ptr->resetEdges();
 
     //HACK
@@ -1355,7 +1349,7 @@ void StateTracker::Model::populate()
             if (!u)
                 break;
 
-            u->m_Geometry.performAction(IndexMetadata::LoadAction::SHOW);
+            u->metadata()->performAction(IndexMetadata::LoadAction::SHOW);
         }
 
         while (d_ptr->edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge) {
@@ -1373,7 +1367,7 @@ void StateTracker::Model::populate()
             if (!u)
                 break;
 
-            u->m_Geometry.performAction(IndexMetadata::LoadAction::SHOW);
+            u->metadata()->performAction(IndexMetadata::LoadAction::SHOW);
         }
     }
     else if (auto rc = d_ptr->m_pModel->rowCount()) {
@@ -1409,17 +1403,17 @@ void StateTracker::Model::trim()
 //         while (!(edges(EdgeType::FREE)->m_Edges & Qt::TopEdge)) {
 //             Q_ASSERT(elem);
 //             Q_ASSERT(edges(EdgeType::FREE)->getEdge(Qt::TopEdge));
-//             Q_ASSERT(!m_pViewport->currentRect().intersects(elem->m_Geometry.geometry()));
+//             Q_ASSERT(!m_pViewport->currentRect().intersects(elem->metadata()->geometry()));
 //
-//             elem->m_Geometry.performAction(IndexMetadata::LoadAction::HIDE);
+//             elem->metadata()->performAction(IndexMetadata::LoadAction::HIDE);
 //             elem = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge));
 //         }
 //
 //         elem = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge)); //FIXME have a visual and reacheable rect
 //         while (!(edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge)) {
 //             Q_ASSERT(elem);
-//             Q_ASSERT(!m_pViewport->currentRect().intersects(elem->m_Geometry.geometry()));
-//             elem->m_Geometry.performAction(IndexMetadata::LoadAction::HIDE);
+//             Q_ASSERT(!m_pViewport->currentRect().intersects(elem->metadata()->geometry()));
+//             elem->metadata()->performAction(IndexMetadata::LoadAction::HIDE);
 //             elem = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge));
 //         }
 //     });
@@ -1439,7 +1433,7 @@ void StateTracker::Model::trim()
         return;
 
     do {
-        TTI(item)->m_Geometry.performAction(IndexMetadata::LoadAction::DETACH);
+        TTI(item)->metadata()->performAction(IndexMetadata::LoadAction::DETACH);
     } while((item = item->up()) != be);
 }
 
@@ -1614,8 +1608,8 @@ void TreeTraversalReflectorPrivate::cleanup()
 
     m_pModelTracker->performAction(StateTracker::Model::Action::RESET);
 
-    m_pRoot->m_Geometry.performAction(IndexMetadata::LoadAction::HIDE);
-    m_pRoot->m_Geometry.performAction(IndexMetadata::LoadAction::DETACH);
+    m_pRoot->metadata()->performAction(IndexMetadata::LoadAction::HIDE);
+    m_pRoot->metadata()->performAction(IndexMetadata::LoadAction::DETACH);
 
     m_hMapper.clear();
     m_pRoot = new StateTracker::ModelItem(this);
@@ -1639,13 +1633,13 @@ StateTracker::ModelItem* TreeTraversalReflectorPrivate::ttiForIndex(const QModel
 AbstractItemAdapter* TreeTraversalReflector::itemForIndex(const QModelIndex& idx) const
 {
     const auto tti = d_ptr->ttiForIndex(idx);
-    return tti && tti->m_Geometry.viewTracker() ? tti->m_Geometry.viewTracker()->d_ptr : nullptr;
+    return tti && tti->metadata()->viewTracker() ? tti->metadata()->viewTracker()->d_ptr : nullptr;
 }
 
 IndexMetadata *TreeTraversalReflector::geometryForIndex(const QModelIndex& idx) const
 {
     if (const auto tti = d_ptr->ttiForIndex(idx))
-        return &tti->m_Geometry;
+        return tti->metadata();
 
     return nullptr;
 }
@@ -1665,119 +1659,6 @@ QModelIndex IndexMetadata::index() const
     return QModelIndex(modelTracker()->index());
 }
 
-QPersistentModelIndex StateTracker::ViewItem::index() const
-{
-    return QModelIndex(m_pTTI->index());
-}
-
-/**
- * Flatten the tree as a linked list.
- *
- * Returns the previous non-failed item.
- */
-StateTracker::ViewItem* StateTracker::ViewItem::up(AbstractItemAdapter::StateFlags flags) const
-{
-    Q_UNUSED(flags)
-    Q_ASSERT(m_State == State::ACTIVE
-        || m_State == State::BUFFER
-        || m_State == State::FAILED
-        || m_State == State::POOLING
-        || m_State == State::DANGLING //FIXME add a new state for
-        // "deletion in progress" or swap the f call and set state
-    );
-
-    auto ret = TTI(m_pTTI->up());
-    //TODO support collapsed nodes
-
-    // Linearly look for a valid element. Doing this here allows the views
-    // that implement this (abstract) class to work without having to always
-    // check if some of their item failed to load. This is non-fatal in the
-    // other Qt views, so it isn't fatal here either.
-    while (ret && !ret->m_Geometry.viewTracker())
-        ret = TTI(ret->up());
-
-    if (ret && ret->m_Geometry.viewTracker())
-        Q_ASSERT(ret->m_Geometry.viewTracker()->m_State != State::POOLING && ret->m_Geometry.viewTracker()->m_State != State::DANGLING);
-
-    auto vi = ret ? ret->m_Geometry.viewTracker() : nullptr;
-
-    // Do not allow navigating past the loaded edges
-    if (vi && (vi->m_State == State::POOLING || vi->m_State == State::POOLED))
-        return nullptr;
-
-    return vi;
-}
-
-/**
- * Flatten the tree as a linked list.
- *
- * Returns the next non-failed item.
- */
-StateTracker::ViewItem* StateTracker::ViewItem::down(AbstractItemAdapter::StateFlags flags) const
-{
-    Q_UNUSED(flags)
-
-    Q_ASSERT(m_State == State::ACTIVE
-        || m_State == State::BUFFER
-        || m_State == State::FAILED
-        || m_State == State::POOLING
-        || m_State == State::DANGLING //FIXME add a new state for
-        // "deletion in progress" or swap the f call and set state
-    );
-
-    auto ret = TTI(m_pTTI->down());
-    //TODO support collapsed entries
-
-    // Recursively look for a valid element. Doing this here allows the views
-    // that implement this (abstract) class to work without having to always
-    // check if some of their item failed to load. This is non-fatal in the
-    // other Qt views, so it isn't fatal here either.
-    while (ret && !ret->m_Geometry.viewTracker())
-        ret = TTI(ret->down());
-
-    auto vi = ret ? ret->m_Geometry.viewTracker() : nullptr;
-
-    // Do not allow navigating past the loaded edges
-    if (vi && (vi->m_State == State::POOLING || vi->m_State == State::POOLED))
-        return nullptr;
-
-    return vi;
-}
-
-int StateTracker::ViewItem::row() const
-{
-    return m_pTTI->effectiveRow();
-}
-
-int StateTracker::ViewItem::column() const
-{
-    return m_pTTI->effectiveColumn();
-}
-
-IndexMetadata *IndexMetadata::up() const
-{
-    auto i = TTI(modelTracker()->up());
-    return i ? &i->m_Geometry : nullptr;
-}
-
-IndexMetadata *IndexMetadata::down() const
-{
-    auto i = TTI(modelTracker()->down());
-    return i ? &i->m_Geometry : nullptr;
-}
-
-IndexMetadata *IndexMetadata::left() const
-{
-    auto i = TTI(modelTracker()->left());
-    return i ? &i->m_Geometry : nullptr;
-}
-
-IndexMetadata *IndexMetadata::right() const
-{
-    auto i = TTI(modelTracker()->right());
-    return i ? &i->m_Geometry : nullptr;
-}
-
 bool IndexMetadata::isTopItem() const
 {
     return modelTracker() == TTI(modelTracker())->d_ptr->m_pRoot->firstChild();
@@ -1786,7 +1667,7 @@ bool IndexMetadata::isTopItem() const
 IndexMetadata *TreeTraversalReflector::getEdge(EdgeType t, Qt::Edge e) const
 {
     auto ret = TTI(d_ptr->edges(t)->getEdge(e));
-    return ret ? &ret->m_Geometry : nullptr;
+    return ret ? ret->metadata() : nullptr;
 }
 
 void StateTracker::ViewItem::setCollapsed(bool v)
@@ -1811,7 +1692,7 @@ setEdge(EdgeType et, StateTracker::Index* tti, Qt::Edge e)
 {
 //DEBUG this only works with proxy models, not JIT/AOT strategies
 //     if (tti && et == EdgeType::VISIBLE)
-//         Q_ASSERT(TTI(tti)->m_Geometry.isValid());
+//         Q_ASSERT(TTI(tti)->metadata()->isValid());
 
     edges(et)->setEdge(tti, e);
 
@@ -1905,8 +1786,8 @@ void StateTracker::ModelItem::remove(bool reparent)
             break;
     }
 
-    d_ptr->m_pViewport->s_ptr->notifyRemoval(&m_Geometry);
-    m_Geometry.performAction(IndexMetadata::LoadAction::REPARENT);
+    d_ptr->m_pViewport->s_ptr->notifyRemoval(metadata());
+    metadata()->performAction(IndexMetadata::LoadAction::REPARENT);
     Index::remove(reparent);
 }
 

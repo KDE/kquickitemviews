@@ -54,8 +54,6 @@ class ViewItem
     friend class ::TreeTraversalReflectorPrivate; //TODO remove. debug only
     friend class ViewportPrivate; //TODO remove
 public:
-    using StateFlags = AbstractItemAdapter::StateFlags;
-
     explicit ViewItem(ViewBase* p, Viewport* r) :
         m_pRange(r), m_pView(p) {}
 
@@ -88,13 +86,15 @@ public:
     bool isCollapsed() const;
 
     // Spacial navigation
-    ViewItem* up   (StateFlags flags = StateFlags::NORMAL) const;
-    ViewItem* down (StateFlags flags = StateFlags::NORMAL) const;
-    ViewItem* left (StateFlags flags = StateFlags::NORMAL) const { Q_UNUSED(flags); return nullptr ;}
-    ViewItem* right(StateFlags flags = StateFlags::NORMAL) const { Q_UNUSED(flags); return nullptr ;}
+    ViewItem* up   () const; //DEPRECATED
+    ViewItem* down () const; //DEPRECATED
+    ViewItem* left () const { return nullptr ;} //DEPRECATED
+    ViewItem* right() const { return nullptr ;} //DEPRECATED
+    ViewItem *next(Qt::Edge e) const;
+
     int row   () const;
     int column() const;
-    int depth() const;
+    int depth () const;
     //TODO firstChild, lastChild, parent
 
     // Getters
@@ -126,10 +126,9 @@ public:
 
     AbstractItemAdapter* d_ptr;
 private:
-    State               m_State {State::POOLED};
-    StateTracker::ModelItem  *m_pTTI  {   nullptr   };
-    ViewBase           *m_pView {   nullptr   };
-
+    State      m_State {State::POOLED};
+    ModelItem *m_pTTI  {   nullptr   };
+    ViewBase  *m_pView {   nullptr   };
 };
 
 }

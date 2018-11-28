@@ -163,27 +163,9 @@ QPersistentModelIndex AbstractItemAdapter::index() const
     return s_ptr->index();
 }
 
-AbstractItemAdapter* AbstractItemAdapter::up(StateFlags flags) const
+AbstractItemAdapter *AbstractItemAdapter::next(Qt::Edge e) const
 {
-    const auto i = s_ptr->up(flags);
-    return i ? i->d_ptr : nullptr;
-}
-
-AbstractItemAdapter* AbstractItemAdapter::down(StateFlags flags) const
-{
-    const auto i = s_ptr->down(flags);
-    return i ? i->d_ptr : nullptr;
-}
-
-AbstractItemAdapter* AbstractItemAdapter::left(StateFlags flags) const
-{
-    const auto i = s_ptr->left(flags);
-    return i ? i->d_ptr : nullptr;
-}
-
-AbstractItemAdapter* AbstractItemAdapter::right(StateFlags flags) const
-{
-    const auto i = s_ptr->right(flags);
+    const auto i = s_ptr->next(e);
     return i ? i->d_ptr : nullptr;
 }
 
@@ -579,3 +561,110 @@ bool AbstractItemAdapter::isCollapsed() const
     return s_ptr->isCollapsed();
 }
 
+QSizeF AbstractItemAdapter::sizeHint() const
+{
+    return s_ptr->m_pGeometry->sizeHint();
+}
+
+QPersistentModelIndex StateTracker::ViewItem::index() const
+{
+    return QModelIndex(m_pGeometry->modelTracker()->index());
+}
+
+/**
+ * Flatten the tree as a linked list.
+ *
+ * Returns the previous non-failed item.
+ */
+StateTracker::ViewItem* StateTracker::ViewItem::up() const
+{
+    Q_ASSERT(m_State == State::ACTIVE
+        || m_State == State::BUFFER
+        || m_State == State::FAILED
+        || m_State == State::POOLING
+        || m_State == State::DANGLING //FIXME add a new state for
+        // "deletion in progress" or swap the f call and set state
+    );
+
+    auto ret = m_pGeometry->modelTracker()->up();
+    //TODO support collapsed nodes
+
+    // Linearly look for a valid element. Doing this here allows the views
+    // that implement this (abstract) class to work without having to always
+    // check if some of their item failed to load. This is non-fatal in the
+    // other Qt views, so it isn't fatal here either.
+    while (ret && !ret->metadata()->viewTracker())
+        ret = ret->up();
+
+    if (ret && ret->metadata()->viewTracker())
+        Q_ASSERT(ret->metadata()->viewTracker()->m_State != State::POOLING && ret->metadata()->viewTracker()->m_State != State::DANGLING);
+
+    auto vi = ret ? ret->metadata()->viewTracker() : nullptr;
+
+    // Do not allow navigating past the loaded edges
+    if (vi && (vi->m_State == State::POOLING || vi->m_State == State::POOLED))
+        return nullptr;
+
+    return vi;
+}
+
+/**
+ * Flatten the tree as a linked list.
+ *
+ * Returns the next non-failed item.
+ */
+StateTracker::ViewItem* StateTracker::ViewItem::down() const
+{
+    Q_ASSERT(m_State == State::ACTIVE
+        || m_State == State::BUFFER
+        || m_State == State::FAILED
+        || m_State == State::POOLING
+        || m_State == State::DANGLING //FIXME add a new state for
+        // "deletion in progress" or swap the f call and set state
+    );
+
+    auto ret = m_pGeometry->modelTracker();
+    //TODO support collapsed entries
+
+    // Recursively look for a valid element. Doing this here allows the views
+    // that implement this (abstract) class to work without having to always
+    // check if some of their item failed to load. This is non-fatal in the
+    // other Qt views, so it isn't fatal here either.
+    while (ret && !ret->metadata()->viewTracker())
+        ret = ret->down();
+
+    auto vi = ret ? ret->metadata()->viewTracker() : nullptr;
+
+    // Do not allow navigating past the loaded edges
+    if (vi && (vi->m_State == State::POOLING || vi->m_State == State::POOLED))
+        return nullptr;
+
+    return vi;
+}
+
+StateTracker::ViewItem *StateTracker::ViewItem::next(Qt::Edge e) const
+{
+    switch (e) {
+        case Qt::TopEdge:
+            return up();
+        case Qt::BottomEdge:
+            return down();
+        case Qt::LeftEdge:
+            return left();
+        case Qt::RightEdge:
+            return right();
+    }
+
+    Q_ASSERT(false);
+    return {};
+}
+
+int StateTracker::ViewItem::row() const
+{
+    return m_pGeometry->modelTracker()->effectiveRow();
+}
+
+int StateTracker::ViewItem::column() const
+{
+    return m_pGeometry->modelTracker()->effectiveColumn();
+}

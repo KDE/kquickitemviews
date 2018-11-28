@@ -56,7 +56,7 @@ class IndexMetadata final
 {
 
 public:
-    explicit IndexMetadata(StateTracker::ModelItem *tti, Viewport *p);
+    explicit IndexMetadata(StateTracker::Index *idxT, Viewport *p);
     ~IndexMetadata();
 
     /**
@@ -125,6 +125,8 @@ public:
     IndexMetadata *down () const; //TODO remove, use `next(Qt::Edge)`
     IndexMetadata *left () const; //TODO remove, use `next(Qt::Edge)`
     IndexMetadata *right() const; //TODO remove, use `next(Qt::Edge)`
+
+    IndexMetadata *next(Qt::Edge e) const;
 
     bool isTopItem() const;
 

@@ -110,15 +110,6 @@ QRectF Viewport::currentRect() const
     return d_ptr->m_UsedRect;
 }
 
-QSizeF AbstractItemAdapter::sizeHint() const
-{
-    Q_ASSERT(false);
-    /*return s_ptr->m_pRange->d_ptr->sizeHint(
-        const_cast<AbstractItemAdapter*>(this)
-    );*/
-    return {};
-}
-
 QPair<Qt::Edge,Qt::Edge> ViewportPrivate::fromGravity() const
 {
     switch (m_pModelAdapter->view()->gravity()) {
@@ -480,18 +471,6 @@ void ViewportSync::geometryUpdated(IndexMetadata *item)
 
     auto geo = item->decoratedGeometry();
 
-//     if (!geo.isValid()) {
-//         item->m_State.setSize(q_ptr->d_ptr->sizeHint(item));
-//         geo = item->geometry();
-//     }
-
-//     Q_ASSERT((!item->viewTracker()) || item->viewTracker()->geometry().size() == geo.size());
-
-    // Update the used rect
-    //const QRectF r = q_ptr->d_ptr->m_UsedRect = q_ptr->d_ptr->m_UsedRect.united(geo);
-
-    //const bool hasSpaceOnTop = q_ptr->d_ptr->m_ViewRect.y();
-
     if (q_ptr->d_ptr->m_SizeStrategy == Viewport::SizeHintStrategy::JIT)
         q_ptr->d_ptr->updateAvailableEdges();
 }
@@ -560,8 +539,10 @@ void ViewportSync::notifyRemoval(IndexMetadata* item)
 //     q_ptr->d_ptr->updateAvailableEdges();
 }
 
-//FIXME temporary hack to avoid having to implement a complex way to move the
-// limited number of loaded elements.
+//TODO temporary hack to avoid having to implement a complex way to move the
+// limited number of loaded elements. Given once trimming is enabled, the
+// number of visible items should be fairely low/constant, it is a good enough
+// temporary solution.
 void ViewportSync::refreshVisible()
 {
     if (m_pReflector->modelTracker()->state() == StateTracker::Model::State::RESETING)
@@ -611,7 +592,6 @@ void ViewportSync::refreshVisible()
 
     const bool hasSingleItem = item == bve;
 
-
     do {
         item->sizeHint();
 
@@ -627,8 +607,10 @@ void ViewportSync::refreshVisible()
         item->sizeHint();
         Q_ASSERT(item->isVisible());
         Q_ASSERT(item->isValid());
-//         Q_ASSERT(item->isInSync());//TODO THIS_COMMIT
+        //FIXME As of 0.1, this still fails from time to time
+        //Q_ASSERT(item->isInSync());//TODO THIS_COMMIT
 
+        // This `performAction` exists to recover from runtime failures
         if (!item->isInSync())
             item->performAction(IndexMetadata::LoadAction::MOVE);
 
@@ -637,6 +619,7 @@ void ViewportSync::refreshVisible()
 
 void ViewportSync::notifyInsert(IndexMetadata* item)
 {
+    using GeoState = StateTracker::Geometry::State;
     Q_ASSERT(item);
 
     if (m_pReflector->modelTracker()->state() == StateTracker::Model::State::RESETING)
@@ -645,16 +628,12 @@ void ViewportSync::notifyInsert(IndexMetadata* item)
     if (!item)
         return;
 
-    const bool needsPosition = item->removeMe() == (int)StateTracker::Geometry::State::INIT ||
-      item->removeMe() == (int)StateTracker::Geometry::State::SIZE;
-
-    if (needsPosition && item->up() && item->up()->isTopItem() && item->up()->removeMe() == (int)StateTracker::Geometry::State::SIZE) {
-        Q_ASSERT(false);
-    }
+    const bool needsPosition = item->removeMe() == (int)GeoState::INIT ||
+      item->removeMe() == (int)GeoState::SIZE;
 
     // If the item is new and is inserted near valid items, skip some back and
     // forth and set the position now.
-    if (needsPosition && item->up() && item->up()->removeMe() == (int) StateTracker::Geometry::State::VALID) {
+    if (needsPosition && item->up() && item->up()->removeMe() == (int) GeoState::VALID) {
         item->setPosition(item->up()->decoratedGeometry().bottomLeft());
     }
 
@@ -675,14 +654,11 @@ void ViewportSync::notifyInsert(IndexMetadata* item)
         }
 
         if (!item->isValid() &&
-          item->removeMe() != (int)StateTracker::Geometry::State::POSITION) {
+          item->removeMe() != (int)GeoState::POSITION) {
             break;
         }
 
         item->performAction(IndexMetadata::GeometryAction::MOVE);
-
-//         Q_ASSERT(item->isValid());
-
     } while((item = item->down()));
 
     refreshVisible();
@@ -723,7 +699,7 @@ void Viewport::resize(const QRectF& rect)
 
 qreal ViewportPrivate::getSectionHeight(const QModelIndex& parent, int first, int last)
 {
-    Q_UNUSED(last) //TODO
+    Q_UNUSED(last) //TODO not implemented
     Q_ASSERT(m_pModelAdapter->rawModel());
     switch(m_SizeStrategy) {
         case Viewport::SizeHintStrategy::AOT:
@@ -741,13 +717,17 @@ qreal ViewportPrivate::getSectionHeight(const QModelIndex& parent, int first, in
                 ->sizeHintForIndex(idx).height();
         }
         case Viewport::SizeHintStrategy::ROLE:
-            Q_ASSERT(false); //TODO
+            Q_ASSERT(false); //TODO not implemented
             break;
     }
 
     Q_ASSERT(false);
     return 0.0;
 }
+
+//TODO add a way to allow model to provide this information manually and
+// generally don't cleanup when this code-path is used. Maybe trun into an
+// adapter
 
 void ViewportPrivate::applyDelayedSize()
 {
@@ -780,7 +760,6 @@ void ViewportPrivate::slotRowsInserted(const QModelIndex& parent, int first, int
 
 void ViewportPrivate::slotRowsRemoved(const QModelIndex& parent, int first, int last)
 {
-    //
     const bool apply = m_DisableApply;
     m_DisableApply = false;
 

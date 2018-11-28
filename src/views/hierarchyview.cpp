@@ -86,8 +86,8 @@ bool HierarchyViewItem::move()
 
     item()->setWidth(view()->contentItem()->width());
 
-    auto nextElem = static_cast<HierarchyViewItem*>(down());
-    auto prevElem = static_cast<HierarchyViewItem*>(up());
+    auto nextElem = static_cast<HierarchyViewItem*>(next(Qt::BottomEdge));
+    auto prevElem = static_cast<HierarchyViewItem*>(next(Qt::TopEdge));
 
     // The root has been moved in the middle of the tree, find the new root
     //TODO maybe add a deterministic API instead of O(N) lookup
@@ -95,7 +95,7 @@ bool HierarchyViewItem::move()
         m_IsHead = false;
 
         auto root = prevElem;
-        while (auto prev = root->up())
+        while (auto prev = root->next(Qt::TopEdge))
             root = static_cast<HierarchyViewItem*>(prev);
 
         root->move();
@@ -140,8 +140,8 @@ bool HierarchyViewItem::remove()
         item()->setVisible(false);
     }
 
-    auto nextElem = static_cast<HierarchyViewItem*>(down());
-    auto prevElem = static_cast<HierarchyViewItem*>(up());
+    auto nextElem = static_cast<HierarchyViewItem*>(next(Qt::BottomEdge));
+    auto prevElem = static_cast<HierarchyViewItem*>(next(Qt::TopEdge));
 
     if (nextElem) {
         if (m_IsHead) {

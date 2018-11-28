@@ -24,8 +24,8 @@ void TreeTraversalReflectorPrivate::_test_validateTree(StateTracker::ModelItem* 
         return;
     }*/
 
-//     if (p->parent() == m_pRoot && m_pRoot->firstChild() == p && p->m_Geometry.viewTracker()) {
-//         Q_ASSERT(!p->m_Geometry.viewTracker()->up());
+//     if (p->parent() == m_pRoot && m_pRoot->firstChild() == p && p->metadata()->viewTracker()) {
+//         Q_ASSERT(!p->metadata()->viewTracker()->up());
 //     }
 
     // First, let's check the linked list to avoid running more test on really
@@ -97,7 +97,7 @@ void TreeTraversalReflectorPrivate::_test_validateTree(StateTracker::ModelItem* 
             old = TTI(item);
 
         // Check that m_FailedCount is valid
-        //Q_ASSERT(!item->m_Geometry.viewTracker()->hasFailed());
+        //Q_ASSERT(!item->metadata()->viewTracker()->hasFailed());
 
         // Test the indices
         Q_ASSERT(p == m_pRoot || i->index().internalPointer() == item->index().internalPointer());
@@ -202,8 +202,8 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
     }
     else {
         auto first = TTI(m_pRoot->firstChild());
-        Q_ASSERT(first->m_Geometry.removeMe() != (int)StateTracker::Geometry::State::SIZE);
-        Q_ASSERT(first->m_Geometry.removeMe() != (int)StateTracker::Geometry::State::INIT);
+        Q_ASSERT(first->metadata()->removeMe() != (int)StateTracker::Geometry::State::SIZE);
+        Q_ASSERT(first->metadata()->removeMe() != (int)StateTracker::Geometry::State::INIT);
     }
 
     Q_ASSERT(!m_pRoot->firstChild()->up());
@@ -241,10 +241,10 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
 
         if (!visibleFinished) {
             // If hit, it means the visible rect wasn't refreshed.
-            //Q_ASSERT(cur->m_Geometry.isValid()); //TODO THIS_COMMIT
+            //Q_ASSERT(cur->metadata()->isValid()); //TODO THIS_COMMIT
         }
         else //FIXME wrong, only added to prevent forgetting
-            Q_ASSERT(cur->m_Geometry.isValid());
+            Q_ASSERT(cur->metadata()->isValid());
 
         if (cur->m_State == StateTracker::ModelItem::State::VISIBLE && !hadVisible) {
             Q_ASSERT(!hadVisible);
@@ -259,12 +259,12 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
         }
 
 //         if (cur->m_State == StateTracker::ModelItem::State::VISIBLE) {
-//             Q_ASSERT(cur->m_Geometry.isInSync());
+//             Q_ASSERT(cur->metadata()->isInSync());
 //         }
 
         Q_ASSERT(cur->m_State != StateTracker::ModelItem::State::VISIBLE || hadVisible);
 
-        auto vi = cur->m_Geometry.viewTracker();
+        auto vi = cur->metadata()->viewTracker();
 
 //         if (vi) {
 //             if (vi->m_State == StateTracker::ViewItem::State::ACTIVE) {
@@ -304,14 +304,14 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
         }
 
         if (vi) {
-            //Q_ASSERT(cur->m_Geometry.isValid()); //TODO THIS_COMMIT
-            auto geo = cur->m_Geometry.decoratedGeometry();
+            //Q_ASSERT(cur->metadata()->isValid()); //TODO THIS_COMMIT
+            auto geo = cur->metadata()->decoratedGeometry();
 
             // Prevent accidental overlapping until a view with on-purpose
             // overlapping exists
 //             Q_ASSERT(geo.y() >= maxY); // The `=` because it starts at 0
-//             Q_ASSERT(cur->m_Geometry.viewTracker()->item()->y() >= maxY); // The `=` because it starts at 0
-//             Q_ASSERT(cur->m_Geometry.viewTracker()->item()->y() == cur->m_Geometry.geometry().y());
+//             Q_ASSERT(cur->metadata()->viewTracker()->item()->y() >= maxY); // The `=` because it starts at 0
+//             Q_ASSERT(cur->metadata()->viewTracker()->item()->y() == cur->metadata()->geometry().y());
 
             // 0x0 elements are generally evil, but this is more about making
             // sure it works at all.
@@ -329,11 +329,11 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
     //TODO check buffer
 
     if (firstVisible && !skipVItemState) {
-        //Q_ASSERT(prev->m_Geometry.geometry().y() < m_pViewport->currentRect().y());
+        //Q_ASSERT(prev->metadata()->geometry().y() < m_pViewport->currentRect().y());
     }
 
     if (lastVisible && !skipVItemState) {
-        Q_ASSERT(lastVisible->m_Geometry.decoratedGeometry().y() <= m_pViewport->currentRect().bottomLeft().y());
+        Q_ASSERT(lastVisible->metadata()->decoratedGeometry().y() <= m_pViewport->currentRect().bottomLeft().y());
     }
 
 //     Q_ASSERT(maxY < m_pViewport->currentRect().bottomLeft().y() + 100);
@@ -375,17 +375,17 @@ void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)
             (skipVItemState && item->m_State == StateTracker::ModelItem::State::BUFFER)
         );
         if (!skipVItemState) {
-            Q_ASSERT(item->m_Geometry.viewTracker());
-            Q_ASSERT(item->m_Geometry.viewTracker()->m_State == StateTracker::ViewItem::State::ACTIVE);
+            Q_ASSERT(item->metadata()->viewTracker());
+            Q_ASSERT(item->metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::ACTIVE);
         }
         Q_ASSERT(item->up() == old);
 
         //FIXME don't do this, its temporary so I can add more tests to catch
         // the cause of this failed (::move not updating the position)
 //         if (old)
-//             item->m_Geometry.m_State.setPosition(QPointF(0.0, oldGeo.y() + oldGeo.height()));
+//             item->metadata()->m_State.setPosition(QPointF(0.0, oldGeo.y() + oldGeo.height()));
 
-        auto geo =  item->m_Geometry.decoratedGeometry();
+        auto geo =  item->metadata()->decoratedGeometry();
 
         if (geo.width() || geo.height()) {
             Q_ASSERT((!oldGeo.isValid()) || oldGeo.y() < geo.y());
@@ -516,7 +516,7 @@ void TreeTraversalReflectorPrivate::_test_validate_geometry_cache()
 {
     auto bve = edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
     for (auto i = TTI(m_pRoot->firstChild()); i; i = TTI(i->down())) {
-        Q_ASSERT(i->m_Geometry.removeMe() == (int)StateTracker::Geometry::State::VALID);
+        Q_ASSERT(i->metadata()->removeMe() == (int)StateTracker::Geometry::State::VALID);
 
         if (i == bve)
             return;
@@ -539,7 +539,7 @@ void TreeTraversalReflectorPrivate::_test_print_state()
         qDebug() << i++
             << item
             << item->depth()
-            << item->m_Geometry.isInSync()
+            << item->metadata()->isInSync()
             << (item->m_State == StateTracker::ModelItem::State::VISIBLE);
     } while((item = TTI(item->down())));
 }

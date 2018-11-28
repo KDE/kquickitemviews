@@ -20,6 +20,9 @@
 #include <QtCore/QModelIndex>
 #include <QtCore/QList>
 
+#include <private/indexmetadata_p.h>
+class Viewport;
+
 namespace StateTracker {
 
 /**
@@ -45,6 +48,7 @@ public:
         ROOT       , /*!< This is the root element                            */
     };
 
+    explicit Index(Viewport *p) : m_Geometry(this, p) {}
     virtual ~Index();
 
     static void insertChildBefore(Index* self, StateTracker::Index* other, StateTracker::Index* parent);
@@ -93,6 +97,8 @@ public:
 
     LifeCycleState lifeCycleState() const {return m_LifeCycleState;}
 
+    IndexMetadata *metadata() const;
+
 private:
     // Because slotRowsMoved is called before the change take effect, cache
     // the "new real row and column" since the current index()->row() is now
@@ -111,6 +117,7 @@ private:
 
     //TODO use a btree, not an hash
     QHash<QPersistentModelIndex, Index*> m_hLookup;
+    mutable IndexMetadata m_Geometry;
 };
 
 }

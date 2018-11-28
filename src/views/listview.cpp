@@ -217,8 +217,8 @@ ListViewSection* ListViewItem::setSection(ListViewSection* s, const QVariant& va
     if ((!s) || s->m_Value != val)
         return nullptr;
 
-    const auto p = static_cast<ListViewItem*>(up  ());
-    const auto n = static_cast<ListViewItem*>(down());
+    const auto p = static_cast<ListViewItem*>(next(Qt::TopEdge));
+    const auto n = static_cast<ListViewItem*>(next(Qt::BottomEdge));
 
     // Garbage collect or change the old section owner
     if (m_pSection) {
@@ -275,8 +275,8 @@ ListViewSection* ListViewPrivate::getSection(ListViewItem* i)
     if (i->m_pSection && i->m_pSection->m_Value == val)
         return i->m_pSection;
 
-    const auto prev = static_cast<ListViewItem*>(i->up  ());
-    const auto next = static_cast<ListViewItem*>(i->down());
+    const auto prev = static_cast<ListViewItem*>(i->next(Qt::TopEdge));
+    const auto next = static_cast<ListViewItem*>(i->next(Qt::BottomEdge));
 
     // The section owner isn't currently loaded
     if ((!prev) && i->row() > 0) {
@@ -387,7 +387,7 @@ void ListViewSection::setOwner(ListViewItem* newParent)
         auto otherAnchors = qvariant_cast<QObject*>(newParent->item()->property("anchors"));
         auto anchors = qvariant_cast<QObject*>(m_pOwner->item()->property("anchors"));
 
-        const auto newPrevious = static_cast<ListViewItem*>(m_pOwner->up());
+        const auto newPrevious = static_cast<ListViewItem*>(m_pOwner->next(Qt::TopEdge));
         Q_ASSERT(newPrevious != m_pOwner);
 
         // Prevent a loop while moving
@@ -464,7 +464,7 @@ void ListViewSection::reparentSection(ListViewItem* newParent, ViewBase* view)
 
 bool ListViewItem::move()
 {
-    auto prev = static_cast<ListViewItem*>(up());
+    auto prev = static_cast<ListViewItem*>(next(Qt::TopEdge));
 
     const QQuickItem* prevItem = nullptr;
 
@@ -476,11 +476,11 @@ bool ListViewItem::move()
                 ListViewItem* newOwner = nullptr;
                 while (prev && prev->m_pSection == sec) {
                     newOwner = prev;
-                    prev = static_cast<ListViewItem*>(prev->up());
+                    prev = static_cast<ListViewItem*>(prev->next(Qt::TopEdge));
                 }
 
                 if (newOwner) {
-                    if (newOwner == static_cast<ListViewItem*>(up()))
+                    if (newOwner == static_cast<ListViewItem*>(next(Qt::TopEdge)))
                         prev = newOwner;
 
                     sec->setOwner(newOwner);
@@ -500,7 +500,7 @@ bool ListViewItem::move()
         }
 
     // Reset the "real" previous element
-    prev = static_cast<ListViewItem*>(up());
+    prev = static_cast<ListViewItem*>(next(Qt::TopEdge));
 
     const qreal y = d()->m_DepthChart.first()*row();
 
@@ -546,7 +546,7 @@ bool ListViewItem::remove()
     }
     else if (m_pSection && m_pSection->owner() == this) {
         // Reparent the section
-        if (auto n = static_cast<ListViewItem*>(down())) {
+        if (auto n = static_cast<ListViewItem*>(next(Qt::BottomEdge))) {
             if (n->m_pSection == m_pSection)
                 m_pSection->setOwner(n);
             /*else

@@ -111,7 +111,8 @@ public:
     QModelIndex index() const;
 
     StateTracker::ViewItem  *viewTracker     () const;
-    StateTracker::Index     *modelTracker    () const;
+    StateTracker::Index     *indexTracker    () const;
+    StateTracker::ModelItem *modelTracker    () const;
     StateTracker::Proximity *proximityTracker() const;
     ContextAdapter          *contextAdapter  () const;
 

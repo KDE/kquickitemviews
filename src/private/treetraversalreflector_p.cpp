@@ -95,9 +95,6 @@ struct ModelItem : public StateTracker::Index
 
 }
 
-#define TTI(i) static_cast<StateTracker::ModelItem*>(i)
-
-
 /// Allows more efficient batching of actions related to consecutive items
 class ModelItemRange //TODO
 {
@@ -139,7 +136,7 @@ public:
     void reloadEdges();
     void resetEdges();
 
-    StateTracker::ModelItem *lastItem() const;
+    StateTracker::Index *lastItem() const;
 
     StateTracker::ModelItem* m_pRoot {new StateTracker::ModelItem(this)};
 
@@ -161,10 +158,10 @@ public:
 
     StateTracker::Model *m_pModelTracker {new StateTracker::Model(this)};
 
-    StateTracker::ModelItem *find(
-        StateTracker::ModelItem *i,
+    StateTracker::Index *find(
+        StateTracker::Index *i,
         Qt::Edge direction,
-        std::function<bool(StateTracker::ModelItem *i)>
+        std::function<bool(StateTracker::Index *i)>
     ) const;
 
     QModelIndex getNextIndex(const QModelIndex& idx) const;
@@ -183,7 +180,7 @@ public:
     static const StateFS m_fStateLogging[8][2];
 
     // Tests
-    void _test_validateTree(StateTracker::ModelItem* p);
+    void _test_validateTree(StateTracker::Index *p);
     void _test_validateViewport(bool skipVItemState = false);
     void _test_validateLinkedList(bool skipVItemState = false);
     void _test_validate_edges();
@@ -260,7 +257,7 @@ StateTracker::ModelItem* StateTracker::ModelItem::load(Qt::Edge e) const
 {
     // First, if it's already loaded, then don't bother
     if (auto ret = next(e))
-        return TTI(ret);
+        return ret->metadata()->modelTracker();
 
     const auto t = metadata()->proximityTracker();
     const QModelIndexList l = t->getNext(e);
@@ -280,12 +277,12 @@ StateTracker::ModelItem* StateTracker::ModelItem::load(Qt::Edge e) const
 
     d_ptr->_test_validateViewport();
 
-    return TTI(i);
+    return i ? i->metadata()->modelTracker() : nullptr;
 }
 
 bool IndexMetadata::performAction(IndexMetadata::LoadAction a)
 {
-    auto mt = static_cast<StateTracker::ModelItem*>(modelTracker());
+    auto mt = static_cast<StateTracker::ModelItem*>(indexTracker());
 
     Q_ASSERT(mt->m_State != StateTracker::ModelItem::State::ERROR);
     const int s   = (int)mt->m_State;
@@ -324,8 +321,8 @@ void TreeTraversalReflectorPrivate::insertEdge(StateTracker::ModelItem* tti, Sta
     auto first = edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
     auto last = edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
 
-    auto prev = TTI(tti->up());
-    auto next = TTI(tti->down());
+    auto prev = tti->up();
+    auto next = tti->down();
 
     if (first == next)
         setEdge(EdgeType::VISIBLE, tti, Qt::TopEdge);
@@ -346,19 +343,19 @@ void TreeTraversalReflectorPrivate::removeEdge(StateTracker::ModelItem* tti, Sta
     if ((tti != first) && (tti != last))
         return;
 
-    auto prev = TTI(tti->up());
-    auto next = TTI(tti->down());
+    auto prev = tti->up();
+    auto next = tti->down();
 
     if (tti == first)
         setEdge(EdgeType::VISIBLE,
-            (next && next->m_State == StateTracker::ModelItem::State::VISIBLE) ?
+            (next && next->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE) ?
                 next : nullptr,
             Qt::TopEdge
         );
 
     if (tti == last)
         setEdge(EdgeType::VISIBLE,
-            (prev && prev->m_State == StateTracker::ModelItem::State::VISIBLE) ?
+            (prev && prev->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE) ?
                 prev : nullptr,
             Qt::BottomEdge
         );
@@ -373,8 +370,8 @@ void TreeTraversalReflectorPrivate::removeEdge(StateTracker::ModelItem* tti, Sta
 void TreeTraversalReflectorPrivate::resetState(StateTracker::ModelItem* i, StateTracker::ModelItem::State)
 {
     //TODO make a 3D matrix out of this
-    auto u = TTI(i->up());
-    auto d = TTI(i->down());
+    auto u = i->up  () ? i->up  ()->metadata()->modelTracker() : nullptr;
+    auto d = i->down() ? i->down()->metadata()->modelTracker() : nullptr;
 
     if (u && u->m_State == StateTracker::ModelItem::State::VISIBLE && d && d->m_State == StateTracker::ModelItem::State::VISIBLE) {
         i->m_State = StateTracker::ModelItem::State::VISIBLE;
@@ -459,7 +456,7 @@ bool StateTracker::ModelItem::show()
 
     //FIXME do this less often
     // This has to be done after `setViewTracker` and performAction
-    if (down() && TTI(down())->metadata()->isValid())
+    if (down() && down()->metadata()->isValid())
         d_ptr->m_pViewport->s_ptr->notifyInsert(down()->metadata());
 
 //     Q_ASSERT((!down()) || !TTI(down())->metadata()->isValid());
@@ -480,12 +477,12 @@ bool StateTracker::ModelItem::show()
         Q_ASSERT(metadata()->isValid());
 
         if (first == next) {
-            Q_ASSERT((!up()) || (TTI(up())->m_State != StateTracker::ModelItem::State::VISIBLE));
+            Q_ASSERT((!up()) || (up()->metadata()->modelTracker()->m_State != StateTracker::ModelItem::State::VISIBLE));
             d_ptr->setEdge(EdgeType::VISIBLE, this, Qt::TopEdge);
         }
 
         if (prev == last) {
-            Q_ASSERT((!down()) || (TTI(down())->m_State != StateTracker::ModelItem::State::VISIBLE));
+            Q_ASSERT((!down()) || (down()->metadata()->modelTracker()->m_State != StateTracker::ModelItem::State::VISIBLE));
             d_ptr->setEdge(EdgeType::VISIBLE, this, Qt::BottomEdge);
         }
 
@@ -564,9 +561,8 @@ bool StateTracker::ModelItem::detach()
 
     // First, detach any remaining children
     for (auto i : qAsConst(children)) {
-        auto tti = TTI(i);
-        tti->metadata()->performAction(IndexMetadata::LoadAction::HIDE);
-        tti->metadata()->performAction(IndexMetadata::LoadAction::DETACH);
+        i->metadata()->performAction(IndexMetadata::LoadAction::HIDE);
+        i->metadata()->performAction(IndexMetadata::LoadAction::DETACH);
     }
 
     Q_ASSERT(!loadedChildrenCount());
@@ -611,7 +607,7 @@ bool StateTracker::ModelItem::refresh()
 
     d_ptr->m_pViewport->s_ptr->updateGeometry(metadata());
 
-    for (auto i = TTI(firstChild()); i; i = TTI(i->nextSibling())) {
+    for (auto i = firstChild(); i; i = i->nextSibling()) {
         Q_ASSERT(i);
         Q_ASSERT(i != this);
         i->metadata()->performAction(IndexMetadata::LoadAction::UPDATE);
@@ -630,7 +626,7 @@ bool StateTracker::ModelItem::move()
     //TODO remove this implementation and use the one below
 
     // Propagate
-    for (auto i = TTI(firstChild()); i; i = TTI(i->nextSibling())) {
+    for (auto i = firstChild(); i; i = i->nextSibling()) {
         Q_ASSERT(i);
         Q_ASSERT(i != this);
         i->metadata()->performAction(IndexMetadata::LoadAction::MOVE);
@@ -692,7 +688,7 @@ bool StateTracker::ModelItem::destroy()
 
 bool StateTracker::ModelItem::reset()
 {
-    for (auto i = TTI(firstChild()); i; i = TTI(i->nextSibling())) {
+    for (auto i = firstChild(); i; i = i->nextSibling()) {
         Q_ASSERT(i);
         Q_ASSERT(i != this);
         i->metadata()->performAction(IndexMetadata::LoadAction::RESET);
@@ -755,11 +751,11 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 
     Q_ASSERT((!pitem->firstChild()) || pitem->lastChild());
 
-    StateTracker::ModelItem *prev(nullptr);
+    StateTracker::Index *prev(nullptr);
 
     //FIXME use up()
     if (first && pitem)
-        prev = TTI(pitem->childrenLookup(q_ptr->model()->index(first-1, 0, parent)));
+        prev = pitem->childrenLookup(q_ptr->model()->index(first-1, 0, parent));
 
     // There is no choice here but to load a larger subset to avoid holes, in
     // theory, edges(EdgeType::FREE)->m_Edges will prevent runaway loading
@@ -844,7 +840,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 //             Q_ASSERT(false); //TODO merge with the other bridgeGap above
 
             m_pViewport->s_ptr->notifyInsert(m_pRoot->firstChild()->metadata());
-            Q_ASSERT((!m_pRoot->firstChild()) || !TTI(m_pRoot->firstChild())->metadata()->isValid());
+            Q_ASSERT((!m_pRoot->firstChild()) || !m_pRoot->firstChild()->metadata()->isValid());
             StateTracker::Index::insertChildBefore(e, nullptr, pitem);
         }
         e->parent()->_test_validate_chain();
@@ -867,14 +863,14 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 
         if (needUpMove) {
             Q_ASSERT(pitem != e);
-            if (auto pe = TTI(e->up()))
+            if (auto pe = e->up())
                 pe->metadata()->performAction(IndexMetadata::LoadAction::MOVE);
         }
 
         Q_ASSERT((!pitem->lastChild()) || !pitem->lastChild()->hasTemporaryIndex()); //TODO
 
         if (needDownMove) {
-            if (auto ne = TTI(e->down())) {
+            if (auto ne = e->down()) {
                 Q_ASSERT(!ne->metadata()->isValid());
 
                 ne->metadata()->performAction(IndexMetadata::LoadAction::MOVE);
@@ -937,7 +933,7 @@ void TreeTraversalReflectorPrivate::slotRowsRemoved(const QModelIndex& parent, i
     for (int i = first; i <= last; i++) {
         auto idx = q_ptr->model()->index(i, 0, parent);
 
-        if (auto elem = TTI(pitem->childrenLookup(idx))) {
+        if (auto elem = pitem->childrenLookup(idx)) {
             elem->metadata()->performAction(IndexMetadata::LoadAction::HIDE);
             elem->metadata()->performAction(IndexMetadata::LoadAction::DETACH);
         }
@@ -1052,7 +1048,7 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
     // You cannot move things into an empty model
     Q_ASSERT((!row) || newNextIdx.isValid());
 
-    StateTracker::ModelItem *newNextTTI(nullptr), *newPrevTTI(nullptr);
+    StateTracker::Index *newNextTTI(nullptr), *newPrevTTI(nullptr);
 
     // Rewind until a next element is found, this happens when destination is empty
     if (!newNextIdx.isValid() && destination.parent().isValid()) {
@@ -1071,7 +1067,7 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
     }
     else {
         newNextTTI = ttiForIndex(newNextIdx);
-        newPrevTTI = newNextTTI ? TTI(newNextTTI->up()) : nullptr;
+        newPrevTTI = newNextTTI ? newNextTTI->up() : nullptr;
     }
 
     if (!row) {
@@ -1113,11 +1109,11 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
     // Check if the point where
     //TODO this isn't good enough
     bool isRangeVisible = (newPrevTTI &&
-        newPrevTTI->m_State == StateTracker::ModelItem::State::VISIBLE) || (newNextTTI &&
-            newNextTTI->m_State == StateTracker::ModelItem::State::VISIBLE);
+        newPrevTTI->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE) || (newNextTTI &&
+            newNextTTI->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE);
 
-    const auto topEdge    = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge));
-    const auto bottomEdge = TTI(edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge));
+    const auto topEdge    = edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
+    const auto bottomEdge = edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
 
     bool needRefreshVisibleTop    = false;
     bool needRefreshVisibleBottom = false;
@@ -1128,7 +1124,7 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
         needRefreshVisibleTop    |= item != topEdge;
         needRefreshVisibleBottom |= item != bottomEdge;
 
-        TTI(item)->metadata()->performAction(IndexMetadata::GeometryAction::MOVE);
+        item->metadata()->performAction(IndexMetadata::GeometryAction::MOVE);
 
         item->remove();
 
@@ -1137,17 +1133,17 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
         Q_ASSERT((!dest) || item->down() == dest);
 
         if (dest)
-            TTI(dest)->metadata()->performAction(IndexMetadata::GeometryAction::MOVE);
+            dest->metadata()->performAction(IndexMetadata::GeometryAction::MOVE);
 
         _test_validate_edges_simple();
         m_pViewport->s_ptr->notifyInsert(item->metadata());
 
         dest = item;
         if (isRangeVisible) {
-            if (TTI(item)->m_State == StateTracker::ModelItem::State::BUFFER)
-                TTI(item)->metadata()->performAction(IndexMetadata::LoadAction::ATTACH);
+            if (item->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::BUFFER)
+                item->metadata()->performAction(IndexMetadata::LoadAction::ATTACH);
 
-            TTI(item)->metadata()->performAction(IndexMetadata::LoadAction::SHOW);
+            item->metadata()->performAction(IndexMetadata::LoadAction::SHOW);
         }
     }
 
@@ -1194,9 +1190,9 @@ void TreeTraversalReflectorPrivate::reloadEdges()
     Range pos = Range::TOP;
 
     for (auto item = m_pRoot->firstChild(); item; item = item->down()) {
-        const uint16_t isVisible = TTI(item)->m_State == StateTracker::ModelItem::State::VISIBLE ?
+        const uint16_t isVisible = item->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE ?
             IS_VISIBLE : IS_NOT_VISIBLE;
-        const uint16_t isBuffer  = TTI(item)->m_State == StateTracker::ModelItem::State::BUFFER  ?
+        const uint16_t isBuffer  = item->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::BUFFER  ?
             IS_BUFFER : IS_NOT_BUFFER;
 
         switch(pos | isVisible | isBuffer) {
@@ -1336,12 +1332,12 @@ void StateTracker::Model::populate()
         //Q_ASSERT(edges(EdgeType::FREE)->getEdge(Qt::TopEdge));
 
         while (d_ptr->edges(EdgeType::FREE)->m_Edges & Qt::TopEdge) {
-            const auto was = TTI(d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge));
+            const auto was = d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
             //FIXME when everything fails to load, it would otherwise make an infinite loop
             if (!was)
                 break;
 
-            auto u = was->load(Qt::TopEdge);
+            auto u = was->metadata()->modelTracker()->load(Qt::TopEdge);
 
             Q_ASSERT(u || d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge)->effectiveRow() == 0);
             Q_ASSERT(u || !d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge)->effectiveParentIndex().isValid());
@@ -1353,13 +1349,13 @@ void StateTracker::Model::populate()
         }
 
         while (d_ptr->edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge) {
-            const auto was = TTI(d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge));
+            const auto was = d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
 
             //FIXME when everything fails to load, it would otherwise make an infinite loop
             if (!was)
                 break;
 
-            auto u = was->load(Qt::BottomEdge);
+            auto u = was->metadata()->modelTracker()->load(Qt::BottomEdge);
 
             //Q_ASSERT(u || edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)->effectiveRow() == 0);
             //Q_ASSERT(u || !edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)->effectiveParentIndex().isValid());
@@ -1422,7 +1418,7 @@ void StateTracker::Model::trim()
     // Unload everything below the cache area to get rid of the insertion/moving
     // overhead. Not doing so would also require to handle "holes" in the tree
     // which is very complex and unnecessary.
-    StateTracker::Index *be = TTI(d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge)); //TODO use BUFFERED
+    StateTracker::Index *be = d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge); //TODO use BUFFERED
 
     if (!be)
         return;
@@ -1433,7 +1429,7 @@ void StateTracker::Model::trim()
         return;
 
     do {
-        TTI(item)->metadata()->performAction(IndexMetadata::LoadAction::DETACH);
+        item->metadata()->performAction(IndexMetadata::LoadAction::DETACH);
     } while((item = item->up()) != be);
 }
 
@@ -1498,25 +1494,25 @@ void TreeTraversalReflector::setModel(QAbstractItemModel* m)
         return;
 }
 
-StateTracker::ModelItem *TreeTraversalReflectorPrivate::lastItem() const
+StateTracker::Index *TreeTraversalReflectorPrivate::lastItem() const
 {
     auto candidate = m_pRoot->lastChild();
 
     while (candidate && candidate->lastChild())
         candidate = candidate->lastChild();
 
-    return TTI(candidate);
+    return candidate;
 }
 
 bool TreeTraversalReflectorPrivate::isInsertActive(const QModelIndex& p, int first, int last) const
 {
     auto pitem = p.isValid() ? m_hMapper.value(p) : m_pRoot;
 
-    StateTracker::ModelItem *prev(nullptr);
+    StateTracker::Index *prev(nullptr);
 
     //FIXME use up()
     if (first && pitem)
-        prev = TTI(pitem->childrenLookup(q_ptr->model()->index(first-1, 0, p)));
+        prev = pitem->childrenLookup(q_ptr->model()->index(first-1, 0, p));
 
     if (first && !prev)
         return false;
@@ -1622,10 +1618,10 @@ StateTracker::ModelItem* TreeTraversalReflectorPrivate::ttiForIndex(const QModel
         return nullptr;
 
     if (!idx.parent().isValid())
-        return TTI(m_pRoot->childrenLookup(idx));
+        return static_cast<StateTracker::ModelItem*>(m_pRoot->childrenLookup(idx));
 
     if (auto parent = m_hMapper.value(idx.parent()))
-        return TTI(parent->childrenLookup(idx));
+        return static_cast<StateTracker::ModelItem*>(parent->childrenLookup(idx));
 
     return nullptr;
 }
@@ -1656,17 +1652,17 @@ Qt::Edges TreeTraversalReflector::availableEdges(EdgeType  t) const
 
 QModelIndex IndexMetadata::index() const
 {
-    return QModelIndex(modelTracker()->index());
+    return QModelIndex(indexTracker()->index());
 }
 
 bool IndexMetadata::isTopItem() const
 {
-    return modelTracker() == TTI(modelTracker())->d_ptr->m_pRoot->firstChild();
+    return indexTracker() == modelTracker()->d_ptr->m_pRoot->firstChild();
 }
 
 IndexMetadata *TreeTraversalReflector::getEdge(EdgeType t, Qt::Edge e) const
 {
-    auto ret = TTI(d_ptr->edges(t)->getEdge(e));
+    auto ret = d_ptr->edges(t)->getEdge(e);
     return ret ? ret->metadata() : nullptr;
 }
 
@@ -1701,7 +1697,7 @@ setEdge(EdgeType et, StateTracker::Index* tti, Qt::Edge e)
 
 bool IndexMetadata::isVisible() const
 {
-    return TTI(modelTracker())->m_State ==
+    return modelTracker()->m_State ==
         StateTracker::ModelItem::State::VISIBLE;
 }
 
@@ -1753,8 +1749,8 @@ void StateTracker::ModelItem::remove(bool reparent)
             Q_ASSERT(false); // Impossible, only corrupted memory can cause this
             break;
         case IndexMetadata::EdgeType::VISIBLE:
-            if (auto i = d_ptr->find(this, Qt::TopEdge, [](auto i) -> bool { return i->m_State == StateTracker::ModelItem::State::VISIBLE; } )) {
-                Q_ASSERT(i->m_State == StateTracker::ModelItem::State::VISIBLE); //TODO
+            if (auto i = d_ptr->find(this, Qt::TopEdge, [](auto i) -> bool { return i->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE; } )) {
+                Q_ASSERT(i->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE); //TODO
                 d_ptr->setEdge(IndexMetadata::EdgeType::VISIBLE, i, Qt::TopEdge);
             }
             else {
@@ -1773,8 +1769,8 @@ void StateTracker::ModelItem::remove(bool reparent)
             Q_ASSERT(false); // Impossible, only corrupted memory can cause this
             break;
         case IndexMetadata::EdgeType::VISIBLE:
-            if (auto i = d_ptr->find(this, Qt::BottomEdge, [](auto i) -> bool { return i->m_State == StateTracker::ModelItem::State::VISIBLE; } )) {
-                Q_ASSERT(i->m_State == StateTracker::ModelItem::State::VISIBLE); //TODO
+            if (auto i = d_ptr->find(this, Qt::BottomEdge, [](auto i) -> bool { return i->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE; } )) {
+                Q_ASSERT(i->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE); //TODO
                 d_ptr->setEdge(IndexMetadata::EdgeType::VISIBLE, i, Qt::BottomEdge);
             }
             else {
@@ -1791,11 +1787,11 @@ void StateTracker::ModelItem::remove(bool reparent)
     Index::remove(reparent);
 }
 
-StateTracker::ModelItem *TreeTraversalReflectorPrivate::
-find(StateTracker::ModelItem *from, Qt::Edge direction, std::function<bool(StateTracker::ModelItem *i)> cond) const
+StateTracker::Index *TreeTraversalReflectorPrivate::
+find(StateTracker::Index *from, Qt::Edge direction, std::function<bool(StateTracker::Index *i)> cond) const
 {
     auto f = from;
-    while(f && cond(f) && f->next(direction) && (f = TTI(f->next(direction))));
+    while(f && cond(f) && f->next(direction) && (f = f->next(direction)));
     return f;
 }
 

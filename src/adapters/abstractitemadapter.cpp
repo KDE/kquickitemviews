@@ -318,7 +318,7 @@ bool StateTracker::ViewItem::performAction(StateTracker::ViewItem::ViewAction a)
 
 int StateTracker::ViewItem::depth() const
 {
-    return m_pGeometry->modelTracker()->depth();
+    return m_pGeometry->indexTracker()->depth();
 }
 
 QPair<QWeakPointer<AbstractItemAdapter::SelectionLocker>, AbstractItemAdapter*>
@@ -568,7 +568,7 @@ QSizeF AbstractItemAdapter::sizeHint() const
 
 QPersistentModelIndex StateTracker::ViewItem::index() const
 {
-    return QModelIndex(m_pGeometry->modelTracker()->index());
+    return QModelIndex(m_pGeometry->indexTracker()->index());
 }
 
 /**
@@ -586,7 +586,7 @@ StateTracker::ViewItem* StateTracker::ViewItem::up() const
         // "deletion in progress" or swap the f call and set state
     );
 
-    auto ret = m_pGeometry->modelTracker()->up();
+    auto ret = m_pGeometry->indexTracker()->up();
     //TODO support collapsed nodes
 
     // Linearly look for a valid element. Doing this here allows the views
@@ -623,7 +623,7 @@ StateTracker::ViewItem* StateTracker::ViewItem::down() const
         // "deletion in progress" or swap the f call and set state
     );
 
-    auto ret = m_pGeometry->modelTracker();
+    auto ret = m_pGeometry->indexTracker();
     //TODO support collapsed entries
 
     // Recursively look for a valid element. Doing this here allows the views
@@ -661,10 +661,10 @@ StateTracker::ViewItem *StateTracker::ViewItem::next(Qt::Edge e) const
 
 int StateTracker::ViewItem::row() const
 {
-    return m_pGeometry->modelTracker()->effectiveRow();
+    return m_pGeometry->indexTracker()->effectiveRow();
 }
 
 int StateTracker::ViewItem::column() const
 {
-    return m_pGeometry->modelTracker()->effectiveColumn();
+    return m_pGeometry->indexTracker()->effectiveColumn();
 }

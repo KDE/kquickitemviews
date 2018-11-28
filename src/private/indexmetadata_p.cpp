@@ -40,6 +40,7 @@ public:
     StateTracker::Geometry  *m_pGeometryTracker  { new StateTracker::Geometry() };
     StateTracker::ViewItem  *m_pViewTracker      {             nullptr          };
     StateTracker::Index     *m_pIndexTracker     {             nullptr          };
+    StateTracker::ModelItem *m_pModelTracker     {             nullptr          };
     StateTracker::Proximity *m_pProximityTracker {             nullptr          };
     ViewItemContextAdapter  *m_pContextAdapter   {             nullptr          };
     Viewport                *m_pViewport         {             nullptr          };
@@ -85,9 +86,10 @@ IndexMetadata::IndexMetadata(StateTracker::Index *idxT, Viewport *p) :
     d_ptr(new IndexMetadataPrivate(this))
 {
     d_ptr->m_pIndexTracker     = idxT;
+    d_ptr->m_pModelTracker     = (StateTracker::ModelItem*) idxT;
     d_ptr->m_pViewport         = p;
     d_ptr->m_pProximityTracker = new StateTracker::Proximity(
-        this, modelTracker()
+        this, indexTracker()
     );
 }
 
@@ -123,9 +125,14 @@ StateTracker::ViewItem *IndexMetadata::viewTracker() const
     return d_ptr->m_pViewTracker;
 }
 
-StateTracker::Index *IndexMetadata::modelTracker() const
+StateTracker::Index *IndexMetadata::indexTracker() const
 {
-    return (StateTracker::Index*) d_ptr->m_pIndexTracker;
+    return d_ptr->m_pIndexTracker;
+}
+
+StateTracker::ModelItem *IndexMetadata::modelTracker() const
+{
+    return d_ptr->m_pModelTracker;
 }
 
 StateTracker::Proximity *IndexMetadata::proximityTracker() const
@@ -336,30 +343,30 @@ bool IndexMetadata::isInSync() const
 
 IndexMetadata *IndexMetadata::up() const
 {
-    auto i = modelTracker()->up();
+    auto i = indexTracker()->up();
     return i ? i->metadata() : nullptr;
 }
 
 IndexMetadata *IndexMetadata::down() const
 {
-    auto i = modelTracker()->down();
+    auto i = indexTracker()->down();
     return i ? i->metadata() : nullptr;
 }
 
 IndexMetadata *IndexMetadata::left() const
 {
-    auto i = modelTracker()->left();
+    auto i = indexTracker()->left();
     return i ? i->metadata() : nullptr;
 }
 
 IndexMetadata *IndexMetadata::right() const
 {
-    auto i = modelTracker()->right();
+    auto i = indexTracker()->right();
     return i ? i->metadata() : nullptr;
 }
 
 IndexMetadata *IndexMetadata::next(Qt::Edge e) const
 {
-    auto i = modelTracker()->next(e);
+    auto i = indexTracker()->next(e);
     return i ? i->metadata() : nullptr;
 }

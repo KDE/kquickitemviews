@@ -87,6 +87,19 @@ public:
     };
 
     /**
+     * Actions to perform on the view (widget) state tracker.
+     */
+    enum class ViewAction {
+        ATTACH      , /*!< Activate the element (do not sync it) */
+        ENTER_BUFFER, /*!< Sync all roles                        */
+        ENTER_VIEW  , /*!< NOP (todo)                            */
+        UPDATE      , /*!< Reload the roles                      */
+        MOVE        , /*!< Move to a new position                */
+        LEAVE_BUFFER, /*!< Stop keeping track of data changes    */
+        DETACH      , /*!< Delete                                */
+    };
+
+    /**
      * The actions associated with the state of the (cartesian) siblings status
      * if this index.
      */
@@ -117,6 +130,7 @@ public:
     ContextAdapter          *contextAdapter  () const;
 
     // Mutator
+    bool performAction(ViewAction      a);
     bool performAction(LoadAction      a);
     bool performAction(GeometryAction  a);
     bool performAction(ProximityAction a, Qt::Edge e);

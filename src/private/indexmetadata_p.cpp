@@ -263,6 +263,15 @@ QSizeF IndexMetadata::sizeHint()
     return ret;
 }
 
+bool IndexMetadata::performAction(IndexMetadata::ViewAction a)
+{
+    Q_ASSERT(viewTracker());
+    if (!viewTracker())
+        return false;
+
+    return viewTracker()->performAction(a);
+}
+
 bool IndexMetadata::performAction(GeometryAction a)
 {
     const auto s = (int)d_ptr->m_pGeometryTracker->state();

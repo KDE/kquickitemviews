@@ -415,7 +415,7 @@ bool StateTracker::ModelItem::show()
         Q_ASSERT(metadata()->viewTracker());
         metadata()->viewTracker()->m_pTTI = this;
 
-        metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::ATTACH);
+        metadata()->viewTracker()->performAction(IndexMetadata::ViewAction::ATTACH);
         Q_ASSERT(metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::POOLED);
         Q_ASSERT(m_State == State::VISIBLE);
 
@@ -427,7 +427,7 @@ bool StateTracker::ModelItem::show()
     //d_ptr->m_pViewport->s_ptr->updateGeometry(&this->m_Geometry);
 
     //d_ptr->_test_validateViewport(true);
-    metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::ENTER_BUFFER);
+    metadata()->viewTracker()->performAction(IndexMetadata::ViewAction::ENTER_BUFFER);
     Q_ASSERT(m_State == State::VISIBLE);
 
     if (metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::FAILED)
@@ -438,7 +438,7 @@ bool StateTracker::ModelItem::show()
     //Q_ASSERT((!down()) || !TTI(down())->metadata()->isValid());
 
     //d_ptr->_test_validateViewport(true);
-    metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::ENTER_VIEW);
+    metadata()->viewTracker()->performAction(IndexMetadata::ViewAction::ENTER_VIEW);
     Q_ASSERT(m_State == State::VISIBLE);
     //d_ptr->_test_validateViewport();
 //     Q_ASSERT((!down()) || TTI(down())->metadata()->m_State.state() != StateTracker::Geometry::State::VALID);
@@ -448,7 +448,7 @@ bool StateTracker::ModelItem::show()
     // For some reason creating the visual element failed, this can and will
     // happen and need to be recovered from.
     if (metadata()->viewTracker()->hasFailed()) {
-        metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::LEAVE_BUFFER);
+        metadata()->viewTracker()->performAction(IndexMetadata::ViewAction::LEAVE_BUFFER);
         Q_ASSERT(m_State == State::VISIBLE);
         metadata()->setViewTracker(nullptr);
     }
@@ -505,7 +505,7 @@ bool StateTracker::ModelItem::hide()
 {
     if (metadata()->viewTracker()) {
         //item->setVisible(false);
-        metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::LEAVE_BUFFER);
+        metadata()->viewTracker()->performAction(IndexMetadata::ViewAction::LEAVE_BUFFER);
     }
 
     return true;
@@ -522,7 +522,7 @@ bool StateTracker::ModelItem::remove2()
         // Move the item lifecycle forward
         while (metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::POOLED
           && metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::DANGLING)
-            metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::DETACH);
+            metadata()->viewTracker()->performAction(IndexMetadata::ViewAction::DETACH);
 
         // It should still exists, it may crash otherwise, so make sure early
         Q_ASSERT(metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::POOLED
@@ -545,7 +545,7 @@ bool StateTracker::ModelItem::attach()
     Q_ASSERT(!metadata()->viewTracker());
 
 //     if (metadata()->viewTracker())
-//         metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::ATTACH);
+//         metadata()->viewTracker()->performAction(IndexMetadata::ViewAction::ATTACH);
 
     d_ptr->_test_validate_edges_simple();
 
@@ -638,7 +638,7 @@ bool StateTracker::ModelItem::move()
     //FIXME this if should not exists, this should be handled by the state
     // machine.
     if (metadata()->viewTracker()) {
-        metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::MOVE); //FIXME don't
+        metadata()->viewTracker()->performAction(IndexMetadata::ViewAction::MOVE); //FIXME don't
 //         Q_ASSERT(metadata()->isInSync());//TODO THIS_COMMIT
     }
     else
@@ -654,7 +654,7 @@ bool StateTracker::ModelItem::move()
 
 //FIXME this is better, but require having createItem() called earlier
 //     if (metadata()->viewTracker())
-//         metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::MOVE); //FIXME don't
+//         metadata()->viewTracker()->performAction(IndexMetadata::ViewAction::MOVE); //FIXME don't
 //
 //     if (oldGeo != metadata()->viewTracker()->geometry())
 //         if (auto n = metadata()->viewTracker()->down())
@@ -672,7 +672,7 @@ bool StateTracker::ModelItem::destroy()
     detach();
 
     if (metadata()->viewTracker()) {
-        metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::DETACH);
+        metadata()->viewTracker()->performAction(IndexMetadata::ViewAction::DETACH);
     }
 
     metadata()->setViewTracker(nullptr);
@@ -699,8 +699,8 @@ bool StateTracker::ModelItem::reset()
 
     if (metadata()->viewTracker()) {
         Q_ASSERT(this != d_ptr->m_pRoot);
-        metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::LEAVE_BUFFER);
-        metadata()->viewTracker()->performAction(StateTracker::ViewItem::ViewAction::DETACH);
+        metadata()->viewTracker()->performAction(IndexMetadata::ViewAction::LEAVE_BUFFER);
+        metadata()->viewTracker()->performAction(IndexMetadata::ViewAction::DETACH);
         metadata()->setViewTracker(nullptr);
     }
 

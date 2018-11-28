@@ -20,11 +20,11 @@
 // KQuickItemViews
 #include "private/statetracker/viewitem_p.h"
 #include <adapters/abstractitemadapter.h>
+#include <private/indexmetadata_p.h>
 class ViewBase;
 class ViewItemContextAdapter;
 class ContextAdapter;
 class Viewport;
-struct IndexMetadata;
 class TreeTraversalReflectorPrivate;
 
 // Qt
@@ -67,16 +67,6 @@ public:
         FAILED  , /*!< Loading the item was attempted, but failed             */
         DANGLING, /*!< Pending deletion, invalid pointers                     */
         ERROR   , /*!< Something went wrong                                   */
-    };
-
-    enum class ViewAction { //TODO make this private to ViewBasePrivate
-        ATTACH       = 0, /*!< Activate the element (do not sync it) */
-        ENTER_BUFFER = 1, /*!< Sync all roles                        */
-        ENTER_VIEW   = 2, /*!< NOP (todo)                            */
-        UPDATE       = 3, /*!< Reload the roles                      */
-        MOVE         = 4, /*!< Move to a new position                */
-        LEAVE_BUFFER = 5, /*!< Stop keeping track of data changes    */
-        DETACH       = 6, /*!< Delete                                */
     };
 
     /// Call to notify that the geometry changed (for the selection delegate)
@@ -122,7 +112,7 @@ public:
     Viewport      *m_pRange    {nullptr};
     IndexMetadata *m_pGeometry {nullptr};
 
-    bool performAction(ViewAction); //FIXME make private, remove #include
+    bool performAction(IndexMetadata::ViewAction a);
 
     AbstractItemAdapter* d_ptr;
 private:

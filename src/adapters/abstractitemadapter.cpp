@@ -291,7 +291,7 @@ bool AbstractItemAdapterPrivate::destroy()
     return true;
 }
 
-bool StateTracker::ViewItem::performAction(StateTracker::ViewItem::ViewAction a)
+bool StateTracker::ViewItem::performAction(IndexMetadata::ViewAction a)
 {
     //if (m_State == StateTracker::ViewItem::State::FAILED)
     //    m_pTTI->d_ptr->m_FailedCount--;

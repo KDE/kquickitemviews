@@ -336,7 +336,7 @@ void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& 
                 q_ptr->s_ptr->notifyChange(item);
 
                 if (auto vi = item->viewTracker())
-                    vi->performAction(StateTracker::ViewItem::ViewAction::UPDATE);
+                    vi->performAction(IndexMetadata::ViewAction::UPDATE);
             }
         }
     }

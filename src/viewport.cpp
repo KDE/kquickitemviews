@@ -433,7 +433,6 @@ void ViewportPrivate::updateAvailableEdges()
 //     m_pReflector->setAvailableEdges(
 //         (~hasInvisible)&15, IndexMetadata::EdgeType::VISIBLE
 //     );
-//     qDebug() << "CHECK TOP" <<available << tve << (tve ? tve->geometry() : QRectF()) << (tve ? m_ViewRect.intersects(tve->geometry()) : true) << m_ViewRect;
 
     q_ptr->s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::TRIM);
 
@@ -611,10 +610,9 @@ void ViewportSync::refreshVisible()
     }
 
     const bool hasSingleItem = item == bve;
-//     qDebug() << "VIS START";
+
 
     do {
-//         qDebug() << "VIT DO";
         item->sizeHint();
 
         Q_ASSERT(item->removeMe() != (int)StateTracker::Geometry::State::INIT);
@@ -633,21 +631,13 @@ void ViewportSync::refreshVisible()
 
         if (!item->isInSync())
             item->performAction(IndexMetadata::LoadAction::MOVE);
-//         qDebug() << "R" << item << item->down();
 
     } while((!hasSingleItem) && item->up() != bve && (item = item->down()));
-
-//     qDebug() << "VIS END";
 }
 
 void ViewportSync::notifyInsert(IndexMetadata* item)
 {
     Q_ASSERT(item);
-
-    volatile int edgs = m_pReflector->availableEdges(
-        IndexMetadata::EdgeType::FREE
-    );
-    qDebug() << "NOTIFY INSERT!" << item ;
 
     if (m_pReflector->modelTracker()->state() == StateTracker::Model::State::RESETING)
         return; //TODO it needs another state machine to get rid of the `if`
@@ -677,29 +667,24 @@ void ViewportSync::notifyInsert(IndexMetadata* item)
         IndexMetadata::EdgeType::VISIBLE, Qt::BottomEdge
     );
 
-//     qDebug() << "START" << item;
     //FIXME this is also horrible
     do {
-//         qDebug() << "IN";
         if (item == bve) {
             item->performAction(IndexMetadata::GeometryAction::MOVE);
-//             qDebug() << "BREAK1" << item << item->m_pTTI << (item->down() != nullptr? (int) item->down()->m_State.state() : -1);
             break;
         }
 
         if (!item->isValid() &&
           item->removeMe() != (int)StateTracker::Geometry::State::POSITION) {
-//             qDebug() << "BREAK2";
             break;
         }
 
         item->performAction(IndexMetadata::GeometryAction::MOVE);
 
 //         Q_ASSERT(item->isValid());
-//         qDebug() << "ONE" << (int) item->removeMe();
+
     } while((item = item->down()));
 
-//     qDebug() << "END" << (item == bve);
     refreshVisible();
 
     q_ptr->d_ptr->updateAvailableEdges();
@@ -726,7 +711,6 @@ void Viewport::resize(const QRectF& rect)
     s_ptr->refreshVisible();
 
     d_ptr->updateAvailableEdges();
-    qDebug() << "\n\nRESIZE!" << wasValid << rect.isValid() << (int)s_ptr->m_pReflector->modelTracker()->state();
 
     if ((!wasValid) && rect.isValid()) {
         s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::POPULATE);

@@ -267,8 +267,6 @@ StateTracker::ModelItem* StateTracker::ModelItem::load(Qt::Edge e) const
     const auto t = m_Geometry.proximityTracker();
     const QModelIndexList l = t->getNext(e);
 
-    qDebug() << "IN GET NEXT" << l;
-
     // The consumer of this function only cares about the item above `this`,
     // not all the items that were loaded because they are dependencies.
     StateTracker::Index *i = nullptr;
@@ -478,9 +476,6 @@ bool StateTracker::ModelItem::show()
         auto prev = up();
         auto next = down();
         auto last = d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
-//         qDebug() << "VISIBLE!" << first << prev << tti << next << last;
-//         qDebug() << first << tti;
-//         qDebug() << last << tti;
 
         // Make sure the geometry is up to data
         m_Geometry.decoratedGeometry();
@@ -513,8 +508,6 @@ bool StateTracker::ModelItem::show()
 
 bool StateTracker::ModelItem::hide()
 {
-    qDebug() << "\n\nHIDE";
-
     if (m_Geometry.viewTracker()) {
         //item->setVisible(false);
         m_Geometry.viewTracker()->performAction(StateTracker::ViewItem::ViewAction::LEAVE_BUFFER);
@@ -542,10 +535,8 @@ bool StateTracker::ModelItem::remove2()
         );
 
         m_Geometry.setViewTracker(nullptr);
-        qDebug() << "\n\nREMOVE!!!" << this;
     }
 
-//     qDebug() << "HIDE";
     return true;
 }
 
@@ -613,15 +604,12 @@ bool StateTracker::ModelItem::detach()
     // then drop bridgeGap
 
     Q_ASSERT(!m_Geometry.viewTracker());
-    qDebug() << "\n\nDETACHED!";
 
     return true;
 }
 
 bool StateTracker::ModelItem::refresh()
 {
-    //
-//     qDebug() << "REFRESH";
 
     d_ptr->m_pViewport->s_ptr->updateGeometry(&m_Geometry);
 
@@ -647,14 +635,12 @@ bool StateTracker::ModelItem::move()
     for (auto i = TTI(firstChild()); i; i = TTI(i->nextSibling())) {
         Q_ASSERT(i);
         Q_ASSERT(i != this);
-        qDebug() << "MOVE CHILD" << i;
         i->m_Geometry.performAction(IndexMetadata::LoadAction::MOVE);
 
         if (i == lastChild())
             break;
     }
 
-    qDebug() << "MOVE" << this;
     //FIXME this if should not exists, this should be handled by the state
     // machine.
     if (m_Geometry.viewTracker()) {
@@ -754,10 +740,8 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
     Q_ASSERT((!parent.isValid()) || parent.model() == q_ptr->model());
     Q_ASSERT(first <= last);
 
-    qDebug() << "IN SOLT ROWS INSERTED!" << first << last << parent;
     if (!isInsertActive(parent, first, last)) {
         _test_validateLinkedList();
-        qDebug() << "INACTIVE, BYE" << parent << first << last;
 //         Q_ASSERT(false); //FIXME so I can't forget when time comes
         return;
     }
@@ -767,7 +751,6 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
     //FIXME it is possible if the anchor is at the bottom that the parent
     // needs to be loaded
     if (!pitem) {
-        qDebug() << "NO PARENT, BYE";
         _test_validateLinkedList();
         return;
     }
@@ -817,19 +800,11 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
             const auto nextTTI = nextIdx.isValid() ? ttiForIndex(nextIdx) : nullptr;
 
             if (!nextTTI) {
-
-                qDebug() << "NO SPACE LEFT" << prev
-                    << (prev && prev->down() ? "down" : "nodown")
-                    << (bool) (edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge)
-                    << (bool) (edges(EdgeType::FREE)->m_Edges & Qt::TopEdge);
-
                 m_pViewport->s_ptr->refreshVisible();
                 _test_validateLinkedList();
                 return; //FIXME break
             }
         }
-
-        qDebug() << "DO IT";
 
         auto e = addChildren(pitem, idx);
 
@@ -1310,7 +1285,6 @@ void StateTracker::Model::reset()
     if (wasTracked)
         untrack(); //TODO THIS_COMMIT
 
-    qDebug() << "RESET";
     d_ptr->m_pRoot->m_Geometry.performAction(IndexMetadata::LoadAction::RESET);
     d_ptr->resetEdges();
 
@@ -1361,8 +1335,6 @@ void StateTracker::Model::populate()
 
     d_ptr->_test_validateContinuity();
 
-    qDebug() << "\n\nPOPULATE!" << d_ptr->edges(EdgeType::FREE)->m_Edges << (d_ptr->edges(EdgeType::FREE));
-
     if (!d_ptr->edges(EdgeType::FREE)->m_Edges)
         return;
 
@@ -1370,14 +1342,12 @@ void StateTracker::Model::populate()
         //Q_ASSERT(edges(EdgeType::FREE)->getEdge(Qt::TopEdge));
 
         while (d_ptr->edges(EdgeType::FREE)->m_Edges & Qt::TopEdge) {
-            qDebug() << "S";
             const auto was = TTI(d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge));
             //FIXME when everything fails to load, it would otherwise make an infinite loop
             if (!was)
                 break;
 
             auto u = was->load(Qt::TopEdge);
-qDebug() << "T" << u;
 
             Q_ASSERT(u || d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge)->effectiveRow() == 0);
             Q_ASSERT(u || !d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge)->effectiveParentIndex().isValid());
@@ -1389,7 +1359,6 @@ qDebug() << "T" << u;
         }
 
         while (d_ptr->edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge) {
-            qDebug() << "S2";
             const auto was = TTI(d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge));
 
             //FIXME when everything fails to load, it would otherwise make an infinite loop
@@ -1397,8 +1366,6 @@ qDebug() << "T" << u;
                 break;
 
             auto u = was->load(Qt::BottomEdge);
-qDebug() << "B" << u;
-
 
             //Q_ASSERT(u || edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)->effectiveRow() == 0);
             //Q_ASSERT(u || !edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)->effectiveParentIndex().isValid());
@@ -1421,7 +1388,10 @@ qDebug() << "B" << u;
 
 void StateTracker::Model::trim()
 {
+    //FIXME For now the delegates are only freed when the QModelIndex is removed.
+    // This also prevent pooling from being used/finished.
     return;
+
 //     QTimer::singleShot(0, [this]() {
 //         if (m_TrackingState != TreeTraversalReflector::TrackingState::TRACKING)
 //             return;
@@ -1459,7 +1429,6 @@ void StateTracker::Model::trim()
     // overhead. Not doing so would also require to handle "holes" in the tree
     // which is very complex and unnecessary.
     StateTracker::Index *be = TTI(d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge)); //TODO use BUFFERED
-    qDebug() << "TRIM" << be;
 
     if (!be)
         return;
@@ -1470,7 +1439,6 @@ void StateTracker::Model::trim()
         return;
 
     do {
-        qDebug() << "DEWTAC" << be << item;
         TTI(item)->m_Geometry.performAction(IndexMetadata::LoadAction::DETACH);
     } while((item = item->up()) != be);
 }
@@ -1496,7 +1464,6 @@ void TreeTraversalReflectorPrivate::enterState(StateTracker::ModelItem* tti, Sta
 {
     Q_UNUSED(tti);
     Q_UNUSED(s);
-    //qDebug() << "ENTER STATE!!";
 
 
 //     _test_validate_edges();
@@ -1506,7 +1473,6 @@ void TreeTraversalReflectorPrivate::leaveState(StateTracker::ModelItem *tti, Sta
 {
     Q_UNUSED(tti);
     Q_UNUSED(s);
-    //qDebug() << "LEAVE STATE!!";
 }
 
 void TreeTraversalReflectorPrivate::error(StateTracker::ModelItem*, StateTracker::ModelItem::State)

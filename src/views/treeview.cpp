@@ -89,7 +89,6 @@ TreeViewItem::~TreeViewItem()
 
 bool TreeViewItem::move()
 {
-    qDebug() << "IN MOVE!";
     // Will happen when trying to move a FAILED, but buffered item
     if (!item()) {
         qDebug() << "NO ITEM" << index().data();

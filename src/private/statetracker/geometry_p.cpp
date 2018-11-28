@@ -17,8 +17,6 @@
  **************************************************************************/
 #include "geometry_p.h"
 
-#include <QtCore/QDebug>
-
 #include <private/viewport_p.h>
 
 #define S StateTracker::Geometry::State::
@@ -49,7 +47,6 @@ void StateTracker::Geometry::nothing()
 void StateTracker::Geometry::invalidate()
 {
     dropCache();
-    qDebug() << "INVALIDATE" << m_Position << m_Size;
 }
 
 void StateTracker::Geometry::error()
@@ -59,7 +56,6 @@ void StateTracker::Geometry::error()
 
 void StateTracker::Geometry::dropCache()
 {
-    qDebug() << "==DROP CACHE";
     //TODO
 }
 

@@ -216,6 +216,7 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
     bool hadVisible      = false;
     bool visibleFinished = false;
 
+//DEBUG
 //     qDebug() << "";
 //     while ((prev = cur) && (cur = TTI(cur->down()))) {
 //         qDebug() << "TREE"
@@ -233,7 +234,6 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
     const auto tve = edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
     const auto bve = edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
 
-//     qDebug() << "START";
     do {
         Q_ASSERT(cur->up() == prev);
         Q_ASSERT(cur->index().isValid());
@@ -273,7 +273,6 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
 //                 Q_ASSERT(m_pViewport->currentRect().intersects(
 //                     vi->geometry()
 //                 ));
-//                 qDebug() << "LA!!!!";
 //             }
 //             else {
 //                 Q_ASSERT(vi->m_State == StateTracker::ViewItem::State::BUFFER);
@@ -308,7 +307,6 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
             //Q_ASSERT(cur->m_Geometry.isValid()); //TODO THIS_COMMIT
             auto geo = cur->m_Geometry.decoratedGeometry();
 
-// //             qDebug() << "BOO" << cur->index().row() << geo.y() << maxX;
             // Prevent accidental overlapping until a view with on-purpose
             // overlapping exists
 //             Q_ASSERT(geo.y() >= maxY); // The `=` because it starts at 0
@@ -325,7 +323,6 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
             maxY = std::max(maxY, geo.bottomLeft().y());
         }
     } while ((prev = cur) && (cur = TTI(cur->down())));
-//     qDebug() << "STOP";
 
     Q_ASSERT(maxY >= minY || !hadVisible);
     Q_ASSERT(maxX >= minX || !hadVisible);
@@ -340,7 +337,6 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
     }
 
 //     Q_ASSERT(maxY < m_pViewport->currentRect().bottomLeft().y() + 100);
-//     qDebug() << "SIZE" << maxX << maxY << m_pViewport->currentRect().bottomLeft().y();
 }
 
 void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)

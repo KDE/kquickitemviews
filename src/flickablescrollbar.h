@@ -38,7 +38,7 @@ class FlickableScrollBarPrivate;
  * widget doesn't scale. It always requires to be fixed to match the internal
  * changes.
  */
-class FlickableScrollBar : public QQuickItem
+class Q_DECL_EXPORT FlickableScrollBar : public QQuickItem
 {
     Q_OBJECT
 public:

@@ -80,7 +80,7 @@ public:
     mutable QQmlContext *m_pContext {nullptr};
 
     // Helpers
-    QPair<QQuickItem*, QQmlContext*> loadDelegate(QQuickItem* parentI, QQmlContext* parentCtx) const;
+    QPair<QQuickItem*, QQmlContext*> loadDelegate(QQuickItem* parentI) const;
     ViewBaseItemVariables *sharedVariables() const;
 
     // Attributes
@@ -343,10 +343,7 @@ void AbstractItemAdapterPrivate::load()
         return;
     }
 
-    auto pair = loadDelegate(
-        q_ptr->view()->contentItem(),
-        q_ptr->view()->rootContext()
-    );
+    auto pair = loadDelegate(q_ptr->view()->contentItem());
 
     if (!pair.first) {
         qDebug() << "Item failed to load" << q_ptr->index().data();
@@ -458,7 +455,7 @@ bool AbstractItemAdapter::flush()
 void AbstractItemAdapter::setSelected(bool /*s*/)
 {}
 
-QPair<QQuickItem*, QQmlContext*> AbstractItemAdapterPrivate::loadDelegate(QQuickItem* parentI, QQmlContext* parentCtx) const
+QPair<QQuickItem*, QQmlContext*> AbstractItemAdapterPrivate::loadDelegate(QQuickItem* parentI) const
 {
     if (!q_ptr->s_ptr->m_pRange->modelAdapter()->delegate())
         return {};
@@ -534,7 +531,7 @@ ViewBase* StateTracker::ViewItem::view() const
 
 void StateTracker::ViewItem::updateGeometry()
 {
-    const auto geo = geometry();
+    geometry();
 
     //TODO handle up/left/right too
 

@@ -35,7 +35,7 @@ class FlickablePrivate;
  * properties and uses a 200 lines of code inertial state machine instead of
  * 1.5k line of vomit code to do the exact same job.
  */
-class Flickable : public QQuickItem
+class Q_DECL_EXPORT Flickable : public QQuickItem
 {
     Q_OBJECT
 public:

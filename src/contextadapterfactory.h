@@ -43,7 +43,7 @@ class ContextAdapter;
  * `applyRoles` can be re-implemented to either add more properties to the
  * context or to convert some roles into a format easier to consume from QML.
  */
-class ContextAdapterFactory
+class Q_DECL_EXPORT ContextAdapterFactory
 {
     friend class ContextAdapter; // Public API
     friend class DynamicContext; // call finish()

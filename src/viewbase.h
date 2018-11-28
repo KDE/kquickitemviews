@@ -53,7 +53,7 @@ namespace StateTracker {
  * could be folded into this widget (if it ever makes sense, otherwise they will
  * keep diverging).
  */
-class ViewBase : public Flickable
+class Q_DECL_EXPORT ViewBase : public Flickable
 {
     Q_OBJECT
     friend struct StateTracker::ModelItem;

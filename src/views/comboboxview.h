@@ -26,7 +26,7 @@ class ComboBoxViewPrivate;
 /**
  * Extended QtQuickControls2 ComboBox with proper selection model support.
  */
-class ComboBoxView : public QQuickItem
+class Q_DECL_EXPORT ComboBoxView : public QQuickItem
 {
     Q_OBJECT
 public:

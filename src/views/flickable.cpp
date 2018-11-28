@@ -147,6 +147,10 @@ QQuickItem* Flickable::contentItem()
 {
     if (!d_ptr->m_pContainer) {
         QQmlEngine *engine = QQmlEngine::contextForObject(this)->engine();
+
+        // Can't be called too early as the engine wont be ready.
+        Q_ASSERT(engine);
+
         QQmlComponent rect1(engine, this);
         rect1.setData("import QtQuick 2.4; Item {}", {});
         d_ptr->m_pContainer = qobject_cast<QQuickItem *>(rect1.create());
@@ -186,7 +190,9 @@ void Flickable::setCurrentY(qreal y)
 
     // Do not allow out of bound scroll
     y = std::fmax(y, 0);
-    y = std::fmin(y, d_ptr->m_pContainer->height() - height());
+
+    if (d_ptr->m_pContainer->height() >= height())
+        y = std::fmin(y, d_ptr->m_pContainer->height() - height());
 
     if (d_ptr->m_pContainer->y() == -y)
         return;

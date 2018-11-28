@@ -26,8 +26,12 @@
 // KQuickItemViews
 #include "adapters/abstractitemadapter.h"
 #include "viewbase.h"
+#include "viewport.h"
+#include "private/viewport_p.h"
+#include "private/indexmetadata_p.h"
 #include "extensions/contextextension.h"
-#include "adapters/abstractitemadapter_p.h"
+#include "adapters/modeladapter.h"
+#include "private/statetracker/viewitem_p.h"
 #include "adapters/contextadapter.h"
 
 using FactoryFunctor = std::function<ContextAdapter*(QQmlContext*)>;
@@ -36,7 +40,7 @@ using FactoryFunctor = std::function<ContextAdapter*(QQmlContext*)>;
  * Add some metadata to be able to use QAbstractItemModel roles as QObject
  * properties.
  */
-struct MetaRole
+struct MetaProperty
 {
     // Bitmask to hold (future) metadata regarding how the property is used
     // by QML.
@@ -49,6 +53,7 @@ struct MetaRole
         HAS_CHANGED = 0x1 << 4, /*!< When the value was queried many times */
         HAS_SUBSET  = 0x1 << 5, /*!< When dataChanged has a role list      */
         HAS_GLOBAL  = 0x1 << 6, /*!< When dataChanged has no role          */
+        IS_ROLE     = 0x1 << 7, /*!< When the MetaProperty map to a model role */
     };
     int flags {Flags::UNUSED};
 
@@ -56,20 +61,33 @@ struct MetaRole
     int propId;
 
     /// The role ID from QAbstractItemModel::roleNames
-    int roleId;
+    int roleId {-1};
 
     /**
      * The name ID from QAbstractItemModel::roleNames
      *
      * (the pointer *is* on purpose reduce cache faults in this hot code path)
      */
-    QByteArray* name;
+    QByteArray* name {nullptr};
+
+    uint signalId;
 };
 
 struct GroupMetaData
 {
     ContextExtension* ptr;
     uint offset;
+};
+
+/**
+ * Keep the offset and id of the extension for validation and change notification.
+ */
+class ContextExtensionPrivate
+{
+public:
+    uint m_Id     {0};
+    uint m_Offset {0};
+    ContextAdapterFactoryPrivate *d_ptr {nullptr};
 };
 
 /**
@@ -84,16 +102,16 @@ struct DynamicMetaType final
 {
     explicit DynamicMetaType(const QHash<int, QByteArray>& roles);
     ~DynamicMetaType() {
-        delete[] roles;//FIXME leak [roleCount*sizeof(MetaRole))];
+        delete[] roles;//FIXME leak [roleCount*sizeof(MetaProperty))];
     }
 
     const size_t          roleCount      {   0   };
     size_t                propertyCount  {   0   };
-    MetaRole*             roles          {nullptr};
-    QSet<MetaRole*>       used           {       };
+    MetaProperty*             roles          {nullptr};
+    QSet<MetaProperty*>       used           {       };
     QMetaObject           *m_pMetaObject {nullptr};
     bool                  m_GroupInit    { false };
-    QHash<int, MetaRole*> m_hRoleIds     {       };
+    QHash<int, MetaProperty*> m_hRoleIds     {       };
     uint8_t               *m_pCacheMap   {nullptr};
 
     /**
@@ -126,7 +144,7 @@ public:
     QPersistentModelIndex   m_Index     {       };
     QQmlContext           * m_pParentCtx{nullptr};
 
-    ContextAdapterFactoryPrivate* d_ptr;
+    ContextAdapterFactoryPrivate* d_ptr {nullptr};
     ContextAdapter* m_pBuilder;
 };
 
@@ -211,23 +229,38 @@ void ContextExtension::changeProperty(AbstractItemAdapter* item, uint id)
 {
     Q_UNUSED(item)
     Q_UNUSED(id)
-    /*auto dx = item->s_ptr->dynamicContext();
-    if (!dx)
-        return;TODO*/
+    Q_ASSERT(false);
+/*
+    const auto metaRole = &d_ptr->d_ptr->m_pMetaType->roles[id];
+    Q_ASSERT(metaRole);
+
+    auto mo = d_ptr->d_ptr->m_pMetaType->m_pMetaObject;
+
+    index()*/
 }
 
-void AbstractItemAdapter::flushCache()
+void ContextAdapter::flushCache()
 {
-    auto dx = s_ptr->contextAdapter()->d_ptr;
+    for (uint i = 0; i < d_ptr->m_pMetaType->propertyCount; i++) {
+        if (d_ptr->m_lVariants[i])
+            delete d_ptr->m_lVariants[i];
+
+        d_ptr->m_lVariants[i] = nullptr;
+    }
+}
+
+void AbstractItemAdapter::dismissCacheEntry(ContextExtension* e, int id)
+{
+    auto dx = s_ptr->m_pGeometry->contextAdapter()->d_ptr;
     if (!dx)
         return;
 
-    for (uint i = 0; i < dx->m_pMetaType->propertyCount; i++) {
-        if (dx->m_lVariants[i])
-            delete dx->m_lVariants[i];
+    Q_ASSERT(e);
+    Q_ASSERT(e->d_ptr->d_ptr->q_ptr == viewport()->modelAdapter()->contextAdapterFactory());
+    Q_ASSERT(e->d_ptr->d_ptr->m_lGroups[e->d_ptr->m_Id] == e);
+    Q_ASSERT(id >= 0 && id < e->size());
 
-        dx->m_lVariants[i] = nullptr;
-    }
+    dx->m_lVariants[e->d_ptr->m_Offset + id] = nullptr;
 }
 
 QVariant RoleGroup::getProperty(AbstractItemAdapter* item, uint id, const QModelIndex& index) const
@@ -236,12 +269,12 @@ QVariant RoleGroup::getProperty(AbstractItemAdapter* item, uint id, const QModel
     const auto metaRole = &d_ptr->m_pMetaType->roles[id];
 
     // Keep track of the accessed roles
-    if (!(metaRole->flags & MetaRole::Flags::READ)) {
+    if (!(metaRole->flags & MetaProperty::Flags::READ)) {
         d_ptr->m_pMetaType->used << metaRole;
-        qDebug() << "\n NEW ROLE!" << (*metaRole->name) << d_ptr->m_pMetaType->used.size();
+        //qDebug() << "\n NEW ROLE!" << (*metaRole->name) << d_ptr->m_pMetaType->used.size();
     }
 
-    metaRole->flags |= MetaRole::Flags::READ;
+    metaRole->flags |= MetaProperty::Flags::READ;
 
     return index.data(metaRole->roleId);
 }
@@ -335,9 +368,14 @@ void ContextAdapterFactoryPrivate::initGroup(const QHash<int, QByteArray>& rls)
         sizeof(GroupMetaData) * m_pMetaType->propertyCount
     );
 
-    uint offset(0), realId(0);
+    uint offset(0), realId(0), groupId(0);
 
     for (auto group : qAsConst(m_lGroups)) {
+        Q_ASSERT(!group->d_ptr->d_ptr);
+        group->d_ptr->d_ptr    = this;
+        group->d_ptr->m_Offset = offset;
+        group->d_ptr->m_Id     = groupId++;
+
         const int gs = group->size();
 
         for (uint i = 0; i < gs; i++)
@@ -361,16 +399,16 @@ void ContextAdapterFactoryPrivate::initGroup(const QHash<int, QByteArray>& rls)
     builder.setSuperClass(&QObject::staticMetaObject);
 
     // Use a C array like the moc would do because this is called **A LOT**
-    m_pMetaType->roles = new MetaRole[m_pMetaType->roleCount];
+    m_pMetaType->roles = new MetaProperty[m_pMetaType->propertyCount];
 
     // Setup the role metadata
     for (auto i = rls.constBegin(); i != rls.constEnd(); i++) {
         uint id = realId++;
-        MetaRole* r = &m_pMetaType->roles[id];
+        MetaProperty* r = &m_pMetaType->roles[id];
 
-        r->propId = id;
         r->roleId = i.key();
         r->name   = new QByteArray(i.value());
+        r->flags |= MetaProperty::Flags::IS_ROLE;
 
         m_pMetaType->m_hRoleIds[i.key()] = r;
     }
@@ -381,13 +419,17 @@ void ContextAdapterFactoryPrivate::initGroup(const QHash<int, QByteArray>& rls)
     for (const auto g : qAsConst(m_lGroups)) {
         for (uint j = 0; j < g->size(); j++) {
             uint id = realId++;
+            Q_ASSERT(id < m_pMetaType->propertyCount);
 
+            MetaProperty* r = &m_pMetaType->roles[id];
+            r->propId   = id;
             const auto name = g->getPropertyName(j);
 
             auto property = builder.addProperty(name, "QVariant");
             property.setWritable(true);
 
             auto signal = builder.addSignal(name + "Changed()");
+            r->signalId = signal.index();
             property.setNotifySignal(signal);
 
             // Set the cache bit
@@ -423,25 +465,41 @@ DynamicContext::~DynamicContext()
 //         m_pMetaType = nullptr;
 //     }
 
-void AbstractItemAdapter::updateRoles(const QVector<int> &modified) const
+bool ContextAdapter::updateRoles(const QVector<int> &modified) const
 {
-    auto dx = s_ptr->contextAdapter()->d_ptr;
-    if (dx)
-        return;
+    if (!d_ptr->d_ptr->m_pMetaType)
+        return false;
 
-    for (auto r : qAsConst(modified)) {
-        if (auto mr = dx->d_ptr->m_pMetaType->m_hRoleIds.value(r)) {
-            dx->metaObject()->invokeMethod(
-                dx, (*mr->name)+"Changed"
-            );
+    bool ret = false;
 
-            // This works because the role offset is always 0
-            if (dx->m_lVariants[mr->propId])
-                delete dx->m_lVariants[mr->propId];
-
-            dx->m_lVariants[mr->propId] = nullptr;
+    if (!modified.isEmpty()) {
+        for (auto r : qAsConst(modified)) {
+            if (auto mr = d_ptr->d_ptr->m_pMetaType->m_hRoleIds.value(r)) {
+                // This works because the role offset is always 0
+                if (d_ptr->m_lVariants[mr->propId]) {
+                    delete d_ptr->m_lVariants[mr->propId];
+                    d_ptr->m_lVariants[mr->propId] = nullptr;
+                    QMetaMethod m = d_ptr->metaObject()->method(mr->signalId);
+                    m.invoke(d_ptr);
+                    ret |= ret;
+                }
+            }
         }
     }
+    else {
+        // Only update the roles known to have an impact
+        for (auto mr : qAsConst(d_ptr->d_ptr->m_pMetaType->used)) {
+            if (d_ptr->m_lVariants[mr->propId]) {
+                delete d_ptr->m_lVariants[mr->propId];
+                d_ptr->m_lVariants[mr->propId] = nullptr;
+                QMetaMethod m = d_ptr->metaObject()->method(mr->signalId);
+                m.invoke(d_ptr);
+                ret = true;
+            }
+        }
+    }
+
+    return ret;
 }
 
 QAbstractItemModel *ContextAdapterFactory::model() const
@@ -501,6 +559,7 @@ ContextAdapterFactory::createAdapter(FactoryFunctor f, QQmlContext *parentContex
 
     d_ptr->finish();
     ret->d_ptr = new DynamicContext(const_cast<ContextAdapterFactory*>(this));
+    ret->d_ptr->d_ptr = d_ptr;
     ret->d_ptr->setParent(parentContext);
     ret->d_ptr->m_pBuilder   = ret;
     ret->d_ptr->m_pParentCtx = parentContext;
@@ -514,7 +573,9 @@ ContextAdapter* ContextAdapterFactory::createAdapter(QQmlContext *parentContext)
 }
 
 ContextAdapter::ContextAdapter(QQmlContext *parentContext)
-{}
+{
+    Q_UNUSED(parentContext)
+}
 
 ContextAdapter::~ContextAdapter()
 {}
@@ -556,7 +617,16 @@ QObject *ContextAdapter::contextObject() const
     return d_ptr;
 }
 
+bool ContextAdapter::isActive() const
+{
+    return d_ptr->m_pCtx;
+}
+
 AbstractItemAdapter* ContextAdapter::item() const
 {
     return nullptr;
 }
+
+ContextExtension::ContextExtension() : d_ptr(new ContextExtensionPrivate())
+{}
+

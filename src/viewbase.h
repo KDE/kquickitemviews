@@ -33,6 +33,11 @@ class ModelAdapter;
 class Viewport;
 class ViewBaseItemVariables;
 
+namespace StateTracker {
+    class ViewItem;
+    class ModelItem;
+}
+
 /**
  * Second generation of QtQuick treeview.
  *
@@ -48,16 +53,17 @@ class ViewBaseItemVariables;
  * could be folded into this widget (if it ever makes sense, otherwise they will
  * keep diverging).
  */
-class ViewBase : public Flickable
+class Q_DECL_EXPORT ViewBase : public Flickable
 {
     Q_OBJECT
-    friend struct TreeTraversalItems;
-    friend class VisualTreeItem;
+    friend struct StateTracker::ModelItem;
+    friend class StateTracker::ViewItem;
     friend class ViewBaseSync; // internal API
     friend class ModelAdapter; // call createItem
 public:
     struct ItemFactoryBase {
         virtual AbstractItemAdapter* create(Viewport* r) const = 0;
+        virtual ~ItemFactoryBase() {}
     };
 
     template<typename T> struct ItemFactory final : public ItemFactoryBase {

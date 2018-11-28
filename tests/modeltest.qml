@@ -17,19 +17,73 @@
  **************************************************************************/
 import QtQuick.Window 2.2
 import QtQuick 2.7
+import QtQuick.Layouts 1.0
 import RingQmlWidgets 1.0
+import QtQuick.Controls 2.0
+import org.kde.kirigami 2.2 as Kirigami
 
-Window {
+Kirigami.ApplicationWindow {
     id: window
     visible: true
 
-    Rectangle {
-        color: "black"
+    globalDrawer: Kirigami.GlobalDrawer {
+        id: globalDrawer
+        title: "KQuickItemViews"
+        bannerImageSource: ""
+        actions: [
+            Kirigami.Action {
+                iconName: "document-edit"
+                text: "HierarchyView"
+                onTriggered: {
+                    listview.model = treeTester
+                    treeTester.run()
+                }
+            },
+            Kirigami.Action {
+                iconName: "document-edit"
+                text: "HierarchyView (list)"
+                onTriggered: {
+//                     listview.model = treeTester2
+//                     treeTester2.run()
+                }
+            },
+            Kirigami.Action {
+                iconName: "document-edit"
+                text: "TreeView"
+                onTriggered: {}
+            },
+            Kirigami.Action {
+                iconName: "document-edit"
+                text: "ListView"
+                onTriggered: {}
+            }
+        ]
+        handleVisible: true
+        drawerOpen: false
+    }
+
+    ModelViewTester {
+        id: treeTester
+    }
+
+//     ListModelTester {
+//         id: treeTester2
+//     }
+
+    ColumnLayout {
         anchors.fill: parent
+
+        Slider {
+            Layout.fillWidth: true
+            from: 0
+            to: 5000
+            onValueChanged: treeTester.interval = value
+        }
 
         QuickTreeView {
             id: listview
-            anchors.fill: parent
+            Layout.fillHeight: true
+            Layout.fillWidth: true
             model: testmodel
             delegate: Rectangle {
                 anchors.leftMargin: offset

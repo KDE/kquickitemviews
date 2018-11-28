@@ -18,6 +18,12 @@
 #include "modelviewtester.h"
 
 #include <QtCore/QDebug>
+#include <QMetaObject>
+#include <QMetaMethod>
+
+#include <functional>
+
+#define DO(slot) steps << QString(#slot) ;
 
 struct ModelViewTesterItem
 {
@@ -25,19 +31,78 @@ struct ModelViewTesterItem
     ModelViewTesterItem(ModelViewTesterItem* p, const QHash<int, QVariant>& vals, int i = -1);
 
     int m_Index {0};;
-    QHash<int, QVariant> m_hValues;
     ModelViewTesterItem* m_pParent {nullptr};
+    QHash<int, QVariant> m_hValues;
     QVector<ModelViewTesterItem*> m_lChildren;
 };
 
-ModelViewTester::ModelViewTester(QObject* parent)
+ModelViewTester::ModelViewTester(QObject* parent) : QAbstractItemModel(parent)
 {
     m_pRoot = new ModelViewTesterItem;
+
+    // Append
+    DO(appendSimpleRoot);
+    DO(appendSimpleRoot);
+    DO(appendSimpleRoot);
+    DO(appendSimpleRoot);
+    DO(appendSimpleRoot);
+
+    DO(appendRootChildren);
+    DO(appendRootChildren);
+    DO(appendRootChildren);
+    DO(appendRootChildren);
+
+    // Prepend
+    DO(prependSimpleRoot);
+
+    // Move
+    DO(moveRootToFront);
+    DO(moveChildByOne);
+    DO(moveChildByParent);
+    DO(moveToGrandChildren);
+    //TODO moveFirst
+    //TODO moveLast
+
+    // Insert
+    DO(insertRoot);
+    DO(insertFirst);
+    DO(insertChild);
+
+    // Remove
+    DO(removeRoot);
+    DO(resetModel);
+
+    // Larger tree
+    DO(largeFrontTree);
+    DO(removeLargeTree);
+    DO(removeLargeTree2);
+    DO(largeFrontTree2);
+    DO(removeLargeTree2);
+    DO(removeLargeTree3);
+
+    // Larger move (with out of view)
+
 }
 
 ModelViewTester::~ModelViewTester()
 {
 
+}
+
+void ModelViewTester::run() {
+    m_pTimer->setInterval(100);
+
+    QObject::connect(m_pTimer, &QTimer::timeout, this, [this]() {
+        int methodIndex = metaObject()->indexOfMethod((steps[count]+"()").toLatin1());
+        metaObject()->method(methodIndex).invoke(this, Qt::QueuedConnection);
+        count++;
+        if (count == steps.size()) {
+            m_pTimer->stop();
+            count = 0;
+        }
+    });
+
+    m_pTimer->start();
 }
 
 bool ModelViewTester::setData( const QModelIndex& index, const QVariant &value, int role   )
@@ -70,7 +135,7 @@ int ModelViewTester::rowCount( const QModelIndex& parent) const
 
 int ModelViewTester::columnCount( const QModelIndex& parent ) const
 {
-    return 1; //FIXME not really true
+    return parent.isValid() ? 0 : 1; //FIXME not really true
 }
 
 QModelIndex ModelViewTester::parent( const QModelIndex& index ) const
@@ -111,6 +176,7 @@ bool ModelViewTester::dropMimeData( const QMimeData* data, Qt::DropAction action
     Q_UNUSED(action)
     Q_UNUSED(row)
     Q_UNUSED(column)
+    Q_UNUSED(parent)
     return false; //TODO
 }
 
@@ -273,7 +339,7 @@ void ModelViewTester::moveToGrandChildren()
     };
 
     m_pRoot->m_lChildren.remove(1);
-    m_pRoot->m_lChildren.remove(2);
+    m_pRoot->m_lChildren.remove(1);
 
     newPar->m_lChildren << elem1 << elem2;
 
@@ -356,6 +422,98 @@ void ModelViewTester::removeRoot()
 void ModelViewTester::resetModel()
 {
     beginResetModel();
+    qDeleteAll(m_pRoot->m_lChildren);
     m_pRoot->m_lChildren.clear();
     endResetModel();
+}
+
+void ModelViewTester::largeFrontTree()
+{
+    for (int i = 0; i < 100; i++) {
+        beginInsertRows({}, 0, 0);
+
+        QHash<int, QVariant> vals = {
+            {Qt::DisplayRole, "inserted root 1"},
+            {Qt::UserRole, 0}
+        };
+
+        auto itm = new ModelViewTesterItem(m_pRoot, vals, 0);
+
+        endInsertRows();
+
+        auto p = createIndex(0, 0, itm);
+
+        beginInsertRows(p, 0, 4);
+        for (int j = 0; j < 5; j++) {
+            QHash<int, QVariant> vals2 = {
+                {Qt::DisplayRole, "children "+QString::number(j)},
+                {Qt::UserRole, 0}
+            };
+
+            new ModelViewTesterItem(itm, vals2, 0);
+        }
+        endInsertRows();
+    }
+}
+
+// Test removing elements when some are out of view
+void ModelViewTester::removeLargeTree()
+{
+    for (int i = 0; i < 100; i++) {
+        auto parent = m_pRoot->m_lChildren[i];
+        auto idx = createIndex(i, 0, parent);
+
+        beginRemoveRows(idx, 3, 3);
+        delete parent->m_lChildren[3];
+        parent->m_lChildren.remove(3);
+        endRemoveRows();
+    }
+}
+
+// Test removing multiple item at once with out-of-view
+void ModelViewTester::removeLargeTree2()
+{
+    for (int i = 0; i < 100; i++) {
+        auto parent = m_pRoot->m_lChildren[i];
+        const int s =  parent->m_lChildren.size();
+        auto idx = createIndex(i, 0, parent);
+
+        beginRemoveRows(idx, 0, s);
+        for (int j = 0; j < s; j++)
+            delete parent->m_lChildren[j];
+        parent->m_lChildren.clear();
+        endRemoveRows();
+    }
+}
+
+// Test removing out-of-view item until the viewport is empty
+void ModelViewTester::removeLargeTree3()
+{
+    while (m_pRoot->m_lChildren.size()) {
+        const int pos = m_pRoot->m_lChildren.size()/2;
+        beginRemoveRows({}, pos, pos);
+        delete m_pRoot->m_lChildren[pos];
+        m_pRoot->m_lChildren.remove(pos);
+        endRemoveRows();
+    }
+}
+
+// Insert more items that can fit in the view
+void ModelViewTester::largeFrontTree2()
+{
+    for (int i = 0; i < 100; i++) {
+        auto parent = m_pRoot->m_lChildren[i];
+        auto idx = createIndex(i, 0, parent);
+
+        beginInsertRows(idx, 0, 19);
+        for (int j = 0; j < 20; j++) {
+            QHash<int, QVariant> vals = {
+                {Qt::DisplayRole, "children v2 "+QString::number(j)},
+                {Qt::UserRole, 0}
+            };
+
+            new ModelViewTesterItem(parent, vals, 0);
+        }
+        endInsertRows();
+    }
 }

@@ -40,7 +40,7 @@ class HierarchyViewPrivate;
  * could be folded into this widget (if it ever makes sense, otherwise they will
  * keep diverging).
  */
-class HierarchyView : public SingleModelViewBase
+class Q_DECL_EXPORT HierarchyView : public SingleModelViewBase
 {
     Q_OBJECT
 

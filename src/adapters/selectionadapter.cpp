@@ -18,7 +18,7 @@
 #include "selectionadapter.h"
 
 // KQuickItemViews
-#include "selectionadapter_p.h"
+#include "private/selectionadapter_p.h"
 #include "viewbase.h"
 #include "abstractitemadapter.h"
 #include "extensions/contextextension.h"

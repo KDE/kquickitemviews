@@ -15,42 +15,50 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
+#pragma once
 
-struct TreeTraversalItems;
-class TreeTraversalReflector;
-class VisualTreeItem;
+#include <QtCore/QRectF>
+#include <QtCore/QModelIndexList>
+
+#include <private/indexmetadata_p.h>
+
+class ProximityPrivate;
+
+namespace StateTracker {
+
+class Index;
 
 /**
- * For size modes like UniformRowHeight, it's pointless to keep track of
- * every single elements (potentially without a TreeTraversalItem).
+ * Track if the elements next to this one are loaded.
  *
- * Even in the case of individual item, it may not be worth the extra memory
- * and recomputing them on demand may make sense.
+ * This tries to prevent accidental "holes" with unloaded elements between
+ * two visible ones.
+ *
+ * This state tracker doesn't know about what's loaded and what's not. To
+ * make it work, it is important to send all relevent events otherwise it will
+ * go out of sync and start doing useless model queries (but hopefully nothing
+ * worst).
  */
-struct BlockMetadata
-{
-    enum class Mode {
-        SINGLE,
-        BLOCK
-    };
-
-    Mode    m_Mode    {Mode::SINGLE};
-    QPointF m_Position;
-    QSizeF  m_Size;
-    TreeTraversalItems* m_pTTI {nullptr};
-};
-
-/**
- * In order to keep the separation of concerns design goal intact, this
- * interface between the TreeTraversalReflector and Viewport internal
- * metadata without exposing them.
- */
-class ViewportSync final
+class Proximity
 {
 public:
-    void geometryUpdated(VisualTreeItem* item);
+    explicit Proximity(IndexMetadata *q, StateTracker::Index *self);
 
-    inline void updateSingleItem(const QModelIndex& index, BlockMetadata* b);
+    enum class State {
+        UNKNOWN , /*!< The information is not availablr           */
+        LOADED  , /*!< The edges are valid                        */
+        MOVED   , /*!< It was valid, but some elements moved      */
+        UNLOADED, /*!< It is known that some edges are not loaded */
+    };
 
-    Viewport *q_ptr;
+    void performAction(IndexMetadata::ProximityAction a, Qt::Edge e);
+
+    bool canLoadMore(Qt::Edge e);
+
+    QModelIndexList getNext(Qt::Edge e);
+
+private:
+    ProximityPrivate *d_ptr;
 };
+
+}

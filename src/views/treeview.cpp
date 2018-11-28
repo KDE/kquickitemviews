@@ -97,8 +97,8 @@ bool TreeViewItem::move()
 
     item()->setWidth(view()->contentItem()->width());
 
-    auto nextElem = static_cast<TreeViewItem*>(down());
-    auto prevElem = static_cast<TreeViewItem*>(up());
+    auto nextElem = static_cast<TreeViewItem*>(next(Qt::BottomEdge));
+    auto prevElem = static_cast<TreeViewItem*>(next(Qt::TopEdge));
 
     // The root has been moved in the middle of the tree, find the new root
     //TODO maybe add a deterministic API instead of O(N) lookup
@@ -106,7 +106,7 @@ bool TreeViewItem::move()
         m_IsHead = false;
 
         auto root = prevElem;
-        while (auto prev = root->up())
+        while (auto prev = root->next(Qt::TopEdge))
             root = static_cast<TreeViewItem*>(prev);
 
         root->move();
@@ -151,8 +151,8 @@ bool TreeViewItem::remove()
         item()->setVisible(false);
     }
 
-    auto nextElem = static_cast<TreeViewItem*>(down());
-    auto prevElem = static_cast<TreeViewItem*>(up());
+    auto nextElem = static_cast<TreeViewItem*>(next(Qt::BottomEdge));
+    auto prevElem = static_cast<TreeViewItem*>(next(Qt::TopEdge));
 
     if (nextElem) {
         if (m_IsHead) {
@@ -178,6 +178,7 @@ QVector<QByteArray>& TreeContextProperties::propertyNames() const
 
 QVariant TreeContextProperties::getProperty(AbstractItemAdapter* item, uint id, const QModelIndex& index) const
 {
+    Q_UNUSED(index);
     Q_ASSERT(id == 0 && item);
     return !item->isCollapsed();
 }

@@ -36,7 +36,7 @@ class AbstractItemAdapter;
 * This class is for internal use and should not be used by views. Please use
 * `ViewBase` for all relevant use cases.
 */
-class Viewport : public QObject
+class Q_DECL_EXPORT Viewport : public QObject
 {
     friend class AbstractItemAdapter; // for the getters defined in viewport.cpp
     friend class TreeTraversalReflector; // notify of model changes
@@ -87,11 +87,12 @@ public:
     //TODO remove
     AbstractItemAdapter* itemForIndex(const QModelIndex& idx) const;
 
+    void resize(const QRectF& rect);
+
 Q_SIGNALS:
     void contentChanged();
 
 public:
     ViewportSync *s_ptr;
-private:
     ViewportPrivate *d_ptr;
 };

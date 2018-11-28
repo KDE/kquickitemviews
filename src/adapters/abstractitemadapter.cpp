@@ -27,12 +27,14 @@
 #include <QQmlEngine>
 
 // KQuickItemViews
-#include "abstractitemadapter_p.h"
+#include "private/statetracker/viewitem_p.h"
 #include "adapters/selectionadapter.h"
-#include "adapters/selectionadapter_p.h"
+#include "private/selectionadapter_p.h"
 #include "viewport.h"
-#include "viewport_p.h"
+#include "private/indexmetadata_p.h"
+#include "private/viewport_p.h"
 #include "modeladapter.h"
+#include "private/statetracker/index_p.h"
 #include "viewbase.h"
 #include "contextadapterfactory.h"
 #include "contextadapter.h"
@@ -67,8 +69,9 @@ public:
     bool error  ();
     bool destroy();
     bool detach ();
+    bool hide   ();
 
-    static const VisualTreeItem::State  m_fStateMap    [7][7];
+    static const StateTracker::ViewItem::State  m_fStateMap    [7][7];
     static const StateF                 m_fStateMachine[7][7];
 
     mutable QSharedPointer<AbstractItemAdapter::SelectionLocker> m_pLocker;
@@ -77,33 +80,11 @@ public:
     mutable QQmlContext *m_pContext {nullptr};
 
     // Helpers
-    QPair<QQuickItem*, QQmlContext*> loadDelegate(QQuickItem* parentI, QQmlContext* parentCtx) const;
+    QPair<QQuickItem*, QQmlContext*> loadDelegate(QQuickItem* parentI) const;
     ViewBaseItemVariables *sharedVariables() const;
 
     // Attributes
     AbstractItemAdapter* q_ptr;
-};
-
-
-/**
- * Extend the class for the need of needs of the AbstractItemAdapter.
- */
-class ViewItemContextAdapter final : public ContextAdapter
-{
-public:
-    explicit ViewItemContextAdapter(QQmlContext* p) : ContextAdapter(p){}
-    virtual ~ViewItemContextAdapter() {
-        m_pItem->flushCache();
-        m_pItem->context()->setContextObject(nullptr);
-    }
-
-    virtual QQmlContext         *context() const override;
-    virtual QModelIndex          index  () const override;
-    virtual AbstractItemAdapter *item   () const override;
-
-    mutable std::atomic_flag m_InitContext = ATOMIC_FLAG_INIT;
-
-    AbstractItemAdapter* m_pItem;
 };
 
 /*
@@ -112,13 +93,13 @@ public:
  * Note that the ::FAILED elements will always try to self-heal themselves and
  * go back into FAILED once the self-healing itself failed.
  */
-#define S VisualTreeItem::State::
-const VisualTreeItem::State AbstractItemAdapterPrivate::m_fStateMap[7][7] = {
+#define S StateTracker::ViewItem::State::
+const StateTracker::ViewItem::State AbstractItemAdapterPrivate::m_fStateMap[7][7] = {
 /*              ATTACH ENTER_BUFFER ENTER_VIEW UPDATE    MOVE   LEAVE_BUFFER  DETACH  */
-/*POOLING */ { S POOLING, S BUFFER, S ERROR , S ERROR , S ERROR , S ERROR  , S DANGLING },
-/*POOLED  */ { S POOLED , S BUFFER, S ERROR , S ERROR , S ERROR , S ERROR  , S DANGLING },
+/*POOLING */ { S POOLING, S BUFFER, S ERROR , S ERROR , S ERROR , S ERROR  , S POOLED   },
+/*POOLED  */ { S POOLED , S BUFFER, S ACTIVE, S ERROR , S ERROR , S ERROR  , S DANGLING },
 /*BUFFER  */ { S ERROR  , S ERROR , S ACTIVE, S BUFFER, S ERROR , S POOLING, S DANGLING },
-/*ACTIVE  */ { S ERROR  , S BUFFER, S ERROR , S ACTIVE, S ACTIVE, S POOLING, S POOLING  },
+/*ACTIVE  */ { S ERROR  , S BUFFER, S ERROR , S ACTIVE, S ACTIVE, S BUFFER , S POOLING  },
 /*FAILED  */ { S ERROR  , S BUFFER, S ACTIVE, S ACTIVE, S ACTIVE, S POOLING, S DANGLING },
 /*DANGLING*/ { S ERROR  , S ERROR , S ERROR , S ERROR , S ERROR , S ERROR  , S DANGLING },
 /*ERROR   */ { S ERROR  , S ERROR , S ERROR , S ERROR , S ERROR , S ERROR  , S DANGLING },
@@ -128,11 +109,11 @@ const VisualTreeItem::State AbstractItemAdapterPrivate::m_fStateMap[7][7] = {
 #define A &AbstractItemAdapterPrivate::
 const AbstractItemAdapterPrivate::StateF AbstractItemAdapterPrivate::m_fStateMachine[7][7] = {
 /*             ATTACH  ENTER_BUFFER  ENTER_VIEW   UPDATE     MOVE   LEAVE_BUFFER  DETACH  */
-/*POOLING */ { A error  , A error  , A error  , A error  , A error  , A error  , A error   },
-/*POOLED  */ { A nothing, A attach , A error  , A error  , A error  , A error  , A destroy },
+/*POOLING */ { A error  , A error  , A error  , A error  , A error  , A error  , A nothing },
+/*POOLED  */ { A nothing, A attach , A move   , A error  , A error  , A error  , A destroy },
 /*BUFFER  */ { A error  , A error  , A move   , A refresh, A error  , A detach , A destroy },
-/*ACTIVE  */ { A error  , A nothing, A error  , A refresh, A move   , A detach , A detach  },
-/*FAILED  */ { A error  , A attach , A attach , A attach , A attach , A detach , A destroy },
+/*ACTIVE  */ { A error  , A nothing, A nothing, A refresh, A move   , A hide   , A detach  },
+/*FAILED  */ { A error  , A nothing, A nothing, A nothing, A nothing, A nothing, A destroy },
 /*DANGLING*/ { A error  , A error  , A error  , A error  , A error  , A error  , A destroy },
 /*error   */ { A error  , A error  , A error  , A error  , A error  , A error  , A destroy },
 };
@@ -140,7 +121,7 @@ const AbstractItemAdapterPrivate::StateF AbstractItemAdapterPrivate::m_fStateMac
 
 AbstractItemAdapter::AbstractItemAdapter(Viewport* r) :
     d_ptr(new AbstractItemAdapterPrivate),
-    s_ptr(new VisualTreeItem(r->modelAdapter()->view(), r))
+    s_ptr(new StateTracker::ViewItem(r->modelAdapter()->view(), r))
 {
     d_ptr->q_ptr = this;
     s_ptr->d_ptr = this;
@@ -182,27 +163,9 @@ QPersistentModelIndex AbstractItemAdapter::index() const
     return s_ptr->index();
 }
 
-AbstractItemAdapter* AbstractItemAdapter::up() const
+AbstractItemAdapter *AbstractItemAdapter::next(Qt::Edge e) const
 {
-    const auto i = s_ptr->up();
-    return i ? i->d_ptr : nullptr;
-}
-
-AbstractItemAdapter* AbstractItemAdapter::down() const
-{
-    const auto i = s_ptr->down();
-    return i ? i->d_ptr : nullptr;
-}
-
-AbstractItemAdapter* AbstractItemAdapter::left() const
-{
-    const auto i = s_ptr->left();
-    return i ? i->d_ptr : nullptr;
-}
-
-AbstractItemAdapter* AbstractItemAdapter::right() const
-{
-    const auto i = s_ptr->right();
+    const auto i = s_ptr->next(e);
     return i ? i->d_ptr : nullptr;
 }
 
@@ -216,23 +179,26 @@ void AbstractItemAdapter::updateGeometry()
     s_ptr->updateGeometry();
 }
 
-void VisualTreeItem::setSelected(bool v)
+void StateTracker::ViewItem::setSelected(bool v)
 {
     d_ptr->setSelected(v);
 }
 
-QRectF VisualTreeItem::geometry() const
+QRectF StateTracker::ViewItem::geometry() const
 {
     return d_ptr->geometry();
 }
 
-QQuickItem* VisualTreeItem::item() const
+QQuickItem* StateTracker::ViewItem::item() const
 {
     return d_ptr->item();
 }
 
 bool AbstractItemAdapterPrivate::attach()
 {
+    if (m_pItem)
+        m_pItem->setVisible(true);
+
     return q_ptr->attach();
 }
 
@@ -243,7 +209,13 @@ bool AbstractItemAdapterPrivate::refresh()
 
 bool AbstractItemAdapterPrivate::move()
 {
-    return q_ptr->move();
+    const bool ret = q_ptr->move();
+
+    // Views should apply the geometry they have been told to apply. Otherwise
+    // all optimizations brakes.
+//     Q_ASSERT((!ret) || q_ptr->s_ptr->m_pGeometry->isInSync());
+
+    return ret;
 }
 
 bool AbstractItemAdapterPrivate::flush()
@@ -253,16 +225,33 @@ bool AbstractItemAdapterPrivate::flush()
 
 bool AbstractItemAdapterPrivate::remove()
 {
-    return q_ptr->remove();
+    bool ret = q_ptr->remove();
+
+    m_pItem->setParentItem(nullptr);
+    q_ptr->s_ptr->m_pTTI = nullptr;
+
+    return ret;
+}
+
+bool AbstractItemAdapterPrivate::hide()
+{
+    Q_ASSERT(m_pItem);
+    if (!m_pItem)
+        return false;
+
+    m_pItem->setVisible(false);
+
+    return true;
 }
 
 // This methodwrap the removal of the element from the view
 bool AbstractItemAdapterPrivate::detach()
 {
+    m_pItem->setParentItem(nullptr);
     remove();
 
     //FIXME
-    q_ptr->s_ptr->m_State = VisualTreeItem::State::POOLED;
+    q_ptr->s_ptr->m_State = StateTracker::ViewItem::State::POOLED;
 
     return true;
 }
@@ -285,6 +274,11 @@ bool AbstractItemAdapterPrivate::destroy()
 {
     auto ptrCopy = m_pLocker;
 
+    //FIXME manage to add to the pool without a SEGFAULT
+    m_pItem->setParentItem(nullptr);
+    delete m_pItem;
+    m_pItem = nullptr;
+
     QTimer::singleShot(0,[this, ptrCopy]() {
         if (!ptrCopy)
             delete this;
@@ -297,14 +291,15 @@ bool AbstractItemAdapterPrivate::destroy()
     return true;
 }
 
-bool VisualTreeItem::performAction(VisualTreeItem::ViewAction a)
+bool StateTracker::ViewItem::performAction(IndexMetadata::ViewAction a)
 {
-    //if (m_State == VisualTreeItem::State::FAILED)
+    //if (m_State == StateTracker::ViewItem::State::FAILED)
     //    m_pTTI->d_ptr->m_FailedCount--;
 
     const int s = (int)m_State;
+
     m_State     = d_ptr->d_ptr->m_fStateMap [s][(int)a];
-    Q_ASSERT(m_State != VisualTreeItem::State::ERROR);
+    Q_ASSERT(m_State != StateTracker::ViewItem::State::ERROR);
 
     const bool ret = (d_ptr->d_ptr ->* d_ptr->d_ptr->m_fStateMachine[s][(int)a])();
 
@@ -312,18 +307,18 @@ bool VisualTreeItem::performAction(VisualTreeItem::ViewAction a)
      * It can happen normally. For example, if the QML initialization sets the
      * model before the delegate.
      */
-    if (m_State == VisualTreeItem::State::FAILED || !ret) {
+    if (m_State == StateTracker::ViewItem::State::FAILED || !ret) {
         //Q_ASSERT(false);
-        m_State = VisualTreeItem::State::FAILED;
+        m_State = StateTracker::ViewItem::State::FAILED;
         //m_pTTI->d_ptr->m_FailedCount++;
     }
 
     return ret;
 }
 
-int VisualTreeItem::depth() const
+int StateTracker::ViewItem::depth() const
 {
-    return 0;//FIXME m_pTTI->m_Depth;
+    return m_pGeometry->indexTracker()->depth();
 }
 
 QPair<QWeakPointer<AbstractItemAdapter::SelectionLocker>, AbstractItemAdapter*>
@@ -348,10 +343,7 @@ void AbstractItemAdapterPrivate::load()
         return;
     }
 
-    auto pair = loadDelegate(
-        q_ptr->view()->contentItem(),
-        q_ptr->view()->rootContext()
-    );
+    auto pair = loadDelegate(q_ptr->view()->contentItem());
 
     if (!pair.first) {
         qDebug() << "Item failed to load" << q_ptr->index().data();
@@ -369,7 +361,32 @@ void AbstractItemAdapterPrivate::load()
     m_pContext = pair.second;
     m_pItem    = pair.first;
 
-    q_ptr->s_ptr->updateContext();
+    Q_ASSERT(q_ptr->s_ptr->m_pGeometry);
+
+    q_ptr->s_ptr->m_pGeometry->contextAdapter()->context();
+
+    Q_ASSERT(q_ptr->s_ptr->m_pGeometry->contextAdapter()->context() == m_pContext);
+
+    // Update the geometry cache
+    switch (q_ptr->s_ptr->m_pRange->sizeHintStrategy()){
+        case Viewport::SizeHintStrategy::JIT:
+        case Viewport::SizeHintStrategy::AOT:
+            q_ptr->s_ptr->m_pGeometry->setSize(
+                QSizeF(m_pItem->width(), m_pItem->height())
+            );
+            break;
+        case Viewport::SizeHintStrategy::PROXY:
+        case Viewport::SizeHintStrategy::ROLE:
+        case Viewport::SizeHintStrategy::DELEGATE:
+            q_ptr->s_ptr->m_pGeometry->performAction(
+                IndexMetadata::GeometryAction::MODIFY
+            );
+            break;
+        case Viewport::SizeHintStrategy::UNIFORM:
+            break;
+    }
+
+    Q_ASSERT(q_ptr->s_ptr->m_pGeometry->removeMe() != (int)StateTracker::Geometry::State::INIT);
 }
 
 QQmlContext *AbstractItemAdapter::context() const
@@ -403,18 +420,31 @@ QRectF AbstractItemAdapter::geometry() const
     };
 }
 
+QRectF AbstractItemAdapter::decoratedGeometry() const
+{
+    return s_ptr->m_pGeometry->decoratedGeometry();
+}
+
+qreal AbstractItemAdapter::borderDecoration(Qt::Edge e) const
+{
+    return s_ptr->m_pGeometry->borderDecoration(e);
+}
+
+void AbstractItemAdapter::setBorderDecoration(Qt::Edge e, qreal r)
+{
+    s_ptr->m_pGeometry->setBorderDecoration(e, r);
+}
+
 bool AbstractItemAdapter::refresh()
 {
-    if (context())
-        s_ptr->updateContext();
-
     return true;
 }
 
 bool AbstractItemAdapter::attach()
 {
     Q_ASSERT(index().isValid());
-    return item() && move();
+
+    return item();// && move();
 }
 
 bool AbstractItemAdapter::flush()
@@ -425,14 +455,12 @@ bool AbstractItemAdapter::flush()
 void AbstractItemAdapter::setSelected(bool /*s*/)
 {}
 
-QPair<QQuickItem*, QQmlContext*> AbstractItemAdapterPrivate::loadDelegate(QQuickItem* parentI, QQmlContext* parentCtx) const
+QPair<QQuickItem*, QQmlContext*> AbstractItemAdapterPrivate::loadDelegate(QQuickItem* parentI) const
 {
     if (!q_ptr->s_ptr->m_pRange->modelAdapter()->delegate())
         return {};
 
-    // Create a context for the container, it's the only way to force anchors
-    // to work
-    auto pctx = new QQmlContext(parentCtx);
+    auto pctx = q_ptr->s_ptr->m_pGeometry->contextAdapter()->context();
 
     // Create a parent item to hold the delegate and all children
     auto container = qobject_cast<QQuickItem *>(sharedVariables()->component()->create(pctx));
@@ -468,54 +496,6 @@ QPair<QQuickItem*, QQmlContext*> AbstractItemAdapterPrivate::loadDelegate(QQuick
     return {container, pctx};
 }
 
-ContextAdapter* VisualTreeItem::contextAdapter() const
-{
-    if (!m_pContextAdapter) {
-        auto cm = m_pRange->modelAdapter()->contextAdapterFactory();
-        m_pContextAdapter = cm->createAdapter<ViewItemContextAdapter>();
-        m_pContextAdapter->m_pItem = d_ptr;
-    }
-
-    return m_pContextAdapter;
-}
-
-QModelIndex ViewItemContextAdapter::index() const
-{
-    return m_pItem->index();
-}
-
-QQmlContext* ViewItemContextAdapter::context() const
-{
-    if (!m_InitContext.test_and_set()) {
-        m_pItem->d_ptr->m_pContext->setContextObject(contextObject());
-    }
-
-    return m_pItem->d_ptr->m_pContext;
-}
-
-AbstractItemAdapter* ViewItemContextAdapter::item() const
-{
-    return m_pItem;
-}
-
-void VisualTreeItem::updateContext()
-{
-    if (m_pContextAdapter)
-        return;
-
-    ContextAdapterFactory* cm = m_pRange->modelAdapter()->contextAdapterFactory();
-
-    const QModelIndex self = d_ptr->index();
-    Q_ASSERT(self.model());
-    cm->setModel(const_cast<QAbstractItemModel*>(self.model()));
-
-    // This will init the context now. If the method has been re-implemented in
-    // a busclass, it might do important thing and otherwise never be called.
-    contextAdapter()->context();
-
-    Q_ASSERT(m_pContextAdapter);
-}
-
 QQmlEngine *ViewBaseItemVariables::engine()
 {
     if (!m_pEngine)
@@ -544,39 +524,144 @@ ViewBaseItemVariables *AbstractItemAdapterPrivate::sharedVariables() const
     return q_ptr->s_ptr->m_pView->m_pItemVars;
 }
 
-ViewBase* VisualTreeItem::view() const
+ViewBase* StateTracker::ViewItem::view() const
 {
     return m_pView;
 }
 
-void VisualTreeItem::updateGeometry()
+void StateTracker::ViewItem::updateGeometry()
 {
-    const auto geo = geometry();
+    geometry();
 
     //TODO handle up/left/right too
-
-    if (!down()) {
-        view()->contentItem()->setHeight(std::max(
-            geo.y()+geo.height(), view()->height()
-        ));
-
-        emit view()->contentHeightChanged(view()->contentItem()->height());
-    }
 
     const auto sm = m_pRange->modelAdapter()->selectionAdapter();
 
     if (sm && sm->selectionModel() && sm->selectionModel()->currentIndex() == index())
         sm->s_ptr->updateSelection(index());
 
-    m_pRange->s_ptr->geometryUpdated(this);
+    m_pRange->s_ptr->geometryUpdated(m_pGeometry);
+}
+
+QQmlContext *StateTracker::ViewItem::context() const
+{
+    return d_ptr->d_ptr->m_pContext;
 }
 
 void AbstractItemAdapter::setCollapsed(bool v)
 {
-    s_ptr->m_IsCollapsed = v;
+    s_ptr->setCollapsed(v);
 }
 
 bool AbstractItemAdapter::isCollapsed() const
 {
-    return s_ptr->m_IsCollapsed;
+    return s_ptr->isCollapsed();
+}
+
+QSizeF AbstractItemAdapter::sizeHint() const
+{
+    return s_ptr->m_pGeometry->sizeHint();
+}
+
+QPersistentModelIndex StateTracker::ViewItem::index() const
+{
+    return QModelIndex(m_pGeometry->indexTracker()->index());
+}
+
+/**
+ * Flatten the tree as a linked list.
+ *
+ * Returns the previous non-failed item.
+ */
+StateTracker::ViewItem* StateTracker::ViewItem::up() const
+{
+    Q_ASSERT(m_State == State::ACTIVE
+        || m_State == State::BUFFER
+        || m_State == State::FAILED
+        || m_State == State::POOLING
+        || m_State == State::DANGLING //FIXME add a new state for
+        // "deletion in progress" or swap the f call and set state
+    );
+
+    auto ret = m_pGeometry->indexTracker()->up();
+    //TODO support collapsed nodes
+
+    // Linearly look for a valid element. Doing this here allows the views
+    // that implement this (abstract) class to work without having to always
+    // check if some of their item failed to load. This is non-fatal in the
+    // other Qt views, so it isn't fatal here either.
+    while (ret && !ret->metadata()->viewTracker())
+        ret = ret->up();
+
+    if (ret && ret->metadata()->viewTracker())
+        Q_ASSERT(ret->metadata()->viewTracker()->m_State != State::POOLING && ret->metadata()->viewTracker()->m_State != State::DANGLING);
+
+    auto vi = ret ? ret->metadata()->viewTracker() : nullptr;
+
+    // Do not allow navigating past the loaded edges
+    if (vi && (vi->m_State == State::POOLING || vi->m_State == State::POOLED))
+        return nullptr;
+
+    return vi;
+}
+
+/**
+ * Flatten the tree as a linked list.
+ *
+ * Returns the next non-failed item.
+ */
+StateTracker::ViewItem* StateTracker::ViewItem::down() const
+{
+    Q_ASSERT(m_State == State::ACTIVE
+        || m_State == State::BUFFER
+        || m_State == State::FAILED
+        || m_State == State::POOLING
+        || m_State == State::DANGLING //FIXME add a new state for
+        // "deletion in progress" or swap the f call and set state
+    );
+
+    auto ret = m_pGeometry->indexTracker();
+    //TODO support collapsed entries
+
+    // Recursively look for a valid element. Doing this here allows the views
+    // that implement this (abstract) class to work without having to always
+    // check if some of their item failed to load. This is non-fatal in the
+    // other Qt views, so it isn't fatal here either.
+    while (ret && !ret->metadata()->viewTracker())
+        ret = ret->down();
+
+    auto vi = ret ? ret->metadata()->viewTracker() : nullptr;
+
+    // Do not allow navigating past the loaded edges
+    if (vi && (vi->m_State == State::POOLING || vi->m_State == State::POOLED))
+        return nullptr;
+
+    return vi;
+}
+
+StateTracker::ViewItem *StateTracker::ViewItem::next(Qt::Edge e) const
+{
+    switch (e) {
+        case Qt::TopEdge:
+            return up();
+        case Qt::BottomEdge:
+            return down();
+        case Qt::LeftEdge:
+            return left();
+        case Qt::RightEdge:
+            return right();
+    }
+
+    Q_ASSERT(false);
+    return {};
+}
+
+int StateTracker::ViewItem::row() const
+{
+    return m_pGeometry->indexTracker()->effectiveRow();
+}
+
+int StateTracker::ViewItem::column() const
+{
+    return m_pGeometry->indexTracker()->effectiveColumn();
 }

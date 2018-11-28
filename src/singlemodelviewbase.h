@@ -32,7 +32,7 @@ class SingleModelViewBasePrivate;
  * the widgets to be (almost) drop-in replacements for the ones provided
  * by QtQuick2.
  */
-class SingleModelViewBase : public ViewBase
+class Q_DECL_EXPORT SingleModelViewBase : public ViewBase
 {
     Q_OBJECT
 public:

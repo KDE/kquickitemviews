@@ -22,12 +22,19 @@
 #include <QtCore/QAbstractItemModel>
 
 // KQuickViews
-struct TreeTraversalItems;
-class VisualTreeItem;
+namespace StateTracker {
+    struct ModelItem;
+    struct Model;
+}
+
 class TreeTraversalReflectorPrivate;
 class AbstractItemAdapter;
 class Viewport;
+#include "indexmetadata_p.h"
 
+namespace {
+    class ViewItem;
+}
 
 /**
  * This class refects a QAbstractItemModel (realtime) topology.
@@ -56,42 +63,28 @@ class Viewport;
 class TreeTraversalReflector final : public QObject
 {
     Q_OBJECT
-    friend struct TreeTraversalItems; // Internal representation
+    friend struct StateTracker::ModelItem; // Internal representation
 public:
 
-    explicit TreeTraversalReflector(QObject* parent = nullptr);
+    explicit TreeTraversalReflector(Viewport* parent = nullptr);
     virtual ~TreeTraversalReflector();
 
     QAbstractItemModel* model() const;
     void setModel(QAbstractItemModel* m);
 
-    void setAvailableEdges(Qt::Edges edges);
-    Qt::Edges availableEdges() const;
+    void setAvailableEdges(Qt::Edges edges, IndexMetadata::EdgeType type);
+    Qt::Edges availableEdges(IndexMetadata::EdgeType type) const;
+    IndexMetadata *getEdge(IndexMetadata::EdgeType t, Qt::Edge e) const;
+
+    StateTracker::Model *modelTracker() const;
 
     // Getter
     AbstractItemAdapter* itemForIndex(const QModelIndex& idx) const; //TODO remove
+    IndexMetadata *geometryForIndex(const QModelIndex& idx) const;
     bool isActive(const QModelIndex& parent, int first, int last); //TODO move to range
-
-    /**
-     * The relfector internally track its viewport from the model point of view,
-     * which may or may not be the same as the view. This method will detach
-     * every element from the edge to the item)
-     */
-    bool detachUntil(Qt::Edge from, TreeTraversalItems *to);
-
-    /**
-     *
-     */
-    bool populate(Qt::Edge from);
-
-    //TODO remove those temporary helpers once its encapsulated
-    void moveEverything();
 
     // Setters
     void setItemFactory(std::function<AbstractItemAdapter*()> factory);
-
-public Q_SLOTS:
-    void resetEverything();
 
 Q_SIGNALS:
     void contentChanged();

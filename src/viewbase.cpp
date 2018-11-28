@@ -25,15 +25,15 @@
 #include <functional>
 
 // KQuickItemViews
-#include "adapters/abstractitemadapter_p.h"
+#include "private/statetracker/viewitem_p.h"
 #include "adapters/abstractitemadapter.h"
 #include "adapters/selectionadapter.h"
-#include "treetraversalreflector_p.h"
+#include "private/treetraversalreflector_p.h"
 #include "viewport.h"
 #include "contextadapterfactory.h"
 #include "adapters/contextadapter.h"
 #include "adapters/modeladapter.h"
-#include "adapters/selectionadapter_p.h"
+#include "private/selectionadapter_p.h"
 #include "extensions/contextextension.h"
 
 class ViewBasePrivate final : public QObject
@@ -132,6 +132,15 @@ void ViewBase::geometryChanged(const QRectF& newGeometry, const QRectF& oldGeome
 {
     Q_UNUSED(oldGeometry)
     contentItem()->setWidth(newGeometry.width());
+
+    // Resize the viewport(s)
+    for (auto ma : qAsConst(d_ptr->m_lAdapters)) {
+        const auto vps = ma->viewports();
+        for (auto vp : qAsConst(vps))
+            vp->resize(
+                QRectF {0.0, 0.0, newGeometry.width(), newGeometry.height()}
+            );
+    }
 }
 
 AbstractItemAdapter* ViewBase::itemForIndex(const QModelIndex& idx) const

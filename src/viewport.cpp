@@ -20,15 +20,21 @@
 // Qt
 #include <QtCore/QDebug>
 #include <QQmlEngine>
+#include <QQmlContext>
 
 // KQuickItemViews
-#include "viewport_p.h"
+#include "private/viewport_p.h"
 #include "proxies/sizehintproxymodel.h"
-#include "treetraversalreflector_p.h"
+#include "private/treetraversalreflector_p.h"
 #include "adapters/modeladapter.h"
-#include "adapters/abstractitemadapter_p.h"
+#include "contextadapterfactory.h"
+#include "adapters/contextadapter.h"
+#include "private/statetracker/viewitem_p.h"
+#include "private/statetracker/model_p.h"
 #include "adapters/abstractitemadapter.h"
 #include "viewbase.h"
+#include "private/indexmetadata_p.h"
+
 
 class ViewportPrivate : public QObject
 {
@@ -37,80 +43,72 @@ public:
     QQmlEngine* m_pEngine {nullptr};
     ModelAdapter* m_pModelAdapter;
 
-    Viewport::SizeHintStrategy m_SizeStrategy { Viewport::SizeHintStrategy::PROXY };
+    Viewport::SizeHintStrategy m_SizeStrategy { Viewport::SizeHintStrategy::JIT };
 
-    bool m_ModelHasSizeHints {false};
     QByteArray m_SizeHintRole;
     int m_SizeHintRoleIndex {-1};
-    TreeTraversalReflector *m_pReflector {nullptr};
+    bool m_KnowsRowHeight {false};
+
+    qreal m_CurrentHeight      {0};
+    qreal m_DelayedHeightDelta {0};
+    bool  m_DisableApply {false};
 
     // The viewport rectangle
     QRectF m_ViewRect;
     QRectF m_UsedRect;
 
-    QSizeF sizeHint(AbstractItemAdapter* item) const;
-    void updateEdges(VisualTreeItem* item);
     QPair<Qt::Edge,Qt::Edge> fromGravity() const;
-
-    VisualTreeItem *m_lpLoadedEdges[4] {nullptr}; //top, left, right, bottom
-    VisualTreeItem *m_lpVisibleEdges[4] {nullptr}; //top, left, right, bottom //TODO
+    void updateAvailableEdges();
+    qreal getSectionHeight(const QModelIndex& parent, int first, int last);
+    void applyDelayedSize();
 
     Viewport *q_ptr;
 
 public Q_SLOTS:
-    void slotModelChanged(QAbstractItemModel* m);
+    void slotModelChanged(QAbstractItemModel* m, QAbstractItemModel* o);
     void slotModelAboutToChange(QAbstractItemModel* m, QAbstractItemModel* o);
     void slotViewportChanged(const QRectF &viewport);
-    void slotDataChanged(const QModelIndex& tl, const QModelIndex& br);
+    void slotDataChanged(const QModelIndex& tl, const QModelIndex& br, const QVector<int> &roles);
+    void slotRowsInserted(const QModelIndex& parent, int first, int last);
+    void slotRowsRemoved(const QModelIndex& parent, int first, int last);
+    void slotReset();
+};
+
+enum Pos {Top, Left, Right, Bottom};
+static constexpr const Qt::Edge edgeMap[] = {
+    Qt::TopEdge, Qt::LeftEdge, Qt::RightEdge, Qt::BottomEdge
 };
 
 Viewport::Viewport(ModelAdapter* ma) : QObject(),
-    d_ptr(new ViewportPrivate()), s_ptr(new ViewportSync())
+    s_ptr(new ViewportSync()), d_ptr(new ViewportPrivate())
 {
     d_ptr->q_ptr = this;
     s_ptr->q_ptr = this;
     d_ptr->m_pModelAdapter = ma;
-    d_ptr->m_pReflector    = new TreeTraversalReflector(ma->view());
+    s_ptr->m_pReflector    = new TreeTraversalReflector(this);
+
+    resize(QRectF { 0.0, 0.0, ma->view()->width(), ma->view()->height() });
 
     connect(ma, &ModelAdapter::modelChanged,
         d_ptr, &ViewportPrivate::slotModelChanged);
     connect(ma->view(), &Flickable::viewportChanged,
         d_ptr, &ViewportPrivate::slotViewportChanged);
-    connect(ma, &ModelAdapter::delegateChanged,
-        d_ptr->m_pReflector, &TreeTraversalReflector::resetEverything);
+    connect(ma, &ModelAdapter::delegateChanged, s_ptr->m_pReflector, [this]() {
+        s_ptr->m_pReflector->modelTracker()->performAction(
+            StateTracker::Model::Action::RESET
+        );
+    });
 
-    d_ptr->slotModelChanged(ma->rawModel());
+    d_ptr->slotModelChanged(ma->rawModel(), nullptr);
 
-    connect(d_ptr->m_pReflector, &TreeTraversalReflector::contentChanged,
+    connect(s_ptr->m_pReflector, &TreeTraversalReflector::contentChanged,
         this, &Viewport::contentChanged);
 }
 
 QRectF Viewport::currentRect() const
 {
-    return {};
+    return d_ptr->m_UsedRect;
 }
-
-QSizeF AbstractItemAdapter::sizeHint() const
-{
-    return s_ptr->m_pRange->d_ptr->sizeHint(
-        const_cast<AbstractItemAdapter*>(this)
-    );
-}
-
-// QSizeF Viewport::sizeHint(const QModelIndex& index) const
-// {
-//     if (!d_ptr->m_SizeHintRole.isEmpty())
-//         return index.data(d_ptr->m_SizeHintRoleIndex).toSize();
-//
-//     if (!d_ptr->m_pEngine)
-//         d_ptr->m_pEngine = d_ptr->m_pView->rootContext()->engine();
-//
-//     if (d_ptr->m_ModelHasSizeHints)
-//         return qobject_cast<SizeHintProxyModel*>(model().data())
-//             ->sizeHintForIndex(index);
-//
-//     return {};
-// }
 
 QPair<Qt::Edge,Qt::Edge> ViewportPrivate::fromGravity() const
 {
@@ -127,50 +125,6 @@ QPair<Qt::Edge,Qt::Edge> ViewportPrivate::fromGravity() const
 
     Q_ASSERT(false);
     return {};
-}
-
-QSizeF ViewportPrivate::sizeHint(AbstractItemAdapter* item) const
-{
-    QSizeF ret;
-
-    //TODO switch to function table
-    switch (m_SizeStrategy) {
-        case Viewport::SizeHintStrategy::AOT:
-            Q_ASSERT(false);
-            break;
-        case Viewport::SizeHintStrategy::JIT:
-            Q_ASSERT(false);
-            break;
-        case Viewport::SizeHintStrategy::UNIFORM:
-            Q_ASSERT(false);
-            break;
-        case Viewport::SizeHintStrategy::PROXY:
-            Q_ASSERT(m_ModelHasSizeHints);
-
-            ret = qobject_cast<SizeHintProxyModel*>(m_pModelAdapter->rawModel())
-                ->sizeHintForIndex(item->index());
-
-            static int i = 0;
-            qDebug() << "SH" << ret << i++;
-
-            break;
-        case Viewport::SizeHintStrategy::ROLE:
-        case Viewport::SizeHintStrategy::DELEGATE:
-            Q_ASSERT(false);
-            break;
-    }
-
-    if (!item->s_ptr->m_pPos)
-        item->s_ptr->m_pPos = new BlockMetadata();
-
-    item->s_ptr->m_pPos->m_Size = ret;
-
-    if (auto prev = item->up()) {
-        Q_ASSERT(prev->s_ptr->m_pPos->m_Position.y() != -1);
-        item->s_ptr->m_pPos->m_Position.setY(prev->s_ptr->m_pPos->m_Position.y());
-    }
-
-    return ret;
 }
 
 QString Viewport::sizeHintRole() const
@@ -190,19 +144,33 @@ void Viewport::setSizeHintRole(const QString& s)
 
 void ViewportPrivate::slotModelAboutToChange(QAbstractItemModel* m, QAbstractItemModel* o)
 {
+    Q_UNUSED(m)
     if (o)
         disconnect(o, &QAbstractItemModel::dataChanged,
             this, &ViewportPrivate::slotDataChanged);
 }
 
-void ViewportPrivate::slotModelChanged(QAbstractItemModel* m)
+void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel* o)
 {
-    m_pReflector->setModel(m);
+    if (o) {
+        disconnect(m, &QAbstractItemModel::rowsInserted,
+            this, &ViewportPrivate::slotRowsInserted);
+        disconnect(m, &QAbstractItemModel::rowsAboutToBeRemoved,
+            this, &ViewportPrivate::slotRowsRemoved);
+        disconnect(m, &QAbstractItemModel::modelReset,
+            this, &ViewportPrivate::slotReset);
+        disconnect(m, &QAbstractItemModel::layoutChanged,
+            this, &ViewportPrivate::slotReset);
+    }
 
-    // Check if the proxyModel is used
-    m_ModelHasSizeHints = m && m->metaObject()->inherits(
-        &SizeHintProxyModel::staticMetaObject
-    );
+    m_pModelAdapter->view()->setCurrentY(0);
+
+    q_ptr->s_ptr->m_pReflector->setModel(m);
+
+    Q_ASSERT(m_pModelAdapter->rawModel() == m);
+
+    if (m_pModelAdapter->hasSizeHints())
+        q_ptr->setSizeHintStrategy(Viewport::SizeHintStrategy::PROXY);
 
     if (!m_SizeHintRole.isEmpty() && m)
         m_SizeHintRoleIndex = m->roleNames().key(
@@ -213,13 +181,35 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m)
         connect(m, &QAbstractItemModel::dataChanged,
             this, &ViewportPrivate::slotDataChanged);
 
-    m_pReflector->populate(fromGravity().first);
-    //m_pReflector->populate(fromGravity().second); //TODO
+    if (m_ViewRect.size().isValid()) {
+        q_ptr->s_ptr->m_pReflector->modelTracker()
+         << StateTracker::Model::Action::POPULATE
+         << StateTracker::Model::Action::ENABLE;
+    }
+
+    using SHS = Viewport::SizeHintStrategy;
+
+    if (m && (m_SizeStrategy == SHS::PROXY || m_SizeStrategy == SHS::UNIFORM || m_SizeStrategy == SHS::ROLE)) {
+        connect(m, &QAbstractItemModel::rowsInserted,
+            this, &ViewportPrivate::slotRowsInserted);
+        connect(m, &QAbstractItemModel::rowsAboutToBeRemoved,
+            this, &ViewportPrivate::slotRowsRemoved);
+        connect(m, &QAbstractItemModel::modelReset,
+            this, &ViewportPrivate::slotReset);
+        connect(m, &QAbstractItemModel::layoutChanged,
+            this, &ViewportPrivate::slotReset);
+
+        slotReset();
+    }
 }
 
 void ViewportPrivate::slotViewportChanged(const QRectF &viewport)
 {
-    m_UsedRect = viewport;
+//     Q_ASSERT(viewport.y() == 0); //FIXME I broke it
+    m_ViewRect = viewport;
+    m_UsedRect = viewport; //FIXME remove wrong
+    updateAvailableEdges();
+    q_ptr->s_ptr->m_pReflector->modelTracker() << StateTracker::Model::Action::MOVE;
 }
 
 ModelAdapter *Viewport::modelAdapter() const
@@ -244,8 +234,41 @@ Viewport::SizeHintStrategy Viewport::sizeHintStrategy() const
 
 void Viewport::setSizeHintStrategy(Viewport::SizeHintStrategy s)
 {
-    Q_ASSERT(false); //TODO invalidate the cache
+    using SHS = Viewport::SizeHintStrategy;
+    const auto old = d_ptr->m_SizeStrategy;
+
+    auto needConnect = [](SHS s) {
+        return s == SHS::PROXY || s == SHS::UNIFORM || s == SHS::ROLE;
+    };
+
+    bool wasConnected = needConnect(old);
+    bool willConnect  = needConnect( s );
+
+    s_ptr->m_pReflector->modelTracker() << StateTracker::Model::Action::RESET;
     d_ptr->m_SizeStrategy = s;
+
+    const auto m = d_ptr->m_pModelAdapter->rawModel();
+
+    if (m && wasConnected && !willConnect) {
+        disconnect(m, &QAbstractItemModel::rowsInserted,
+            d_ptr, &ViewportPrivate::slotRowsInserted);
+        disconnect(m, &QAbstractItemModel::rowsAboutToBeRemoved,
+            d_ptr, &ViewportPrivate::slotRowsRemoved);
+        disconnect(m, &QAbstractItemModel::modelReset,
+            d_ptr, &ViewportPrivate::slotReset);
+        disconnect(m, &QAbstractItemModel::layoutChanged,
+            d_ptr, &ViewportPrivate::slotReset);
+    }
+    else if (d_ptr->m_pModelAdapter->rawModel() && willConnect && !wasConnected) {
+        connect(m, &QAbstractItemModel::rowsInserted,
+            d_ptr, &ViewportPrivate::slotRowsInserted);
+        connect(m, &QAbstractItemModel::rowsAboutToBeRemoved,
+            d_ptr, &ViewportPrivate::slotRowsRemoved);
+        connect(m, &QAbstractItemModel::modelReset,
+            d_ptr, &ViewportPrivate::slotReset);
+        connect(m, &QAbstractItemModel::layoutChanged,
+            d_ptr, &ViewportPrivate::slotReset);
+    }
 }
 
 bool Viewport::isTotalSizeKnown() const
@@ -274,11 +297,11 @@ QSizeF Viewport::totalSize() const
 
 AbstractItemAdapter* Viewport::itemForIndex(const QModelIndex& idx) const
 {
-    return d_ptr->m_pReflector->itemForIndex(idx);
+    return s_ptr->m_pReflector->itemForIndex(idx);
 }
 
 //TODO remove this content and check each range
-void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& br)
+void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& br, const QVector<int> &roles)
 {
     if (tl.model() && tl.model() != m_pModelAdapter->rawModel()) {
         Q_ASSERT(false);
@@ -293,7 +316,7 @@ void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& 
     if ((!tl.isValid()) || (!br.isValid()))
         return;
 
-    if (!m_pReflector->isActive(tl.parent(), tl.row(), br.row()))
+    if (!q_ptr->s_ptr->m_pReflector->isActive(tl.parent(), tl.row(), br.row()))
         return;
 
     //FIXME tolerate other cases
@@ -306,81 +329,462 @@ void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& 
     //itemForIndex(const QModelIndex& idx) const final override;
     for (int i = tl.row(); i <= br.row(); i++) {
         const auto idx = m_pModelAdapter->rawModel()->index(i, tl.column(), tl.parent());
-        if (auto item = m_pReflector->itemForIndex(idx))
-            item->s_ptr->performAction(VisualTreeItem::ViewAction::UPDATE);
+        if (auto item = q_ptr->s_ptr->m_pReflector->geometryForIndex(idx)) {
+            // Prevent performing action if we know the changes wont affect the
+            // view.
+            if (item->contextAdapter()->updateRoles(roles)) {
+                // (maybe) dismiss geometry cache
+                q_ptr->s_ptr->notifyChange(item);
+
+                if (item->viewTracker())
+                    item << IndexMetadata::ViewAction::UPDATE;
+            }
+        }
     }
 }
 
 void Viewport::setItemFactory(ViewBase::ItemFactoryBase *factory)
 {
-    d_ptr->m_pReflector->setItemFactory([this, factory]() -> AbstractItemAdapter* {
+    s_ptr->m_pReflector->setItemFactory([this, factory]() -> AbstractItemAdapter* {
         return factory->create(this);
     });
 }
 
 Qt::Edges Viewport::availableEdges() const
 {
-    return d_ptr->m_pReflector->availableEdges();
+    return s_ptr->m_pReflector->availableEdges(
+        IndexMetadata::EdgeType::FREE
+    );
 }
 
-void ViewportPrivate::updateEdges(VisualTreeItem* item)
+void ViewportPrivate::updateAvailableEdges()
 {
-    enum Pos {Top, Left, Right, Bottom};
+    if (q_ptr->s_ptr->m_pReflector->modelTracker()->state() == StateTracker::Model::State::RESETING)
+        return; //TODO it needs another state machine to get rid of the `if`
 
-    const auto geo  = item->geometry();
+    if (!q_ptr->s_ptr->m_pReflector->model())
+        return;
 
-    static const Qt::Edge edgeMap[] = {
-        Qt::TopEdge, Qt::LeftEdge, Qt::RightEdge, Qt::BottomEdge
+    Qt::Edges available;
+
+    auto v = m_pModelAdapter->view();
+
+    auto tve = q_ptr->s_ptr->m_pReflector->getEdge(
+        IndexMetadata::EdgeType::VISIBLE, Qt::TopEdge
+    );
+
+    Q_ASSERT((!tve) || (!tve->up()) || (!tve->up()->isVisible()));
+
+    auto bve = q_ptr->s_ptr->m_pReflector->getEdge(
+        IndexMetadata::EdgeType::VISIBLE, Qt::BottomEdge
+    );
+
+    Q_ASSERT((!bve) || (!bve->down()) || (!bve->down()->isVisible()));
+
+    // If they don't have a valid size, then there is a bug elsewhere
+    Q_ASSERT((!tve) || tve->isValid());
+    Q_ASSERT((!bve) || tve->isValid());
+
+    // Do not attempt to load the geometry yet, let the loading code do it later
+    bool tveValid = tve && tve->isValid();
+    bool bveValid = bve && bve->isValid();
+
+    // Given 42x0 sized item are possible. However just "fixing" this by adding
+    // a minimum size wont help because it will trigger the out of sync view
+    // correction in an infinite loop.
+    QRectF tvg(tve?tve->decoratedGeometry():QRectF()), bvg(bve?bve->decoratedGeometry():QRectF());
+
+    const auto fixedIntersect = [](bool valid, QRectF& vp, QRectF& geo) -> bool {
+        Q_UNUSED(valid) //TODO
+        return vp.intersects(geo) || (
+            geo.y() >= vp.y() && geo.height() == 0 && geo.y() <= vp.y() + vp.height()
+        );
     };
 
-#define CHECK_EDGE(code) [](const QRectF& old, const QRectF& self) {return code;}
-    static const std::function<bool(const QRectF&, const QRectF&)> isEdge[] = {
-        CHECK_EDGE(old.y() > self.y()),
-        CHECK_EDGE(old.x() > self.x()),
-        CHECK_EDGE(old.bottomRight().x() < self.bottomRight().x()),
-        CHECK_EDGE(old.bottomRight().y() < self.bottomRight().y()),
-    };
-#undef CHECK_EDGE
+    QRectF vp = m_ViewRect;
 
-    Qt::Edges ret;
+    // Add an extra pixel to the height to prevent off-by-one where the view is
+    // perfectly full and can't scroll any more (and thus load the next item)
+    vp.setHeight(vp.height()+1.0);
 
-    for (int i = Pos::Top; i <= Pos::Bottom; i++) {
-        if ((!m_lpLoadedEdges[i]) || m_lpLoadedEdges[i] == item || isEdge[i](m_lpLoadedEdges[i]->geometry(), geo)) {
-            ret |= edgeMap[i];
+    if ((!tve) || (fixedIntersect(tveValid, vp, tvg) && tvg.y() > 0))
+        available |= Qt::TopEdge;
 
-            // Unset the edge
-            if (m_lpLoadedEdges[i] != item) {
-                if (m_lpLoadedEdges[i])
-                    m_lpLoadedEdges[i]->m_IsEdge &= ~edgeMap[i];
+    if ((!bve) || fixedIntersect(bveValid, vp, bvg))
+        available |= Qt::BottomEdge;
 
-                m_lpLoadedEdges[i] = item;
-            }
-        }
+    q_ptr->s_ptr->m_pReflector->setAvailableEdges(
+        available, IndexMetadata::EdgeType::FREE
+    );
+
+    q_ptr->s_ptr->m_pReflector->setAvailableEdges(
+        available, IndexMetadata::EdgeType::VISIBLE
+    );
+
+//     Q_ASSERT((~hasInvisible)&available == available || !available);
+//     m_pReflector->setAvailableEdges(
+//         (~hasInvisible)&15, IndexMetadata::EdgeType::VISIBLE
+//     );
+
+    q_ptr->s_ptr->m_pReflector->modelTracker() << StateTracker::Model::Action::TRIM;
+
+    bve = q_ptr->s_ptr->m_pReflector->getEdge(
+        IndexMetadata::EdgeType::VISIBLE, Qt::BottomEdge
+    );
+
+    //BEGIN test
+    tve = q_ptr->s_ptr->m_pReflector->getEdge(
+        IndexMetadata::EdgeType::VISIBLE, Qt::TopEdge
+    );
+
+    Q_ASSERT((!tve) || (!tve->up()) || (!tve->up()->isVisible()));
+
+
+    Q_ASSERT((!bve) || (!bve->down()) || (!bve->down()->isVisible()));
+    //END test
+
+    // Size is normal as the state as not converged yet
+    Q_ASSERT((!bve) || (
+        bve->removeMe() == (int)StateTracker::Geometry::State::VALID ||
+        bve->removeMe() == (int)StateTracker::Geometry::State::SIZE)
+    );
+
+    // Resize the contend height, it has to be done after the geometry has been
+    // updated.
+    if (bve && m_SizeStrategy == Viewport::SizeHintStrategy::JIT) {
+
+        const auto geo = bve->decoratedGeometry();
+
+        v->contentItem()->setHeight(std::max(
+            geo.y()+geo.height(), v->height()
+        ));
+
+        emit v->contentHeightChanged( v->contentItem()->height() );
     }
-
-//TODO update m_lpVisibleEdges
-//     Qt::Edges available;
-//
-//     for (int i = Pos::Top; i <= Pos::Bottom; i++) {
-//         if ((!m_lpLoadedEdges[i]) || m_lpLoadedEdges[i]->geometry().contains(m_ViewRect))
-//             available |= edgeMap[i];
-//     }
-//
-//     m_pReflector->setAvailableEdges(available);
 }
 
-void ViewportSync::geometryUpdated(VisualTreeItem* item)
+void ViewportSync::geometryUpdated(IndexMetadata *item)
 {
+    if (m_pReflector->modelTracker()->state() == StateTracker::Model::State::RESETING)
+        return; //TODO it needs another state machine to get rid of the `if`
+
     //TODO assert if the size hints don't match reality
 
-    const auto geo  = item->geometry();
-    const auto old  = q_ptr->d_ptr->m_UsedRect;
-    const auto view = q_ptr->d_ptr->m_ViewRect;
+    if (q_ptr->d_ptr->m_SizeStrategy == Viewport::SizeHintStrategy::JIT)
+        q_ptr->d_ptr->updateAvailableEdges();
+}
 
-    // Update the used rect
-    const QRectF r = q_ptr->d_ptr->m_UsedRect = q_ptr->d_ptr->m_UsedRect.united(geo);
+void ViewportSync::updateGeometry(IndexMetadata* item)
+{
+    if (q_ptr->d_ptr->m_SizeStrategy != Viewport::SizeHintStrategy::JIT)
+        item->sizeHint();
 
-    const bool hasSpaceOnTop = view.y();
+    if (auto i = item->down())
+        notifyInsert(i);
+
+    q_ptr->d_ptr->updateAvailableEdges();
+
+    refreshVisible();
+    //notifyInsert(item->down());
+
+}
+
+// When the QModelIndex role change
+void ViewportSync::notifyChange(IndexMetadata* item)
+{
+    switch(q_ptr->d_ptr->m_SizeStrategy) {
+        case Viewport::SizeHintStrategy::UNIFORM:
+        case Viewport::SizeHintStrategy::DELEGATE: //TODO
+        case Viewport::SizeHintStrategy::ROLE: //TODO
+            return;
+        case Viewport::SizeHintStrategy::AOT:
+        case Viewport::SizeHintStrategy::JIT:
+        case Viewport::SizeHintStrategy::PROXY:
+            item << IndexMetadata::GeometryAction::MODIFY;
+    }
+}
+
+void ViewportSync::notifyRemoval(IndexMetadata* item)
+{
+    Q_UNUSED(item)
+    if (m_pReflector->modelTracker()->state() == StateTracker::Model::State::RESETING)
+        return; //TODO it needs another state machine to get rid of the `if`
+
+//     auto tve = m_pReflector->getEdge(
+//         IndexMetadata::EdgeType::VISIBLE, Qt::TopEdge
+//     );
+
+//     auto bve = q_ptr->d_ptr->m_pReflector->getEdge(
+//         IndexMetadata::EdgeType::VISIBLE, Qt::BottomEdge
+//     );
+//     Q_ASSERT(item != bve); //TODO
+
+//     //FIXME this is horrible
+//     while(auto next = item->down()) { //FIXME dead code
+//         if (next->m_State.state() != StateTracker::Geometry::State::VALID ||
+//           next->m_State.state() != StateTracker::Geometry::State::POSITION)
+//             break;
+//
+//         next->m_State.performAction(
+//             GeometryAction::MOVE, nullptr, nullptr
+//         );
+//
+//         Q_ASSERT(next != bve); //TODO
+//
+//         Q_ASSERT(next->m_State.state() != StateTracker::Geometry::State::VALID);
+//     }
+//
+//     refreshVisible();
+//
+//     q_ptr->d_ptr->updateAvailableEdges();
+}
+
+//TODO temporary hack to avoid having to implement a complex way to move the
+// limited number of loaded elements. Given once trimming is enabled, the
+// number of visible items should be fairely low/constant, it is a good enough
+// temporary solution.
+void ViewportSync::refreshVisible()
+{
+    if (m_pReflector->modelTracker()->state() == StateTracker::Model::State::RESETING)
+        return; //TODO it needs another state machine to get rid of the `if`
+
+    //TODO eventually move to a relative origin so moving an item to the top
+    // doesn't need to move everything
+
+    IndexMetadata *item = m_pReflector->getEdge(
+        IndexMetadata::EdgeType::VISIBLE, Qt::TopEdge
+    );
+
+    if (!item)
+        return;
+
+    Q_ASSERT((!item->up()) || !item->up()->isVisible());
+
+    auto bve = m_pReflector->getEdge(
+        IndexMetadata::EdgeType::VISIBLE, Qt::BottomEdge
+    );
+
+    auto prev = item->up();
+
+    // First, make sure the previous elem has a valid size. If, for example,
+    // rowsMoved moves a previously unloaded item to the front, this information
+    // will be lost.
+    if (prev && !prev->isValid()) {
+
+        // This is the slow path, it can be /very/ slow. Possible mitigation
+        // include adding more lower level methods to never lose track of the
+        // list state, but this makes everything more (too) complex. Another
+        // better solution is more aggressive unloading to the list becomes
+        // smaller.
+        if (!prev->isTopItem()) {
+            qDebug() << "Slow path";
+            //FIXME this is slow
+            auto i = prev;
+            while((i = i->up()) && i && !i->isValid());
+            Q_ASSERT(i);
+
+            while ((i = i->down()) != item)
+                i->decoratedGeometry();
+        }
+        else
+            prev->setPosition({0.0, 0.0});
+    }
+
+    const bool hasSingleItem = item == bve;
+
+    do {
+        item->sizeHint();
+
+        Q_ASSERT(item->removeMe() != (int)StateTracker::Geometry::State::INIT);
+        Q_ASSERT(item->removeMe() != (int)StateTracker::Geometry::State::POSITION);
+
+        if (prev) {
+            //FIXME this isn't ok, it needs to take into account the point size
+            //it could by multiple pixels
+            item->setPosition(prev->decoratedGeometry().bottomLeft());
+        }
+
+        item->sizeHint();
+        Q_ASSERT(item->isVisible());
+        Q_ASSERT(item->isValid());
+        //FIXME As of 0.1, this still fails from time to time
+        //Q_ASSERT(item->isInSync());//TODO THIS_COMMIT
+
+        // This `performAction` exists to recover from runtime failures
+        if (!item->isInSync())
+            item << IndexMetadata::LoadAction::MOVE;
+
+    } while((!hasSingleItem) && item->up() != bve && (item = item->down()));
+}
+
+void ViewportSync::notifyInsert(IndexMetadata* item)
+{
+    using GeoState = StateTracker::Geometry::State;
+    Q_ASSERT(item);
+
+    if (m_pReflector->modelTracker()->state() == StateTracker::Model::State::RESETING)
+        return; //TODO it needs another state machine to get rid of the `if`
+
+    if (!item)
+        return;
+
+    const bool needsPosition = item->removeMe() == (int)GeoState::INIT ||
+      item->removeMe() == (int)GeoState::SIZE;
+
+    // If the item is new and is inserted near valid items, skip some back and
+    // forth and set the position now.
+    if (needsPosition && item->up() && item->up()->removeMe() == (int) GeoState::VALID) {
+        item->setPosition(item->up()->decoratedGeometry().bottomLeft());
+    }
+
+    // If the item is inserted in front, set the position
+    if (item->isTopItem()) {
+        item->setPosition({0.0, 0.0});
+    }
+
+    auto bve = m_pReflector->getEdge(
+        IndexMetadata::EdgeType::VISIBLE, Qt::BottomEdge
+    );
+
+    //FIXME this is also horrible
+    do {
+        if (item == bve) {
+            item << IndexMetadata::GeometryAction::MOVE;
+            break;
+        }
+
+        if (!item->isValid() &&
+          item->removeMe() != (int)GeoState::POSITION) {
+            break;
+        }
+
+        item << IndexMetadata::GeometryAction::MOVE;
+    } while((item = item->down()));
+
+    refreshVisible();
+
+    q_ptr->d_ptr->updateAvailableEdges();
+}
+
+void Viewport::resize(const QRectF& rect)
+{
+    if (s_ptr->m_pReflector->modelTracker()->state() == StateTracker::Model::State::RESETING)
+        return; //TODO it needs another state machine to get rid of the `if`
+
+    const bool wasValid = d_ptr->m_ViewRect.size().isValid();
+
+    Q_ASSERT(rect.x() == 0);
+
+    // The {x, y} may not be at {0, 0}, but given it is a relative viewport,
+    // then the content doesn't care about where it is on the screen.
+    d_ptr->m_ViewRect = rect;
+    Q_ASSERT(rect.y() == 0);
+
+    // For now ignore the case where the content is smaller, it doesn't change
+    // anything. This could eventually change
+    d_ptr->m_UsedRect.setSize(rect.size()); //FIXME remove, wrong
+
+    s_ptr->refreshVisible();
+
+    d_ptr->updateAvailableEdges();
+
+    if ((!wasValid) && rect.isValid()) {
+        s_ptr->m_pReflector->modelTracker()
+            << StateTracker::Model::Action::POPULATE
+            << StateTracker::Model::Action::ENABLE;
+    }
+    else if (rect.isValid()) {
+        s_ptr->m_pReflector->modelTracker() << StateTracker::Model::Action::MOVE;
+    }
+}
+
+qreal ViewportPrivate::getSectionHeight(const QModelIndex& parent, int first, int last)
+{
+    Q_UNUSED(last) //TODO not implemented
+    Q_ASSERT(m_pModelAdapter->rawModel());
+    switch(m_SizeStrategy) {
+        case Viewport::SizeHintStrategy::AOT:
+        case Viewport::SizeHintStrategy::JIT:
+        case Viewport::SizeHintStrategy::DELEGATE:
+            Q_ASSERT(false); // Should not get here
+            return 0.0;
+        case Viewport::SizeHintStrategy::UNIFORM:
+            Q_ASSERT(m_KnowsRowHeight);
+            break;
+        case Viewport::SizeHintStrategy::PROXY: {
+            Q_ASSERT(q_ptr->modelAdapter()->hasSizeHints());
+            const auto idx = m_pModelAdapter->rawModel()->index(first, 0, parent);
+            return qobject_cast<SizeHintProxyModel*>(m_pModelAdapter->rawModel())
+                ->sizeHintForIndex(idx).height();
+        }
+        case Viewport::SizeHintStrategy::ROLE:
+            Q_ASSERT(false); //TODO not implemented
+            break;
+    }
+
+    Q_ASSERT(false);
+    return 0.0;
+}
+
+//TODO add a way to allow model to provide this information manually and
+// generally don't cleanup when this code-path is used. Maybe trun into an
+// adapter
+
+void ViewportPrivate::applyDelayedSize()
+{
+    if (m_DisableApply)
+        return;
+
+    m_CurrentHeight += m_DelayedHeightDelta;
+    m_DelayedHeightDelta = 0;
+
+    m_pModelAdapter->view()->contentItem()->setHeight(m_CurrentHeight);
+}
+
+void ViewportPrivate::slotRowsInserted(const QModelIndex& parent, int first, int last)
+{
+    const bool apply = m_DisableApply;
+    m_DisableApply = false;
+
+    m_DelayedHeightDelta += getSectionHeight(parent, first, last);
+
+    if (m_pModelAdapter->maxDepth() != 1) {
+        const auto idx = m_pModelAdapter->rawModel()->index(first, 0, parent);
+        Q_ASSERT(idx.isValid());
+        if (int rc = m_pModelAdapter->rawModel()->rowCount(idx))
+            slotRowsInserted(idx, 0, rc - 1);
+    }
+
+    m_DisableApply = apply;
+    applyDelayedSize();
+}
+
+void ViewportPrivate::slotRowsRemoved(const QModelIndex& parent, int first, int last)
+{
+    const bool apply = m_DisableApply;
+    m_DisableApply = false;
+
+    m_DelayedHeightDelta -= getSectionHeight(parent, first, last);
+
+    if (m_pModelAdapter->maxDepth() != 1) {
+        const auto idx = m_pModelAdapter->rawModel()->index(first, 0, parent);
+        Q_ASSERT(idx.isValid());
+        if (int rc = m_pModelAdapter->rawModel()->rowCount(idx))
+            slotRowsRemoved(idx, 0, rc - 1);
+    }
+
+    m_DisableApply = apply;
+    applyDelayedSize();
+}
+
+void ViewportPrivate::slotReset()
+{
+    m_DisableApply = true;
+    m_CurrentHeight = 0.0;
+    if (int rc = m_pModelAdapter->rawModel()->rowCount())
+        slotRowsInserted({}, 0, rc - 1);
+    m_DisableApply = false;
+    applyDelayedSize();
 }
 
 #include <viewport.moc>

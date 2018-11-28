@@ -23,9 +23,14 @@ class QQuickItem;
 class QQmlContext;
 
 class AbstractItemAdapterPrivate;
-class VisualTreeItem;
+namespace StateTracker {
+    class ViewItem;
+    class ModelItem;
+}
+
 class ViewBase;
 class Viewport;
+class ContextExtension;
 
 /**
  * This class must be extended by the views to bind QModelIndex with a GUI element.
@@ -63,8 +68,8 @@ class Viewport;
  */
 class AbstractItemAdapter
 {
-    friend class VisualTreeItem; //its internally shared properties
-    friend struct TreeTraversalItems; //state tracking
+    friend class StateTracker::ViewItem; //its internally shared properties
+    friend struct StateTracker::ModelItem; //state tracking
     friend class ViewBasePrivate; //notify when the view is resized
     friend class AbstractItemAdapterPrivate; // d_ptr (Q_DECLARE_PRIVATE)
     friend class ViewItemContextAdapter;
@@ -109,27 +114,14 @@ public:
     };
 
     /**
-     * The item above this one when viewing the model as a Cartesian map.
+     * Get the nearby element on the edge of this item.
      *
-     * It can either be a sibling (for example, if the model is a list or table),
-     * the parent (in case of a tree) or a (sub) children of the parent upper
-     * sibling.
-     *
+     * Note that this applies a Cartesian projection on the whole model, so
+     * a nearby element can be a parent, children or sibling. Also note that
+     * elements are lazy loaded and recycled, so there is no guarantee that
+     * the element will exits and it should never be stored.
      */
-    AbstractItemAdapter* up() const;
-
-    /**
-     * The item below this one when viewing the model as a Cartesian map.
-     *
-     * It can be a sibling or an item with a lower depth level.
-     */
-    AbstractItemAdapter* down () const;
-
-    ///TODO
-    AbstractItemAdapter* left () const;
-
-    ///TODO
-    AbstractItemAdapter* right() const;
+    AbstractItemAdapter *next(Qt::Edge e) const;
 
     /**
      * This method return the item representing the QModelIndex parent.
@@ -204,6 +196,22 @@ public:
      */
     virtual QRectF geometry() const;
 
+    QRectF decoratedGeometry() const;
+
+    /**
+     * In many case, it is useful or necessary to place additional components
+     * or just empty space around a delegate instance.
+     *
+     * This can be, for example, the treeview vertical indentation/expand
+     * indicator or the listview category delegate.
+     *
+     * Note that the top and bottom edge decoration include the width of the
+     * left and right ones.
+     */
+    qreal borderDecoration(Qt::Edge e) const;
+
+    void setBorderDecoration(Qt::Edge e, qreal r);
+
     /**
      * Set if the children of this item should be skipped from the view.
      */
@@ -222,24 +230,7 @@ public:
 
     virtual QSizeF sizeHint() const;
 
-    /**
-     * Clear the cache of role values.
-     *
-     * To improve performance, QAbstractItemModel::data is only called once
-     * unless dataChanged() is called. The value is then stored in the QML
-     * context. Call this to manually invalidate the cache and for roles to be
-     * reloaded.
-     */
-    void flushCache();
-
-    /**
-     * Notify the QML context that the following roles changes.
-     *
-     * This will also clear the various value caches.
-     *
-     * @see flushCache
-     */
-    void updateRoles(const QVector<int> &modified) const;
+    void dismissCacheEntry(ContextExtension* e, int id);
 
 protected:
     /**
@@ -276,5 +267,5 @@ protected:
 
 private:
     AbstractItemAdapterPrivate* d_ptr;
-    VisualTreeItem* s_ptr;
+    StateTracker::ViewItem* s_ptr;
 };

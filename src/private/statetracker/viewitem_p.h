@@ -18,17 +18,20 @@
 #pragma once
 
 // KQuickItemViews
+#include "private/statetracker/viewitem_p.h"
+#include <adapters/abstractitemadapter.h>
+#include <private/indexmetadata_p.h>
 class ViewBase;
-struct TreeTraversalItems;
-class AbstractItemAdapter;
 class ViewItemContextAdapter;
 class ContextAdapter;
 class Viewport;
-struct BlockMetadata;
+class TreeTraversalReflectorPrivate;
 
 // Qt
 class QQuickItem;
 #include <QtCore/QSharedPointer>
+
+namespace StateTracker {
 
 /**
  * Polymorphic tree item for the ViewBase.
@@ -39,21 +42,22 @@ class QQuickItem;
  *
  * The state is managed by the ViewBase and it's own protected virtual methods.
  */
-class VisualTreeItem
+class ViewItem
 {
     //FIXME remove all that
     friend class ViewBase;
-    friend struct TreeTraversalItems;
+    friend struct ::StateTracker::ModelItem;
     friend class ViewBasePrivate;
-    friend class AbstractItemAdapterPrivate; //TODO remove
+    friend class ::AbstractItemAdapterPrivate; //TODO remove
     friend class TreeTraversalReflector;
-    friend class AbstractItemAdapter;
+    friend class ::AbstractItemAdapter;
+    friend class ::TreeTraversalReflectorPrivate; //TODO remove. debug only
+    friend class ViewportPrivate; //TODO remove
 public:
-
-    explicit VisualTreeItem(ViewBase* p, Viewport* r) :
+    explicit ViewItem(ViewBase* p, Viewport* r) :
         m_pRange(r), m_pView(p) {}
 
-    virtual ~VisualTreeItem() {}
+    virtual ~ViewItem() {}
 
     enum class State {
         POOLING , /*!< Being currently removed from view                      */
@@ -65,30 +69,22 @@ public:
         ERROR   , /*!< Something went wrong                                   */
     };
 
-    enum class ViewAction { //TODO make this private to ViewBasePrivate
-        ATTACH       = 0, /*!< Activate the element (do not sync it) */
-        ENTER_BUFFER = 1, /*!< Sync all roles                        */
-        ENTER_VIEW   = 2, /*!< NOP (todo)                            */
-        UPDATE       = 3, /*!< Reload the roles                      */
-        MOVE         = 4, /*!< Move to a new position                */
-        LEAVE_BUFFER = 5, /*!< Stop keeping track of data changes    */
-        DETACH       = 6, /*!< Delete                                */
-    };
-
     /// Call to notify that the geometry changed (for the selection delegate)
     void updateGeometry();
 
-    // Helpers
-
+    void setCollapsed(bool v);
+    bool isCollapsed() const;
 
     // Spacial navigation
-    VisualTreeItem* up  () const;
-    VisualTreeItem* down() const;
-    VisualTreeItem* left () const { return nullptr ;}
-    VisualTreeItem* right() const { return nullptr ;}
+    ViewItem* up   () const; //DEPRECATED
+    ViewItem* down () const; //DEPRECATED
+    ViewItem* left () const { return nullptr ;} //DEPRECATED
+    ViewItem* right() const { return nullptr ;} //DEPRECATED
+    ViewItem *next(Qt::Edge e) const;
+
     int row   () const;
     int column() const;
-    int depth() const;
+    int depth () const;
     //TODO firstChild, lastChild, parent
 
     // Getters
@@ -109,24 +105,20 @@ public:
 
     virtual QQuickItem* item() const final;
 
-    ContextAdapter* contextAdapter() const;
-    void updateContext();
+    QQmlContext *context() const;
 
-    mutable ViewItemContextAdapter* m_pContextAdapter {nullptr};
+    void setVisible(bool) {Q_ASSERT(false);}
 
-    Viewport  *m_pRange {nullptr};
-    BlockMetadata *m_pPos   {nullptr};
+    Viewport      *m_pRange    {nullptr};
+    IndexMetadata *m_pGeometry {nullptr};
 
-    // Managed by the Viewport
-    Qt::Edges m_IsEdge {};
-    bool m_IsCollapsed {false}; //TODO change the default to true
-
-    bool performAction(ViewAction); //FIXME make private, remove #include
-
-private:
-    State               m_State {State::POOLED};
-    TreeTraversalItems *m_pTTI  {   nullptr   };
-    ViewBase           *m_pView {   nullptr   };
+    bool performAction(IndexMetadata::ViewAction a);
 
     AbstractItemAdapter* d_ptr;
+private:
+    State      m_State {State::POOLED};
+    ModelItem *m_pTTI  {   nullptr   };
+    ViewBase  *m_pView {   nullptr   };
 };
+
+}

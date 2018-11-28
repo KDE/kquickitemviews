@@ -26,7 +26,6 @@ endif()
 
 SET(CMAKE_AUTOMOC ON)
 SET(CMAKE_AUTORCC ON)
-SET(CMAKE_AUTOUIC ON)
 
 SET(CMAKE_CXX_STANDARD 14)
 
@@ -46,6 +45,10 @@ FIND_PACKAGE(Qt5 CONFIG REQUIRED
 
 add_definitions(-isystem ${Qt5Core_PRIVATE_INCLUDE_DIRS})
 
+if("${CMAKE_BUILD_TYPE}" MATCHES "DEBUG")
+    add_definitions(-DENABLE_EXTRA_VALIDATION=1)
+endif()
+
 SET(GENERIC_LIB_VERSION "1.0.0")
 
 #File to compile
@@ -59,7 +62,6 @@ SET( kquickview_LIB_SRCS
     src/plugin.cpp
     src/proxies/sizehintproxymodel.cpp
     src/singlemodelviewbase.cpp
-    src/treetraversalreflector_p.cpp
     src/viewbase.cpp
     src/views/comboboxview.cpp
     src/views/flickable.cpp
@@ -68,6 +70,12 @@ SET( kquickview_LIB_SRCS
     src/views/treeview.cpp
     src/viewport.cpp
     src/contextadapterfactory.cpp
+    src/private/statetracker/index_p.cpp
+    src/private/statetracker/geometry_p.cpp
+    src/private/statetracker/proximity_p.cpp
+    src/private/statetracker/model_p.cpp
+    src/private/indexmetadata_p.cpp
+    src/private/treetraversalreflector_p.cpp
 )
 
 set(AUTOMOC_MOC_OPTIONS -Muri=org.kde.playground.kquickview)
@@ -124,5 +132,7 @@ set_target_properties(kquickview PROPERTIES
     PUBLIC_HEADER
     "${CMAKE_CURRENT_BINARY_DIR}/api;${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
+
+add_subdirectory(tests)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/api/)

@@ -28,9 +28,10 @@
 #include "viewbase.h"
 #include "selectionadapter.h"
 #include "contextadapterfactory.h"
-#include "selectionadapter_p.h"
-#include "abstractitemadapter_p.h"
+#include "private/selectionadapter_p.h"
+#include "private/statetracker/viewitem_p.h"
 #include "abstractitemadapter.h"
+#include "proxies/sizehintproxymodel.h"
 
 using QSharedItemModel = QSharedPointer<QAbstractItemModel>;
 
@@ -51,6 +52,7 @@ public:
     SelectionAdapter       *m_pSelectionManager   {nullptr};
     ViewBase               *m_pView               {nullptr};
     ContextAdapterFactory  *m_pRoleContextFactory {nullptr};
+    bool                    m_ModelHasSizeHints   { false };
 
     bool m_Collapsable {true };
     bool m_AutoExpand  {false};
@@ -111,7 +113,16 @@ QVariant ModelAdapter::model() const
 
 void ModelAdapterPrivate::setModelCommon(QAbstractItemModel* m, QAbstractItemModel* old)
 {
+    Q_UNUSED(old)
     q_ptr->selectionAdapter()->s_ptr->setModel(m);
+
+    if (auto f = m_pRoleContextFactory)
+        f->setModel(m);
+
+    // Check if the proxyModel is used
+    m_ModelHasSizeHints = m && m->metaObject()->inherits(
+        &SizeHintProxyModel::staticMetaObject
+    );
 }
 
 void ModelAdapter::setModel(const QVariant& var)
@@ -131,7 +142,7 @@ void ModelAdapter::setModel(const QVariant& var)
         d_ptr->m_pRawModel = nullptr;
         d_ptr->m_pModelPtr = nullptr;
         d_ptr->setModelCommon(nullptr, oldM);
-        emit modelChanged(nullptr);
+        emit modelChanged(nullptr, oldM);
     }
     else if (auto m = var.value<QSharedItemModel >()) {
         if (m == d_ptr->m_pModelPtr)
@@ -146,7 +157,7 @@ void ModelAdapter::setModel(const QVariant& var)
         d_ptr->m_pRawModel = nullptr;
         d_ptr->m_pModelPtr = m;
         d_ptr->setModelCommon(m.data(), oldM);
-        emit modelChanged(m.data());
+        emit modelChanged(m.data(), oldM);
 
     }
     else if (auto m = var.value<QAbstractItemModel*>()) {
@@ -158,7 +169,7 @@ void ModelAdapter::setModel(const QVariant& var)
         d_ptr->m_pRawModel = m;
         d_ptr->m_pModelPtr = nullptr;
         d_ptr->setModelCommon(m, oldPtr ? oldPtr.data() : oldM);
-        emit modelChanged(m);
+        emit modelChanged(m, oldM);
     }
     else {
         Q_ASSERT(false);
@@ -231,7 +242,7 @@ int ModelAdapter::cacheBuffer() const
 
 void ModelAdapter::setCacheBuffer(int value)
 {
-    d_ptr->m_CacheBuffer = value;
+    d_ptr->m_CacheBuffer = std::min(1, value);
 }
 
 int ModelAdapter::poolSize() const
@@ -266,18 +277,14 @@ SelectionAdapter* ModelAdapter::selectionAdapter() const
 
 ContextAdapterFactory* ModelAdapter::contextAdapterFactory() const
 {
-    if (!d_ptr->m_pRoleContextFactory)
+    if (!d_ptr->m_pRoleContextFactory) {
         d_ptr->m_pRoleContextFactory = new ContextAdapterFactory();
 
+        if (auto m = rawModel())
+            d_ptr->m_pRoleContextFactory->setModel(m);
+    }
+
     return d_ptr->m_pRoleContextFactory;
-}
-
-void ModelAdapter::setContextAdapterFactory(ContextAdapterFactory* cm)
-{
-    // It cannot (yet) be replaced.
-    Q_ASSERT(!d_ptr->m_pRoleContextFactory);
-
-    d_ptr->m_pRoleContextFactory = cm;
 }
 
 QVector<Viewport*> ModelAdapter::viewports() const
@@ -316,6 +323,11 @@ AbstractItemAdapter* ModelAdapter::itemForIndex(const QModelIndex& idx) const
 ViewBase *ModelAdapter::view() const
 {
     return d_ptr->m_pView;
+}
+
+bool ModelAdapter::hasSizeHints() const
+{
+    return d_ptr->m_ModelHasSizeHints;
 }
 
 #include <modeladapter.moc>

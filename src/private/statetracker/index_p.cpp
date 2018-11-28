@@ -631,8 +631,7 @@ int StateTracker::Index::depth() const
 
     auto s = this;
 
-    while(s = s->parent())
-        d++;
+    while((s = s->parent()) && ++d);
 
     return d;//FIXME m_pTTI->m_Depth;
 }

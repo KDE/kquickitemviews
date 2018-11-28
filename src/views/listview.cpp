@@ -115,7 +115,6 @@ public:
 
 public Q_SLOTS:
     void slotCurrentIndexChanged(const QModelIndex& index);
-    void slotDataChanged(const QModelIndex& tl, const QModelIndex& br);
 };
 
 ListView::ListView(QQuickItem* parent) : SingleModelViewBase(new ItemFactory<ListViewItem>(), parent),
@@ -164,21 +163,6 @@ void ListView::setCurrentIndex(int index)
     );
 }
 
-void ListView::applyModelChanges(QAbstractItemModel* m)
-{
-    if (auto oldM = rawModel())
-        disconnect(oldM, &QAbstractItemModel::dataChanged, d_ptr,
-            &ListViewPrivate::slotDataChanged);
-
-    SingleModelViewBase::applyModelChanges(m);
-
-    if (!m)
-        return;
-
-    connect(m, &QAbstractItemModel::dataChanged, d_ptr,
-        &ListViewPrivate::slotDataChanged);
-}
-
 ListViewSections* ListView::section() const
 {
     if (!d_ptr->m_pSections) {
@@ -191,7 +175,7 @@ ListViewSections* ListView::section() const
 }
 
 ListViewSection::ListViewSection(ListViewItem* owner, const QVariant& value) :
-    m_pOwner(owner), m_Value(value), d_ptr(owner->d())
+    m_Value(value), m_pOwner(owner), d_ptr(owner->d())
 {
     m_pContent = new QQmlContext(owner->view()->rootContext());
     m_pContent->setContextProperty("section", value);
@@ -659,30 +643,6 @@ void ListViewSections::setModel(const QSharedPointer<QAbstractItemModel>& m)
 void ListViewPrivate::slotCurrentIndexChanged(const QModelIndex& index)
 {
     emit q_ptr->indexChanged(index.row());
-}
-
-// Make sure the section stay in sync with the content
-void ListViewPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& br)
-{
-    if ((!m_pSections) || (!tl.isValid()) || (!br.isValid()))
-        return;
-
-    //FIXME remove this call to itemForIndex and delete the function
-    auto tli = static_cast<ListViewItem*>(q_ptr->itemForIndex(tl));
-    auto bri = static_cast<ListViewItem*>(q_ptr->itemForIndex(br));
-
-//     Q_ASSERT(tli);
-//     Q_ASSERT(bri);
-//
-//     bool outdated = false;
-//
-//     //TODO there is some possible optimizations here, not *all* subsequent
-//     // elements needs to be moved
-//     do {
-//         if (outdated || (outdated = (tli->m_pSection != getSection(tli))))
-//             tli->move();
-//
-//     } while(tli != bri && (tli = static_cast<ListViewItem*>(tli->down())));
 }
 
 ListViewItem *ListViewSection::owner() const

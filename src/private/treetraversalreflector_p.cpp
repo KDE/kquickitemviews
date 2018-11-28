@@ -124,7 +124,7 @@ class TreeTraversalReflectorPrivate : public QObject
 public:
 
     // Helpers
-    StateTracker::ModelItem* addChildren(StateTracker::ModelItem* parent, const QModelIndex& index);
+    StateTracker::ModelItem* addChildren(const QModelIndex& index);
     StateTracker::ModelItem* ttiForIndex(const QModelIndex& idx) const;
 
     bool isInsertActive(const QModelIndex& p, int first, int last) const;
@@ -802,7 +802,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
             }
         }
 
-        auto e = addChildren(pitem, idx);
+        auto e = addChildren(idx);
 
 //         e->parent()->_test_validate_chain();
 
@@ -1458,7 +1458,6 @@ void TreeTraversalReflectorPrivate::enterState(StateTracker::ModelItem* tti, Sta
     Q_UNUSED(tti);
     Q_UNUSED(s);
 
-
 //     _test_validate_edges();
 }
 
@@ -1510,6 +1509,7 @@ StateTracker::Index *TreeTraversalReflectorPrivate::lastItem() const
 
 bool TreeTraversalReflectorPrivate::isInsertActive(const QModelIndex& p, int first, int last) const
 {
+    Q_UNUSED(last) //TODO
     auto pitem = p.isValid() ? m_hMapper.value(p) : m_pRoot;
 
     StateTracker::Index *prev(nullptr);
@@ -1580,7 +1580,7 @@ bool TreeTraversalReflector::isActive(const QModelIndex& parent, int first, int 
 }
 
 /// Add new entries to the mapping
-StateTracker::ModelItem* TreeTraversalReflectorPrivate::addChildren(StateTracker::ModelItem* parent, const QModelIndex& index)
+StateTracker::ModelItem* TreeTraversalReflectorPrivate::addChildren(const QModelIndex& index)
 {
     Q_ASSERT(index.isValid());
     Q_ASSERT(index.parent() != index);
@@ -1809,7 +1809,7 @@ QModelIndex TreeTraversalReflectorPrivate::getNextIndex(const QModelIndex& idx) 
 {
     // There is 2 possibilities, a sibling or a [[great]grand]uncle
 
-    if (auto rc = m_pModel->rowCount(idx))
+    if (m_pModel->rowCount(idx))
         return m_pModel->index(0,0, idx);
 
     auto sib = idx.siblingAtRow(idx.row()+1);

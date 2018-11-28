@@ -178,6 +178,7 @@ QVector<QByteArray>& TreeContextProperties::propertyNames() const
 
 QVariant TreeContextProperties::getProperty(AbstractItemAdapter* item, uint id, const QModelIndex& index) const
 {
+    Q_UNUSED(index);
     Q_ASSERT(id == 0 && item);
     return !item->isCollapsed();
 }

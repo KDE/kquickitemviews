@@ -336,7 +336,7 @@ void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& 
                 // (maybe) dismiss geometry cache
                 q_ptr->s_ptr->notifyChange(item);
 
-                if (auto vi = item->viewTracker())
+                if (item->viewTracker())
                     item << IndexMetadata::ViewAction::UPDATE;
             }
         }
@@ -407,7 +407,7 @@ void ViewportPrivate::updateAvailableEdges()
     // perfectly full and can't scroll any more (and thus load the next item)
     vp.setHeight(vp.height()+1.0);
 
-    if ((!tve) || fixedIntersect(tveValid, vp, tvg) && tvg.y() > 0)
+    if ((!tve) || (fixedIntersect(tveValid, vp, tvg) && tvg.y() > 0))
         available |= Qt::TopEdge;
 
     if ((!bve) || fixedIntersect(bveValid, vp, bvg))
@@ -470,8 +470,6 @@ void ViewportSync::geometryUpdated(IndexMetadata *item)
 
     //TODO assert if the size hints don't match reality
 
-    auto geo = item->decoratedGeometry();
-
     if (q_ptr->d_ptr->m_SizeStrategy == Viewport::SizeHintStrategy::JIT)
         q_ptr->d_ptr->updateAvailableEdges();
 }
@@ -508,6 +506,7 @@ void ViewportSync::notifyChange(IndexMetadata* item)
 
 void ViewportSync::notifyRemoval(IndexMetadata* item)
 {
+    Q_UNUSED(item)
     if (m_pReflector->modelTracker()->state() == StateTracker::Model::State::RESETING)
         return; //TODO it needs another state machine to get rid of the `if`
 

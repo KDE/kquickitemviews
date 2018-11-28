@@ -31,12 +31,12 @@ struct ModelViewTesterItem
     ModelViewTesterItem(ModelViewTesterItem* p, const QHash<int, QVariant>& vals, int i = -1);
 
     int m_Index {0};;
-    QHash<int, QVariant> m_hValues;
     ModelViewTesterItem* m_pParent {nullptr};
+    QHash<int, QVariant> m_hValues;
     QVector<ModelViewTesterItem*> m_lChildren;
 };
 
-ModelViewTester::ModelViewTester(QObject* parent)
+ModelViewTester::ModelViewTester(QObject* parent) : QAbstractItemModel(parent)
 {
     m_pRoot = new ModelViewTesterItem;
 
@@ -135,7 +135,7 @@ int ModelViewTester::rowCount( const QModelIndex& parent) const
 
 int ModelViewTester::columnCount( const QModelIndex& parent ) const
 {
-    return 1; //FIXME not really true
+    return parent.isValid() ? 0 : 1; //FIXME not really true
 }
 
 QModelIndex ModelViewTester::parent( const QModelIndex& index ) const
@@ -176,6 +176,7 @@ bool ModelViewTester::dropMimeData( const QMimeData* data, Qt::DropAction action
     Q_UNUSED(action)
     Q_UNUSED(row)
     Q_UNUSED(column)
+    Q_UNUSED(parent)
     return false; //TODO
 }
 

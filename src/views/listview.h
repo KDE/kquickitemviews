@@ -111,9 +111,6 @@ public:
 Q_SIGNALS:
     void indexChanged(int index);
 
-protected:
-    virtual void applyModelChanges(QAbstractItemModel* m) override;
-
 private:
 
     ListViewPrivate* d_ptr;

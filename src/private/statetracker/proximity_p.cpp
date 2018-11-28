@@ -195,7 +195,7 @@ QModelIndexList ProximityPrivate::down() const
     // returning a single item
 
     // Return the first child
-    if (auto rc = m_pSelf->index().model()->rowCount(m_pSelf->index()))
+    if (m_pSelf->index().model()->rowCount(m_pSelf->index()))
         return {m_pSelf->index().model()->index(0, 0, m_pSelf->index())};
 
     // Return the next sibling

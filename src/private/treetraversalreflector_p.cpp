@@ -369,19 +369,18 @@ void TreeTraversalReflectorPrivate::removeEdge(StateTracker::ModelItem* tti, Sta
  */
 void TreeTraversalReflectorPrivate::resetState(StateTracker::ModelItem* i, StateTracker::ModelItem::State)
 {
+    static const auto VISIBLE = StateTracker::ModelItem::State::VISIBLE;
+
     //TODO make a 3D matrix out of this
     auto u = i->up  () ? i->up  ()->metadata()->modelTracker() : nullptr;
     auto d = i->down() ? i->down()->metadata()->modelTracker() : nullptr;
 
-    if (u && u->m_State == StateTracker::ModelItem::State::VISIBLE && d && d->m_State == StateTracker::ModelItem::State::VISIBLE) {
+    const bool betweenVis = u && d && u->m_State == VISIBLE && d->m_State == VISIBLE;
+    const bool nearVisible = ((!u) && d && d->m_State == VISIBLE) ||
+        ((!d) && u && u->m_State == VISIBLE);
+
+    if (betweenVis || nearVisible)
         i->m_State = StateTracker::ModelItem::State::VISIBLE;
-    }
-    else if ((!u) && d && d->m_State == StateTracker::ModelItem::State::VISIBLE) {
-        i->m_State = StateTracker::ModelItem::State::VISIBLE;
-    }
-    else if ((!d) && u && u->m_State == StateTracker::ModelItem::State::VISIBLE) {
-        i->m_State = StateTracker::ModelItem::State::VISIBLE;
-    }
     else
         Q_ASSERT(false); //TODO not implemented
 }
@@ -403,9 +402,10 @@ bool StateTracker::ModelItem::show()
     Q_ASSERT(m_State == State::VISIBLE);
 
     if (auto item = metadata()->viewTracker()) {
-        Q_UNUSED(item)
-        //item->setVisible(true);
-        Q_ASSERT(false); //TODO
+        //TODO Implementing this *may* make sense, but for now avoid it.
+        // for now it is undefined behavior, but not fatal
+        Q_ASSERT(false); //TODO not well thought
+        item->setVisible(true);
     }
     else {
         metadata()->setViewTracker(d_ptr->q_ptr->d_ptr->m_fFactory()->s_ptr);
@@ -459,23 +459,23 @@ bool StateTracker::ModelItem::show()
     Q_ASSERT(m_State == State::VISIBLE);
 
     // Update the edges
-    if (m_State == StateTracker::ModelItem::State::VISIBLE) {
+    if (m_State == State::VISIBLE) {
         auto first = d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
-        auto prev = up();
-        auto next = down();
-        auto last = d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
+        auto prev  = up();
+        auto next  = down();
+        auto last  = d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
 
         // Make sure the geometry is up to data
         metadata()->decoratedGeometry();
         Q_ASSERT(metadata()->isValid());
 
         if (first == next) {
-            Q_ASSERT((!up()) || (up()->metadata()->modelTracker()->m_State != StateTracker::ModelItem::State::VISIBLE));
+            Q_ASSERT((!up()) || (up()->metadata()->modelTracker()->m_State != State::VISIBLE));
             d_ptr->setEdge(EdgeType::VISIBLE, this, Qt::TopEdge);
         }
 
         if (prev == last) {
-            Q_ASSERT((!down()) || (down()->metadata()->modelTracker()->m_State != StateTracker::ModelItem::State::VISIBLE));
+            Q_ASSERT((!down()) || (down()->metadata()->modelTracker()->m_State != State::VISIBLE));
             d_ptr->setEdge(EdgeType::VISIBLE, this, Qt::BottomEdge);
         }
 
@@ -484,7 +484,6 @@ bool StateTracker::ModelItem::show()
         Q_ASSERT(false); //TODO handle failed elements
 
     //d_ptr->_test_validate_geometry_cache(); //TODO THIS_COMMIT
-
     //Q_ASSERT(metadata()->isInSync()); //TODO THIS_COMMIT
 
     d_ptr->_test_validateViewport();
@@ -494,34 +493,37 @@ bool StateTracker::ModelItem::show()
 
 bool StateTracker::ModelItem::hide()
 {
-    if (metadata()->viewTracker()) {
-        //item->setVisible(false);
-        metadata() << IndexMetadata::ViewAction::LEAVE_BUFFER;
-    }
+    if (!metadata()->viewTracker())
+        return true;
+
+    // This needs more reflection, is using "visible" instead of freeing
+    // memory a good idea?
+    //item->setVisible(false);
+    metadata() << IndexMetadata::ViewAction::LEAVE_BUFFER;
 
     return true;
 }
 
 bool StateTracker::ModelItem::remove2()
 {
+    if (!metadata()->viewTracker())
+        return true;
 
-    if (metadata()->viewTracker()) {
-        Q_ASSERT(metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::POOLED);
-        Q_ASSERT(metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::POOLING);
-        Q_ASSERT(metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::DANGLING);
+    Q_ASSERT(metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::POOLED  );
+    Q_ASSERT(metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::POOLING );
+    Q_ASSERT(metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::DANGLING);
 
-        // Move the item lifecycle forward
-        while (metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::POOLED
-          && metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::DANGLING)
-            metadata() << IndexMetadata::ViewAction::DETACH;
+    // Move the item lifecycle forward
+    while (metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::POOLED
+        && metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::DANGLING)
+        metadata() << IndexMetadata::ViewAction::DETACH;
 
-        // It should still exists, it may crash otherwise, so make sure early
-        Q_ASSERT(metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::POOLED
-            || metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::DANGLING
-        );
+    // It should still exists, it may crash otherwise, so make sure early
+    Q_ASSERT(metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::POOLED
+        || metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::DANGLING
+    );
 
-        metadata()->setViewTracker(nullptr);
-    }
+    metadata()->setViewTracker(nullptr);
 
     return true;
 }
@@ -549,26 +551,12 @@ bool StateTracker::ModelItem::detach()
             << IndexMetadata::LoadAction::DETACH;
     }
 
-    Q_ASSERT(!loadedChildrenCount());
-
-    Q_ASSERT(m_State == State::REACHABLE || m_State == State::DANGLING);
-
-    auto e = d_ptr->edges(EdgeType::FREE);
-
-    Q_ASSERT(!((!e->getEdge(Qt::BottomEdge)) ^ (!e->getEdge(Qt::TopEdge  ))));
-    Q_ASSERT(!((!e->getEdge(Qt::LeftEdge  )) ^ (!e->getEdge(Qt::RightEdge))));
-
-    const auto p = parent();
-
-    StateTracker::ModelItem::remove2();
+    remove2();
     StateTracker::Index::remove();
+
     d_ptr->m_pViewport->s_ptr->refreshVisible();
 
-    if (p)
-        Q_ASSERT(!p->childrenLookup(index()));
-    //FIXME set the parent firstChild() correctly and add an insert()/move() method
-    // then drop bridgeGap
-
+    Q_ASSERT(!loadedChildrenCount() && ((!parent()) || !parent()->childrenLookup(index())));
     Q_ASSERT(!metadata()->viewTracker());
 
     return true;
@@ -576,7 +564,6 @@ bool StateTracker::ModelItem::detach()
 
 bool StateTracker::ModelItem::refresh()
 {
-
     d_ptr->m_pViewport->s_ptr->updateGeometry(metadata());
 
     for (auto i = firstChild(); i; i = i->nextSibling()) {
@@ -606,7 +593,8 @@ bool StateTracker::ModelItem::move()
     }
 
     if (metadata()->viewTracker()) {
-        metadata() << IndexMetadata::ViewAction::MOVE; //FIXME don't
+        metadata() << IndexMetadata::ViewAction::MOVE;
+        //Q_ASSERT(metadata()->isInSync());//TODO THIS_COMMIT
     }
 
     Q_ASSERT(metadata()->isValid());
@@ -616,19 +604,12 @@ bool StateTracker::ModelItem::move()
 
 bool StateTracker::ModelItem::destroy()
 {
-    const auto p = parent();
-    Q_ASSERT(p || this == d_ptr->m_pRoot);
-    Q_ASSERT((!p) || p->hasChildren(this));
+    Q_ASSERT(parent() || this == d_ptr->m_pRoot);
+    Q_ASSERT((!parent()) || parent()->hasChildren(this));
 
     detach();
 
-    if (metadata()->viewTracker()) {
-        metadata() << IndexMetadata::ViewAction::DETACH;
-    }
-
-    metadata()->setViewTracker(nullptr);
-
-    Q_ASSERT(!loadedChildrenCount());
+    Q_ASSERT((!metadata()->viewTracker()) && !loadedChildrenCount());
 
     delete this;
     return true;
@@ -649,6 +630,7 @@ bool StateTracker::ModelItem::reset()
         metadata()
             << IndexMetadata::ViewAction::LEAVE_BUFFER
             << IndexMetadata::ViewAction::DETACH;
+
         metadata()->setViewTracker(nullptr);
     }
 
@@ -684,18 +666,16 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         return;
     }
 
-    auto pitem = parent.isValid() ? m_hMapper.value(parent) : m_pRoot;
+    const auto pitem = parent.isValid() ? m_hMapper.value(parent) : m_pRoot;
 
     //FIXME it is possible if the anchor is at the bottom that the parent
-    // needs to be loaded
+    // needs to be loaded. But this is currently too not supported.
     if (!pitem) {
         _test_validateLinkedList();
         return;
     }
 
-    Q_ASSERT((!pitem->firstChild()) || pitem->lastChild());
-
-    StateTracker::Index *prev(nullptr);
+    StateTracker::Index *prev = nullptr;
 
     //FIXME use up()
     if (first && pitem)
@@ -711,8 +691,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         //Q_ASSERT(!TTI(prev->down())->metadata()->isValid());
     }
     else if ((!prev) && (!pitem) && m_pRoot->firstChild()) {
-        Q_ASSERT(!first);
-        Q_ASSERT(!parent.isValid());
+        Q_ASSERT((!first) && !parent.isValid());
         m_pViewport->s_ptr->notifyInsert(m_pRoot->firstChild()->metadata());
         //Q_ASSERT(!TTI(m_pRoot->firstChild())->metadata()->isValid());
     }
@@ -1275,14 +1254,13 @@ void StateTracker::Model::populate()
         return;
 
     if (d_ptr->m_pRoot->firstChild() && (d_ptr->edges(EdgeType::FREE)->m_Edges & (Qt::TopEdge|Qt::BottomEdge))) {
-
         while (d_ptr->edges(EdgeType::FREE)->m_Edges & Qt::TopEdge) {
             const auto was = d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
             //FIXME when everything fails to load, it would otherwise make an infinite loop
             if (!was)
                 break;
 
-            auto u = was->metadata()->modelTracker()->load(Qt::TopEdge);
+            const auto u = was->metadata()->modelTracker()->load(Qt::TopEdge);
 
             Q_ASSERT(u || d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge)->effectiveRow() == 0);
             Q_ASSERT(u || !d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge)->effectiveParentIndex().isValid());
@@ -1300,8 +1278,7 @@ void StateTracker::Model::populate()
             if (!was)
                 break;
 
-            auto u = was->metadata()->modelTracker()->load(Qt::BottomEdge);
-
+            const auto u = was->metadata()->modelTracker()->load(Qt::BottomEdge);
 
             if (!u)
                 break;
@@ -1422,16 +1399,12 @@ void TreeTraversalReflector::setModel(QAbstractItemModel* m)
         << StateTracker::Model::Action::RESET
         << StateTracker::Model::Action::FREE;
 
-    Q_ASSERT(!d_ptr->m_pTrackedModel);
-    Q_ASSERT(d_ptr->m_pModelTracker->state() == StateTracker::Model::State::NO_MODEL
-        || d_ptr->m_pModelTracker->state() == StateTracker::Model::State::PAUSED);
+    d_ptr->_test_validateModelAboutToReplace();
 
     d_ptr->m_pModel = m;
 
     if (m)
         d_ptr->m_pModelTracker->forcePaused(); //HACK
-
-    Q_ASSERT(d_ptr->m_pModelTracker->state() == StateTracker::Model::State::PAUSED);
 
     if (!m)
         return;

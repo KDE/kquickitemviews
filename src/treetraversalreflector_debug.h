@@ -597,3 +597,10 @@ void TreeTraversalReflectorPrivate::_test_validateAtEnd()
 
     Q_ASSERT(!next.isValid());
 }
+
+void TreeTraversalReflectorPrivate::_test_validateModelAboutToReplace()
+{
+    Q_ASSERT(!m_pTrackedModel);
+    Q_ASSERT(m_pModelTracker->state() == StateTracker::Model::State::NO_MODEL
+        || m_pModelTracker->state() == StateTracker::Model::State::PAUSED);
+}

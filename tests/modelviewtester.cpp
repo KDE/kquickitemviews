@@ -79,6 +79,7 @@ ModelViewTester::ModelViewTester(QObject* parent) : QAbstractItemModel(parent)
     DO(largeFrontTree2);
     DO(removeLargeTree2);
     DO(removeLargeTree3);
+    //TODO move multiple
 
     // Larger move (with out of view)
 

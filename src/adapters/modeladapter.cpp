@@ -48,7 +48,7 @@ public:
     QSharedItemModel        m_pModelPtr           {       };
     QAbstractItemModel     *m_pRawModel           {nullptr};
     QQmlComponent          *m_pDelegate           {nullptr};
-    Viewport           *m_pRange              {nullptr};
+    Viewport               *m_pRange              {nullptr};
     SelectionAdapter       *m_pSelectionManager   {nullptr};
     ViewBase               *m_pView               {nullptr};
     ContextAdapterFactory  *m_pRoleContextFactory {nullptr};

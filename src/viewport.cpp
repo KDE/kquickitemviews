@@ -470,6 +470,9 @@ void ViewportSync::geometryUpdated(IndexMetadata *item)
 
     //TODO assert if the size hints don't match reality
 
+    // This will recompute the geometry
+    item->decoratedGeometry();
+
     if (q_ptr->d_ptr->m_SizeStrategy == Viewport::SizeHintStrategy::JIT)
         q_ptr->d_ptr->updateAvailableEdges();
 }

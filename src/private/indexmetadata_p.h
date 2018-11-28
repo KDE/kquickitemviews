@@ -136,10 +136,10 @@ public:
     bool performAction(ProximityAction a, Qt::Edge e);
 
     // Navigation
-    IndexMetadata *up   () const; //TODO remove, use `next(Qt::Edge)`
-    IndexMetadata *down () const; //TODO remove, use `next(Qt::Edge)`
-    IndexMetadata *left () const; //TODO remove, use `next(Qt::Edge)`
-    IndexMetadata *right() const; //TODO remove, use `next(Qt::Edge)`
+    IndexMetadata *up   () const; //DEPRECATED remove, use `next(Qt::Edge)`
+    IndexMetadata *down () const; //DEPRECATED remove, use `next(Qt::Edge)`
+    IndexMetadata *left () const; //DEPRECATED remove, use `next(Qt::Edge)`
+    IndexMetadata *right() const; //DEPRECATED remove, use `next(Qt::Edge)`
 
     IndexMetadata *next(Qt::Edge e) const;
 
@@ -190,3 +190,13 @@ public:
 private:
     IndexMetadataPrivate *d_ptr;
 };
+
+/**
+ * Allow daisy-chaining when the return value isn't used.
+ */
+template<typename A>
+inline IndexMetadata *operator<<(IndexMetadata* md, A a)
+{
+    md->performAction(a);
+    return md;
+}

@@ -76,4 +76,15 @@ private:
     static const StateF m_fStateMachine[5][7];
 };
 
+/**
+ * Allow daisy-chaining when the return value isn't used.
+ */
+template<typename A>
+inline Model *operator<<(Model* md, A a)
+{
+    md->performAction(a);
+    return md;
 }
+
+}
+

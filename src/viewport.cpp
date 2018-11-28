@@ -182,8 +182,9 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel
             this, &ViewportPrivate::slotDataChanged);
 
     if (m_ViewRect.size().isValid()) {
-        q_ptr->s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::POPULATE);
-        q_ptr->s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::ENABLE);
+        q_ptr->s_ptr->m_pReflector->modelTracker()
+         << StateTracker::Model::Action::POPULATE
+         << StateTracker::Model::Action::ENABLE;
     }
 
     using SHS = Viewport::SizeHintStrategy;
@@ -208,7 +209,7 @@ void ViewportPrivate::slotViewportChanged(const QRectF &viewport)
     m_ViewRect = viewport;
     m_UsedRect = viewport; //FIXME remove wrong
     updateAvailableEdges();
-    q_ptr->s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::MOVE);
+    q_ptr->s_ptr->m_pReflector->modelTracker() << StateTracker::Model::Action::MOVE;
 }
 
 ModelAdapter *Viewport::modelAdapter() const
@@ -243,7 +244,7 @@ void Viewport::setSizeHintStrategy(Viewport::SizeHintStrategy s)
     bool wasConnected = needConnect(old);
     bool willConnect  = needConnect( s );
 
-    s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::RESET);
+    s_ptr->m_pReflector->modelTracker() << StateTracker::Model::Action::RESET;
     d_ptr->m_SizeStrategy = s;
 
     const auto m = d_ptr->m_pModelAdapter->rawModel();
@@ -336,7 +337,7 @@ void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& 
                 q_ptr->s_ptr->notifyChange(item);
 
                 if (auto vi = item->viewTracker())
-                    vi->performAction(IndexMetadata::ViewAction::UPDATE);
+                    item << IndexMetadata::ViewAction::UPDATE;
             }
         }
     }
@@ -425,7 +426,7 @@ void ViewportPrivate::updateAvailableEdges()
 //         (~hasInvisible)&15, IndexMetadata::EdgeType::VISIBLE
 //     );
 
-    q_ptr->s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::TRIM);
+    q_ptr->s_ptr->m_pReflector->modelTracker() << StateTracker::Model::Action::TRIM;
 
     bve = q_ptr->s_ptr->m_pReflector->getEdge(
         IndexMetadata::EdgeType::VISIBLE, Qt::BottomEdge
@@ -501,7 +502,7 @@ void ViewportSync::notifyChange(IndexMetadata* item)
         case Viewport::SizeHintStrategy::AOT:
         case Viewport::SizeHintStrategy::JIT:
         case Viewport::SizeHintStrategy::PROXY:
-            item->performAction(IndexMetadata::GeometryAction::MODIFY);
+            item << IndexMetadata::GeometryAction::MODIFY;
     }
 }
 
@@ -612,7 +613,7 @@ void ViewportSync::refreshVisible()
 
         // This `performAction` exists to recover from runtime failures
         if (!item->isInSync())
-            item->performAction(IndexMetadata::LoadAction::MOVE);
+            item << IndexMetadata::LoadAction::MOVE;
 
     } while((!hasSingleItem) && item->up() != bve && (item = item->down()));
 }
@@ -649,7 +650,7 @@ void ViewportSync::notifyInsert(IndexMetadata* item)
     //FIXME this is also horrible
     do {
         if (item == bve) {
-            item->performAction(IndexMetadata::GeometryAction::MOVE);
+            item << IndexMetadata::GeometryAction::MOVE;
             break;
         }
 
@@ -658,7 +659,7 @@ void ViewportSync::notifyInsert(IndexMetadata* item)
             break;
         }
 
-        item->performAction(IndexMetadata::GeometryAction::MOVE);
+        item << IndexMetadata::GeometryAction::MOVE;
     } while((item = item->down()));
 
     refreshVisible();
@@ -689,11 +690,12 @@ void Viewport::resize(const QRectF& rect)
     d_ptr->updateAvailableEdges();
 
     if ((!wasValid) && rect.isValid()) {
-        s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::POPULATE);
-        s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::ENABLE);
+        s_ptr->m_pReflector->modelTracker()
+            << StateTracker::Model::Action::POPULATE
+            << StateTracker::Model::Action::ENABLE;
     }
     else if (rect.isValid()) {
-        s_ptr->m_pReflector->modelTracker()->performAction(StateTracker::Model::Action::MOVE);
+        s_ptr->m_pReflector->modelTracker() << StateTracker::Model::Action::MOVE;
     }
 }
 

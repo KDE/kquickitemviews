@@ -45,6 +45,9 @@ public:
     ViewItemContextAdapter  *m_pContextAdapter   {             nullptr          };
     Viewport                *m_pViewport         {             nullptr          };
 
+    // Attributes
+    bool m_IsCollapsed {false}; //TODO change the default to true
+
     typedef bool(IndexMetadataPrivate::*StateF)();
     static const IndexMetadataPrivate::StateF m_fStateMachine[5][7];
 
@@ -378,4 +381,14 @@ IndexMetadata *IndexMetadata::next(Qt::Edge e) const
 {
     auto i = indexTracker()->next(e);
     return i ? i->metadata() : nullptr;
+}
+
+bool IndexMetadata::isCollapsed() const
+{
+    return d_ptr->m_IsCollapsed;
+}
+
+void IndexMetadata::setCollapsed(bool c)
+{
+    d_ptr->m_IsCollapsed = c;
 }

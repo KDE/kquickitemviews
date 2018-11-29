@@ -665,3 +665,13 @@ int StateTracker::ViewItem::column() const
 {
     return m_pGeometry->indexTracker()->effectiveColumn();
 }
+
+void StateTracker::ViewItem::setCollapsed(bool v)
+{
+    m_pGeometry->setCollapsed(v);
+}
+
+bool StateTracker::ViewItem::isCollapsed() const
+{
+    return m_pGeometry->isCollapsed();
+}

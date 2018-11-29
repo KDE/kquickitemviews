@@ -107,6 +107,8 @@ private:
     int m_MoveToColumn {-1};
     QPersistentModelIndex m_MoveToParent;
 
+    uint m_Depth {0};
+
     LifeCycleState m_LifeCycleState {LifeCycleState::NEW};
 
     Index* m_tSiblings[2] = {nullptr, nullptr};

@@ -187,6 +187,9 @@ public:
 
     int removeMe() const; //TODO remove when time permit
 
+    bool isCollapsed() const;
+    void setCollapsed(bool c);
+
 private:
     IndexMetadataPrivate *d_ptr;
 };
@@ -194,9 +197,5 @@ private:
 /**
  * Allow daisy-chaining when the return value isn't used.
  */
-template<typename A>
-inline IndexMetadata *operator<<(IndexMetadata* md, A a)
-{
-    md->performAction(a);
-    return md;
-}
+template<typename A> inline IndexMetadata *operator<<(IndexMetadata* md, A a)
+{ md->performAction(a); return md; }

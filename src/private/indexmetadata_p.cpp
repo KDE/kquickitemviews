@@ -31,6 +31,7 @@
 #include "statetracker/geometry_p.h"
 #include "statetracker/proximity_p.h"
 #include "statetracker/index_p.h"
+#include "statetracker/modelitem_p.h"
 
 class IndexMetadataPrivate
 {
@@ -391,4 +392,58 @@ bool IndexMetadata::isCollapsed() const
 void IndexMetadata::setCollapsed(bool c)
 {
     d_ptr->m_IsCollapsed = c;
+}
+
+
+#include <private/treetraversalreflector_p2.h> //TODO remove
+
+bool IndexMetadata::performAction(IndexMetadata::LoadAction a)
+{
+    auto mt = static_cast<StateTracker::ModelItem*>(indexTracker());
+
+    Q_ASSERT(mt->state() != StateTracker::ModelItem::State::ERROR);
+    const int s   = (int)mt->state();
+    const auto ns = mt->m_State = mt->m_fStateMap[s][(int)a];
+    Q_ASSERT(mt->state() != StateTracker::ModelItem::State::ERROR);
+
+    // This need to be done before calling the transition function because it
+    // can trigger another round of state change.
+    if (s != (int)mt->state()) {
+        (mt->d_ptr->*TreeTraversalReflectorPrivate::m_fStateLogging[s][1])(mt, (StateTracker::ModelItem::State)s);
+        (mt->d_ptr->*TreeTraversalReflectorPrivate::m_fStateLogging[(int)mt->state()][0])(mt, (StateTracker::ModelItem::State)s);
+    }
+
+    // At this point the edges should have been updated.
+    mt->d_ptr->_test_validate_edges_simple();
+
+    bool ret = (mt->*StateTracker::ModelItem::m_fStateMachine[s][(int)a])();
+
+    //WARNING, do not access mt form here, it might have been deleted
+
+    Q_ASSERT(ns == StateTracker::ModelItem::State::DANGLING ||
+        ((!mt->metadata()->viewTracker())
+        ||  mt->state() == StateTracker::ModelItem::State::BUFFER
+        ||  mt->state() == StateTracker::ModelItem::State::MOVING
+        ||  mt->state() == StateTracker::ModelItem::State::VISIBLE));
+
+    if (ns != StateTracker::ModelItem::State::DANGLING)
+        mt->d_ptr->_test_validate_edges_simple();
+
+    return ret;
+}
+
+bool IndexMetadata::isVisible() const
+{
+    return modelTracker()->state() ==
+        StateTracker::ModelItem::State::VISIBLE;
+}
+
+QModelIndex IndexMetadata::index() const
+{
+    return QModelIndex(indexTracker()->index());
+}
+
+bool IndexMetadata::isTopItem() const
+{
+    return indexTracker() == modelTracker()->d_ptr->m_pRoot->firstChild();
 }

@@ -9,6 +9,8 @@
  *  * As a "sliding window" (viewport)
  */
 
+#include <private/treetraversalreflector_p2.h>
+
 void TreeTraversalReflectorPrivate::_test_validateTree(StateTracker::Index* p)
 {
 #ifndef ENABLE_EXTRA_VALIDATION

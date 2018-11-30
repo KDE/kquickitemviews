@@ -91,6 +91,7 @@ public:
 
     // Runtime tests
     void _test_validate_chain() const;
+    static void _test_bridgeGap(Index *first, Index *second);
 
     QPersistentModelIndex index() const;
     void setModelIndex(const QPersistentModelIndex& idx);

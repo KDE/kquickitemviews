@@ -606,3 +606,43 @@ void TreeTraversalReflectorPrivate::_test_validateModelAboutToReplace()
     Q_ASSERT(m_pModelTracker->state() == StateTracker::Model::State::NO_MODEL
         || m_pModelTracker->state() == StateTracker::Model::State::PAUSED);
 }
+
+void StateTracker::Index::_test_bridgeGap(StateTracker::Index *first, StateTracker::Index *second)
+{
+    if (second && first && second->m_pParent && second->m_pParent->firstChild() ==second && second->m_pParent == first->m_pParent) {
+        second->m_pParent->m_tChildren[0] = first;
+        Q_ASSERT((!first) || second->m_pParent->lastChild());
+        Q_ASSERT((!first) || !first->previousSibling());
+    }
+
+    if ((!first) && second->m_MoveToRow != -1) {
+        Q_ASSERT(second->m_pParent->firstChild());
+        Q_ASSERT(second->m_pParent->firstChild() ==second ||
+            second->m_pParent->firstChild()->m_Index.row() < second->m_MoveToRow);
+    }
+
+    if (first)
+        Q_ASSERT(first->m_pParent->firstChild());
+    if (second)
+        Q_ASSERT(second->m_pParent->firstChild());
+
+    if (first)
+        Q_ASSERT(first->m_pParent->lastChild());
+    if (second)
+        Q_ASSERT(second->m_pParent->lastChild());
+
+
+    Q_ASSERT((!second) || (!second->m_pParent->firstChild()) || second->m_pParent->lastChild());
+
+
+//     if (first && second) { //Need to disable other asserts in down()
+//         Q_ASSERT(first->down() == second);
+//         Q_ASSERT(second->up() == first);
+//     }
+
+    // Close the gap between the old previous and next elements
+    Q_ASSERT((!first ) || first->nextSibling()      != first );
+    Q_ASSERT((!first ) || first->previousSibling()  != first );
+    Q_ASSERT((!second) || second->nextSibling()     != second);
+    Q_ASSERT((!second) || second->previousSibling() != second);
+}

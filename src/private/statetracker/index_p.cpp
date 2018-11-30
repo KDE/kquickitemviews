@@ -173,52 +173,6 @@ void StateTracker::Index::insertChildBefore(StateTracker::Index* self, StateTrac
     parent->_test_validate_chain();
 }
 
-
-// void StateTracker::Index::createGap(StateTracker::Index* first, StateTracker::Index* last)
-// {
-//     Q_ASSERT(first->m_pParent == last->m_pParent);
-//
-//     // This is simpler
-//     if (first == last) {
-//         first->remove();
-//         return;
-//     }
-//
-//     if (first->previousSibling()) {
-//         first->previousSibling()->m_tSiblings[NEXT] = last->nextSibling();
-//     }
-//
-//     if (last->nextSibling()) {
-//         last->nextSibling()->m_tSiblings[PREVIOUS] = first->previousSibling();
-//     }
-//
-//     if (first->m_pParent->firstChild() ==first) {
-//         first->m_pParent->m_tChildren[FIRST] = last->nextSibling();
-//         Q_ASSERT(!first->m_pParent->firstChild()->previousSibling());
-//     }
-//
-//     if (last->m_pParent->lastChild() ==last) {
-//         last->m_pParent->m_tChildren[LAST] = first->previousSibling();
-//
-//         Q_ASSERT((!last->m_pParent->lastChild()) || !last->m_pParent->lastChild()->nextSibling());
-//     }
-//
-//     Q_ASSERT((!first->previousSibling()) ||
-//         first->previousSibling()->down() != first);
-//     Q_ASSERT((!last->nextSibling()) ||
-//         last->nextSibling()->up() != last);
-//
-//     Q_ASSERT((!first) || first->firstChild() || first->m_hLookup.isEmpty());
-//     Q_ASSERT((!last) || last->firstChild() || last->m_hLookup.isEmpty());
-//     Q_ASSERT((!first->m_pParent->firstChild()) || first->m_pParent->lastChild());
-//
-//     // Do not leave invalid pointers for easier debugging
-//     last->m_tSiblings[NEXT]      = nullptr;
-//     first->m_tSiblings[PREVIOUS] = nullptr;
-//
-//     first->m_pParent->_test_validate_chain();
-// }
-
 /// Fix the issues introduced by createGap (does not update m_pParent and m_hLookup)
 void StateTracker::Index::bridgeGap(StateTracker::Index* first, StateTracker::Index* second)
 {
@@ -291,42 +245,7 @@ void StateTracker::Index::bridgeGap(StateTracker::Index* first, StateTracker::In
         Q_ASSERT(false); //Something went really wrong elsewhere
     }
 
-    if (second && first && second->m_pParent && second->m_pParent->firstChild() ==second && second->m_pParent == first->m_pParent) {
-        second->m_pParent->m_tChildren[FIRST] = first;
-        Q_ASSERT((!first) || second->m_pParent->lastChild());
-        Q_ASSERT((!first) || !first->previousSibling());
-    }
-
-    if ((!first) && second->m_MoveToRow != -1) {
-        Q_ASSERT(second->m_pParent->firstChild());
-        Q_ASSERT(second->m_pParent->firstChild() ==second ||
-            second->m_pParent->firstChild()->m_Index.row() < second->m_MoveToRow);
-    }
-
-    if (first)
-        Q_ASSERT(first->m_pParent->firstChild());
-    if (second)
-        Q_ASSERT(second->m_pParent->firstChild());
-
-    if (first)
-        Q_ASSERT(first->m_pParent->lastChild());
-    if (second)
-        Q_ASSERT(second->m_pParent->lastChild());
-
-
-    Q_ASSERT((!second) || (!second->m_pParent->firstChild()) || second->m_pParent->lastChild());
-
-
-//     if (first && second) { //Need to disable other asserts in down()
-//         Q_ASSERT(first->down() == second);
-//         Q_ASSERT(second->up() == first);
-//     }
-
-    // Close the gap between the old previous and next elements
-    Q_ASSERT((!first ) || first->nextSibling()      != first );
-    Q_ASSERT((!first ) || first->previousSibling()  != first );
-    Q_ASSERT((!second) || second->nextSibling()     != second);
-    Q_ASSERT((!second) || second->previousSibling() != second);
+    _test_bridgeGap(first, second);
 }
 
 void StateTracker::Index::remove(bool reparent)
@@ -348,8 +267,7 @@ void StateTracker::Index::remove(bool reparent)
         Q_ASSERT(m_hLookup.isEmpty());
     }
 
-    auto oldNext = nextSibling();
-    auto oldPrev = previousSibling();
+    const auto oldNext(nextSibling()), oldPrev(previousSibling());
 
     // Do not use bridgeGap to prevent rist of recursion on invalid trees
     if (oldPrev && oldNext) {
@@ -484,35 +402,6 @@ StateTracker::Index* StateTracker::Index::right() const
 {
     return nullptr; //TODO
 }
-
-// void StateTracker::Index::reparentUntil(StateTracker::Index *np, StateTracker::Index *until)
-// {
-//     const auto oldP = m_pParent;
-//
-//     Q_ASSERT(until->m_pParent == oldP);
-//
-//     if (oldP != np) {
-//         for (auto i = this; i; i = i->nextSibling()) {
-//             Q_ASSERT(i->m_pParent == oldP);
-//             auto idx = i->m_Index;
-//
-//             const int size = oldP->m_hLookup.size();
-//             oldP->m_hLookup.remove(idx);
-//             Q_ASSERT(oldP->m_hLookup.size() == size-1);
-//
-//             Q_ASSERT(!i->m_pParent->m_hLookup.values().contains(i));
-//             np->m_hLookup[idx] = i;
-//             i->m_pParent = np;
-//             Q_ASSERT(i->m_pParent->m_hLookup.values().contains(i));
-//             i->m_LifeCycleState = LifeCycleState::NORMAL;
-//             if (i == until)
-//                 break;
-//         }
-//     }
-//
-//     if (oldP)
-//         oldP->_test_validate_chain();
-// }
 
 int ModelRect::edgeToIndex(Qt::Edge e) const
 {

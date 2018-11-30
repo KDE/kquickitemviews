@@ -86,14 +86,6 @@ public:
 
     bool isEmpty() const;
 
-    /**
-     * Get the AbstractItemAdapter associated with a model index.
-     *
-     * Note that if the index is not currently visible or buferred, it will
-     * return nullptr.
-     */
-    AbstractItemAdapter* itemForIndex(const QModelIndex& idx) const; //FIXME remove
-
 protected:
     virtual void geometryChanged(const QRectF &newGeometry, const QRectF &oldGeometry) override;
 

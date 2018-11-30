@@ -19,7 +19,11 @@
 
 // KQuickItemViews
 #include "private/selectionadapter_p.h"
+#include "private/statetracker/viewitem_p.h"
+#include "private/indexmetadata_p.h"
 #include "viewbase.h"
+#include "viewport.h"
+#include "private/viewport_p.h"
 #include "abstractitemadapter.h"
 #include "extensions/contextextension.h"
 
@@ -49,16 +53,17 @@ class SelectionAdapterPrivate : public QObject
     friend class SelectionAdapterSyncInterface;
     Q_OBJECT
 public:
-    QSharedPointer<QItemSelectionModel> m_pSelectionModel {nullptr};
-    QAbstractItemModel*  m_pModel          {nullptr};
-
-    QQuickItem* m_pSelectedItem   {nullptr};
-    ItemRef m_pSelectedViewItem;
-    QQmlComponent* m_pHighlight {nullptr};
-    ViewBase* m_pView {nullptr};
-    mutable ItemSelectionGroup* m_pContextExtension {nullptr};
+    QSharedPointer<QItemSelectionModel> m_pSelectionModel   {nullptr};
+    QAbstractItemModel*                 m_pModel            {nullptr};
+    QQuickItem*                         m_pSelectedItem     {nullptr};
+    QQmlComponent*                      m_pHighlight        {nullptr};
+    ViewBase*                           m_pView             {nullptr};
+    Viewport*                           m_pViewport         {nullptr};
+    mutable ItemSelectionGroup*         m_pContextExtension {nullptr};
+    ItemRef                             m_pSelectedViewItem;
 
     SelectionAdapter* q_ptr;
+
 public Q_SLOTS:
     void slotCurrentIndexChanged(const QModelIndex& idx);
     void slotSelectionModelChanged();
@@ -169,7 +174,8 @@ void SelectionAdapterPrivate::slotCurrentIndexChanged(const QModelIndex& idx)
     if (!m_pHighlight)
         return;
 
-    auto elem = m_pView->itemForIndex(idx);
+    auto md = m_pViewport->s_ptr->metadataForIndex(idx);
+    auto elem = md && md->viewTracker() ? md->viewTracker()->d_ptr : nullptr;
 
     // QItemSelectionModel::setCurrentIndex isn't protected against setting the item many time
     if (m_pSelectedViewItem.first && elem == m_pSelectedViewItem.second) {
@@ -201,10 +207,8 @@ void SelectionAdapterPrivate::slotCurrentIndexChanged(const QModelIndex& idx)
         m_pSelectedItem->setX(0);
     }
 
-    if (!elem) {
-        qDebug() << "Selected item not found" << idx.model();
+    if (!elem)
         return;
-    }
 
     const auto geo = elem->geometry();
     m_pSelectedItem->setVisible(true);
@@ -290,6 +294,11 @@ ContextExtension *SelectionAdapter::contextExtension() const
     }
 
     return d_ptr->m_pContextExtension;
+}
+
+void SelectionAdapterSyncInterface::setViewport(Viewport *v)
+{
+    q_ptr->d_ptr->m_pViewport = v;
 }
 
 #include <selectionadapter.moc>

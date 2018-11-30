@@ -143,13 +143,6 @@ void ViewBase::geometryChanged(const QRectF& newGeometry, const QRectF& oldGeome
     }
 }
 
-AbstractItemAdapter* ViewBase::itemForIndex(const QModelIndex& idx) const
-{
-    Q_ASSERT(d_ptr->m_lAdapters.size()); //FIXME worry about this later
-
-    return d_ptr->m_lAdapters.constFirst()->itemForIndex(idx);
-}
-
 void ViewBase::reload()
 {
     Q_ASSERT(false);

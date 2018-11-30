@@ -85,7 +85,7 @@ ModelAdapter::ModelAdapter(ViewBase* parent) : QObject(parent),
     selectionAdapter()->s_ptr->setView(parent);
     contextAdapterFactory()->addContextExtension(selectionAdapter()->contextExtension());
 
-    d_ptr->m_pRange = new Viewport(this);
+    selectionAdapter()->s_ptr->setViewport(d_ptr->m_pRange = new Viewport(this));
 
     connect(d_ptr->m_pRange, &Viewport::contentChanged,
         d_ptr, &ModelAdapterPrivate::slotContentChanged);
@@ -313,11 +313,6 @@ QAbstractItemModel *ModelAdapter::rawModel() const
         default:
             return nullptr;
     }
-}
-
-AbstractItemAdapter* ModelAdapter::itemForIndex(const QModelIndex& idx) const
-{
-    return d_ptr->m_pRange->itemForIndex(idx);
 }
 
 ViewBase *ModelAdapter::view() const

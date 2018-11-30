@@ -20,6 +20,7 @@
 class QAbstractItemModel;
 
 class ViewBase;
+class Viewport;
 
 // This class exists for the AbstractItemView to be able to internally
 // notify the SelectionAdapter about some events. In theory the public
@@ -37,6 +38,8 @@ public:
 
     ViewBase* view() const;
     void setView(ViewBase* v);
+
+    void setViewport(Viewport *v);
 
     SelectionAdapter* q_ptr;
 };

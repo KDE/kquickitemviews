@@ -292,11 +292,6 @@ QSizeF Viewport::totalSize() const
     return {}; //TODO
 }
 
-AbstractItemAdapter* Viewport::itemForIndex(const QModelIndex& idx) const
-{
-    return s_ptr->m_pReflector->itemForIndex(idx);
-}
-
 //TODO remove this content and check each range
 void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& br, const QVector<int> &roles)
 {
@@ -323,10 +318,9 @@ void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& 
 
     //TODO Use a smaller range when possible
 
-    //itemForIndex(const QModelIndex& idx) const final override;
     for (int i = tl.row(); i <= br.row(); i++) {
         const auto idx = m_pModelAdapter->rawModel()->index(i, tl.column(), tl.parent());
-        if (auto item = q_ptr->s_ptr->m_pReflector->geometryForIndex(idx)) {
+        if (auto item = q_ptr->s_ptr->m_pReflector->metadataForIndex(idx)) {
             // Prevent performing action if we know the changes wont affect the
             // view.
             if (item->contextAdapter()->updateRoles(roles)) {
@@ -787,4 +781,8 @@ void ViewportPrivate::slotReset()
     applyDelayedSize();
 }
 
+IndexMetadata *ViewportSync::metadataForIndex(const QModelIndex& idx) const
+{
+    return m_pReflector->metadataForIndex(idx);
+}
 #include <viewport.moc>

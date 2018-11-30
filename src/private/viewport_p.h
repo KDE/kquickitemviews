@@ -68,7 +68,7 @@ public:
      */
     void refreshVisible();
 
-    inline void updateSingleItem(const QModelIndex& index, IndexMetadata* b);
+    IndexMetadata *metadataForIndex(const QModelIndex& idx) const;
 
     Viewport *q_ptr;
     TreeTraversalReflector *m_pReflector {nullptr};

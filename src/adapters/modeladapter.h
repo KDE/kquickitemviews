@@ -107,8 +107,6 @@ public:
 
     bool hasSizeHints() const;
 
-    AbstractItemAdapter* itemForIndex(const QModelIndex& idx) const; //FIXME remove
-
 protected:
     // Rather then scope-creeping this class, all selection related elements
     // are implemented independently.

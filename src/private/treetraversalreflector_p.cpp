@@ -829,15 +829,7 @@ StateTracker::ModelItem* TreeTraversalReflectorPrivate::ttiForIndex(const QModel
         static_cast<StateTracker::ModelItem*>(parent->childrenLookup(idx)) : nullptr;
 }
 
-AbstractItemAdapter* TreeTraversalReflector::itemForIndex(const QModelIndex& idx) const
-{
-    const auto tti = d_ptr->ttiForIndex(idx);
-
-    return (tti && tti->metadata()->viewTracker()) ?
-        tti->metadata()->viewTracker()->d_ptr : nullptr;
-}
-
-IndexMetadata *TreeTraversalReflector::geometryForIndex(const QModelIndex& idx) const
+IndexMetadata *TreeTraversalReflector::metadataForIndex(const QModelIndex& idx) const
 {
     const auto tti = d_ptr->ttiForIndex(idx);
 

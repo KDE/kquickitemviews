@@ -84,9 +84,6 @@ public:
 
     void setItemFactory(ViewBase::ItemFactoryBase *factory);
 
-    //TODO remove
-    AbstractItemAdapter* itemForIndex(const QModelIndex& idx) const;
-
     void resize(const QRectF& rect);
 
 Q_SIGNALS:

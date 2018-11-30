@@ -84,11 +84,9 @@ public:
     StateTracker::Model *modelTracker() const;
 
     // Getter
-    AbstractItemAdapter* itemForIndex(const QModelIndex& idx) const; //TODO remove
-    IndexMetadata *geometryForIndex(const QModelIndex& idx) const;
-    bool isActive(const QModelIndex& parent, int first, int last); //TODO move to range
-    StateTracker::Index *root() const;
+    IndexMetadata *metadataForIndex(const QModelIndex& idx) const;
     Viewport *viewport() const;
+    StateTracker::Index *root() const;
     StateTracker::Index *lastItem() const;
     StateTracker::Index *firstItem() const;
     ModelRect* edges(IndexMetadata::EdgeType e) const;
@@ -108,6 +106,7 @@ public:
     void forceInsert(const QModelIndex& parent, int first, int last);
 
     // Helpers
+    bool isActive(const QModelIndex& parent, int first, int last); //TODO move to range
     StateTracker::Index *find(
         StateTracker::Index *i,
         Qt::Edge direction,

@@ -442,8 +442,8 @@ void ViewportPrivate::updateAvailableEdges()
 
     // Size is normal as the state as not converged yet
     Q_ASSERT((!bve) || (
-        bve->removeMe() == (int)StateTracker::Geometry::State::VALID ||
-        bve->removeMe() == (int)StateTracker::Geometry::State::SIZE)
+        bve->geometryTracker()->state() == StateTracker::Geometry::State::VALID ||
+        bve->geometryTracker()->state() == StateTracker::Geometry::State::SIZE)
     );
 
     // Resize the contend height, it has to be done after the geometry has been
@@ -595,8 +595,8 @@ void ViewportSync::refreshVisible()
     do {
         item->sizeHint();
 
-        Q_ASSERT(item->removeMe() != (int)StateTracker::Geometry::State::INIT);
-        Q_ASSERT(item->removeMe() != (int)StateTracker::Geometry::State::POSITION);
+        Q_ASSERT(item->geometryTracker()->state() != StateTracker::Geometry::State::INIT);
+        Q_ASSERT(item->geometryTracker()->state() != StateTracker::Geometry::State::POSITION);
 
         if (prev) {
             //FIXME this isn't ok, it needs to take into account the point size
@@ -628,12 +628,12 @@ void ViewportSync::notifyInsert(IndexMetadata* item)
     if (!item)
         return;
 
-    const bool needsPosition = item->removeMe() == (int)GeoState::INIT ||
-      item->removeMe() == (int)GeoState::SIZE;
+    const bool needsPosition = item->geometryTracker()->state() == GeoState::INIT ||
+      item->geometryTracker()->state() == GeoState::SIZE;
 
     // If the item is new and is inserted near valid items, skip some back and
     // forth and set the position now.
-    if (needsPosition && item->up() && item->up()->removeMe() == (int) GeoState::VALID) {
+    if (needsPosition && item->up() && item->up()->geometryTracker()->state() ==  GeoState::VALID) {
         item->setPosition(item->up()->decoratedGeometry().bottomLeft());
     }
 
@@ -654,7 +654,7 @@ void ViewportSync::notifyInsert(IndexMetadata* item)
         }
 
         if (!item->isValid() &&
-          item->removeMe() != (int)GeoState::POSITION) {
+          item->geometryTracker()->state() != GeoState::POSITION) {
             break;
         }
 

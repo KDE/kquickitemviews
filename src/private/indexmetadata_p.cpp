@@ -38,13 +38,13 @@ class IndexMetadataPrivate
 public:
     explicit IndexMetadataPrivate(IndexMetadata *q) : q_ptr(q) {}
 
-    StateTracker::Geometry  *m_pGeometryTracker  { new StateTracker::Geometry() };
-    StateTracker::ViewItem  *m_pViewTracker      {             nullptr          };
-    StateTracker::Index     *m_pIndexTracker     {             nullptr          };
-    StateTracker::ModelItem *m_pModelTracker     {             nullptr          };
-    StateTracker::Proximity *m_pProximityTracker {             nullptr          };
-    ViewItemContextAdapter  *m_pContextAdapter   {             nullptr          };
-    Viewport                *m_pViewport         {             nullptr          };
+    StateTracker::Geometry   m_GeoTracker        {         };
+    StateTracker::ViewItem  *m_pViewTracker      { nullptr };
+    StateTracker::Index     *m_pIndexTracker     { nullptr };
+    StateTracker::ModelItem *m_pModelTracker     { nullptr };
+    StateTracker::Proximity *m_pProximityTracker { nullptr };
+    ViewItemContextAdapter  *m_pContextAdapter   { nullptr };
+    Viewport                *m_pViewport         { nullptr };
 
     // Attributes
     bool m_IsCollapsed {false}; //TODO change the default to true
@@ -139,6 +139,11 @@ StateTracker::ModelItem *IndexMetadata::modelTracker() const
     return d_ptr->m_pModelTracker;
 }
 
+StateTracker::Geometry *IndexMetadata::geometryTracker() const
+{
+    return &d_ptr->m_GeoTracker;
+}
+
 StateTracker::Proximity *IndexMetadata::proximityTracker() const
 {
     return d_ptr->m_pProximityTracker;
@@ -146,7 +151,7 @@ StateTracker::Proximity *IndexMetadata::proximityTracker() const
 
 QRectF IndexMetadata::decoratedGeometry() const
 {
-    switch(d_ptr->m_pGeometryTracker->state()) {
+    switch(d_ptr->m_GeoTracker.state()) {
         case StateTracker::Geometry::State::VALID:
         case StateTracker::Geometry::State::PENDING:
             break;
@@ -158,9 +163,9 @@ QRectF IndexMetadata::decoratedGeometry() const
             const_cast<IndexMetadata*>(this)->sizeHint();
     }
 
-    const auto ret = d_ptr->m_pGeometryTracker->decoratedGeometry();
+    const auto ret = d_ptr->m_GeoTracker.decoratedGeometry();
 
-    Q_ASSERT(d_ptr->m_pGeometryTracker->state() == StateTracker::Geometry::State::VALID);
+    Q_ASSERT(d_ptr->m_GeoTracker.state() == StateTracker::Geometry::State::VALID);
 
     return ret;
 }
@@ -193,15 +198,15 @@ AbstractItemAdapter* ViewItemContextAdapter::item() const
 
 bool IndexMetadata::isValid() const
 {
-    return d_ptr->m_pGeometryTracker->state() == StateTracker::Geometry::State::VALID ||
-        d_ptr->m_pGeometryTracker->state() == StateTracker::Geometry::State::PENDING;
+    return d_ptr->m_GeoTracker.state() == StateTracker::Geometry::State::VALID ||
+        d_ptr->m_GeoTracker.state() == StateTracker::Geometry::State::PENDING;
 }
 
 QSizeF IndexMetadata::sizeHint()
 {
     QSizeF ret;
 
-    switch(d_ptr->m_pGeometryTracker->state()) {
+    switch(d_ptr->m_GeoTracker.state()) {
         case StateTracker::Geometry::State::VALID:
         case StateTracker::Geometry::State::PENDING:
             break;
@@ -237,14 +242,14 @@ QSizeF IndexMetadata::sizeHint()
                     break;
             }
 
-            d_ptr->m_pGeometryTracker->setSize(ret);
+            d_ptr->m_GeoTracker.setSize(ret);
 
             break;
         case StateTracker::Geometry::State::SIZE:
             break;
     }
 
-    auto s = d_ptr->m_pGeometryTracker->state();
+    auto s = d_ptr->m_GeoTracker.state();
     Q_ASSERT(s != StateTracker::Geometry::State::INIT);
     Q_ASSERT(s != StateTracker::Geometry::State::POSITION);
 
@@ -254,11 +259,11 @@ QSizeF IndexMetadata::sizeHint()
             // A word of warning, this is recursive
             const auto prevGeo = prev->decoratedGeometry();
             Q_ASSERT(prevGeo.y() != -1);
-            d_ptr->m_pGeometryTracker->setPosition(QPointF(0.0, prevGeo.y() + prevGeo.height()));
+            d_ptr->m_GeoTracker.setPosition(QPointF(0.0, prevGeo.y() + prevGeo.height()));
         }
         else if (isTopItem()) {
-            d_ptr->m_pGeometryTracker->setPosition(QPointF(0.0, 0.0));
-            Q_ASSERT(d_ptr->m_pGeometryTracker->state() == StateTracker::Geometry::State::PENDING);
+            d_ptr->m_GeoTracker.setPosition(QPointF(0.0, 0.0));
+            Q_ASSERT(d_ptr->m_GeoTracker.state() == StateTracker::Geometry::State::PENDING);
         }
     }
 
@@ -278,10 +283,10 @@ bool IndexMetadata::performAction(IndexMetadata::ViewAction a)
 
 bool IndexMetadata::performAction(GeometryAction a)
 {
-    const auto s = (int)d_ptr->m_pGeometryTracker->state();
+    const auto s = (int)d_ptr->m_GeoTracker.state();
 
     if ((d_ptr->*IndexMetadataPrivate::m_fStateMachine[s][(int)a])()) {
-        d_ptr->m_pGeometryTracker->performAction(a);
+        d_ptr->m_GeoTracker.performAction(a);
         return true;
     }
 
@@ -296,32 +301,27 @@ bool IndexMetadata::performAction(ProximityAction a, Qt::Edge e)
 
 qreal IndexMetadata::borderDecoration(Qt::Edge e) const
 {
-    return d_ptr->m_pGeometryTracker->borderDecoration(e);
+    return d_ptr->m_GeoTracker.borderDecoration(e);
 }
 
 void IndexMetadata::setBorderDecoration(Qt::Edge e, qreal r)
 {
-    d_ptr->m_pGeometryTracker->setBorderDecoration(e, r);
+    d_ptr->m_GeoTracker.setBorderDecoration(e, r);
 }
 
 void IndexMetadata::setSize(const QSizeF& s)
 {
-    d_ptr->m_pGeometryTracker->setSize(s);
+    d_ptr->m_GeoTracker.setSize(s);
 }
 
 void IndexMetadata::setPosition(const QPointF& p)
 {
-    d_ptr->m_pGeometryTracker->setPosition(p);
-}
-
-int IndexMetadata::removeMe() const
-{
-    return (int)d_ptr->m_pGeometryTracker->state();
+    d_ptr->m_GeoTracker.setPosition(p);
 }
 
 bool IndexMetadata::isInSync() const
 {
-    switch(d_ptr->m_pGeometryTracker->state()) {
+    switch(d_ptr->m_GeoTracker.state()) {
         case StateTracker::Geometry::State::VALID:
         case StateTracker::Geometry::State::PENDING:
             break;
@@ -337,7 +337,7 @@ bool IndexMetadata::isInSync() const
         return true;
     }
 
-    const auto geo = d_ptr->m_pGeometryTracker->contentGeometry();
+    const auto geo = d_ptr->m_GeoTracker.contentGeometry();
 
     // The actual QQuickItem position adjusted for the decoration
     QRectF correctedRect(
@@ -348,7 +348,7 @@ bool IndexMetadata::isInSync() const
     );
 
 //DEBUG
-//     qDebug() << "EXPECT" << geo << d_ptr->m_pGeometryTracker->borderDecoration(Qt::TopEdge);
+//     qDebug() << "EXPECT" << geo << d_ptr->m_GeoTracker.borderDecoration(Qt::TopEdge);
 //     qDebug() << "GOT   " << correctedRect;
 
     return correctedRect == geo;

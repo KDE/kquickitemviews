@@ -386,7 +386,7 @@ void AbstractItemAdapterPrivate::load()
             break;
     }
 
-    Q_ASSERT(q_ptr->s_ptr->m_pGeometry->removeMe() != (int)StateTracker::Geometry::State::INIT);
+    Q_ASSERT(q_ptr->s_ptr->m_pGeometry->geometryTracker()->state() != StateTracker::Geometry::State::INIT);
 }
 
 QQmlContext *AbstractItemAdapter::context() const

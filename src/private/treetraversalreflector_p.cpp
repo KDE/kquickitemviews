@@ -247,11 +247,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 
         e->parent()->_test_validate_chain();
 
-        Q_ASSERT(e->metadata()->removeMe() == (int)StateTracker::Geometry::State::INIT);
-
-//         if (auto ne = TTI(e->down()))
-//             Q_ASSERT(ne->metadata()->m_State.state() != StateTracker::Geometry::State::VALID);
-
+        Q_ASSERT(e->metadata()->geometryTracker()->state() == StateTracker::Geometry::State::INIT);
         Q_ASSERT(e->state() != StateTracker::ModelItem::State::VISIBLE);
 
         // NEW -> REACHABLE, this should never fail

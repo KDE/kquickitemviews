@@ -127,6 +127,7 @@ public:
     StateTracker::Index     *indexTracker    () const;
     StateTracker::ModelItem *modelTracker    () const;
     StateTracker::Proximity *proximityTracker() const;
+    StateTracker::Geometry  *geometryTracker () const;
     ContextAdapter          *contextAdapter  () const;
 
     // Mutator
@@ -184,8 +185,6 @@ public:
 
     void setSize(const QSizeF& s);
     void setPosition(const QPointF& p);
-
-    int removeMe() const; //TODO remove when time permit
 
     bool isCollapsed() const;
     void setCollapsed(bool c);

@@ -204,8 +204,8 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
     }
     else {
         auto first = m_pRoot->firstChild();
-        Q_ASSERT(first->metadata()->removeMe() != (int)StateTracker::Geometry::State::SIZE);
-        Q_ASSERT(first->metadata()->removeMe() != (int)StateTracker::Geometry::State::INIT);
+        Q_ASSERT(first->metadata()->geometryTracker()->state() != StateTracker::Geometry::State::SIZE);
+        Q_ASSERT(first->metadata()->geometryTracker()->state() != StateTracker::Geometry::State::INIT);
     }
 
     Q_ASSERT(!m_pRoot->firstChild()->up());
@@ -518,7 +518,7 @@ void TreeTraversalReflectorPrivate::_test_validate_geometry_cache()
 {
     auto bve = edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
     for (auto i = m_pRoot->firstChild(); i; i = i->down()) {
-        Q_ASSERT(i->metadata()->removeMe() == (int)StateTracker::Geometry::State::VALID);
+        Q_ASSERT(i->metadata()->geometryTracker()->state() == StateTracker::Geometry::State::VALID);
 
         if (i == bve)
             return;

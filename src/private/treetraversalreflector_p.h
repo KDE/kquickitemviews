@@ -30,11 +30,19 @@ namespace StateTracker {
 class TreeTraversalReflectorPrivate;
 class AbstractItemAdapter;
 class Viewport;
+class ModelRect;
 #include "indexmetadata_p.h"
+#include "statetracker/modelitem_p.h"
 
 namespace {
     class ViewItem;
 }
+
+#ifdef ENABLE_EXTRA_VALIDATION
+ #define _DO_TEST(f) f();
+#else
+ #define _DO_TEST(f) /*NOP*/;
+#endif
 
 /**
  * This class refects a QAbstractItemModel (realtime) topology.
@@ -65,6 +73,10 @@ class TreeTraversalReflector final : public QObject
     Q_OBJECT
     friend struct StateTracker::ModelItem; // Internal representation
 public:
+    enum class Event {
+        ENTER_STATE,
+        LEAVE_STATE,
+    };
 
     explicit TreeTraversalReflector(Viewport* parent = nullptr);
     virtual ~TreeTraversalReflector();
@@ -81,13 +93,32 @@ public:
     AbstractItemAdapter* itemForIndex(const QModelIndex& idx) const; //TODO remove
     IndexMetadata *geometryForIndex(const QModelIndex& idx) const;
     bool isActive(const QModelIndex& parent, int first, int last); //TODO move to range
+    StateTracker::Index *root() const;
+    Viewport *viewport() const;
+    StateTracker::Index *lastItem() const;
+    StateTracker::Index *firstItem() const;
+    ModelRect* edges(IndexMetadata::EdgeType e) const;
+    const std::function<AbstractItemAdapter*()>& itemFactory() const;
 
     // Setters
-    void setItemFactory(std::function<AbstractItemAdapter*()> factory);
+    void setItemFactory(const std::function<AbstractItemAdapter*()>& factory);
+    void setEdge(IndexMetadata::EdgeType et, StateTracker::Index* tti, Qt::Edge e);
 
     // Mutator
     void connectModel(QAbstractItemModel *m);
     void disconnectModel(QAbstractItemModel *m);
+    void resetRoot();
+    void resetEdges();
+    void perfromStateChange(Event e, IndexMetadata *md, StateTracker::ModelItem::State s);
+    void forceInsert(const QModelIndex& idx);
+    void forceInsert(const QModelIndex& parent, int first, int last);
+
+    // Helpers
+    StateTracker::Index *find(
+        StateTracker::Index *i,
+        Qt::Edge direction,
+        std::function<bool(StateTracker::Index *i)>
+    ) const;
 
 Q_SIGNALS:
     void contentChanged();

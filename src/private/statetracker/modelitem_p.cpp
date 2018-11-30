@@ -53,10 +53,9 @@ const StateTracker::ModelItem::StateF StateTracker::ModelItem::m_fStateMachine[8
 #undef A
 
 
-StateTracker::ModelItem::ModelItem(TreeTraversalReflectorPrivate* d):
-  StateTracker::Index(d->m_pViewport), d_ptr(d)
-{
-}
+StateTracker::ModelItem::ModelItem(TreeTraversalReflector* q):
+  StateTracker::Index(q->viewport()), q_ptr(q)
+{}
 
 StateTracker::ModelItem* StateTracker::ModelItem::load(Qt::Edge e) const
 {
@@ -73,7 +72,7 @@ StateTracker::ModelItem* StateTracker::ModelItem::load(Qt::Edge e) const
 
     for (const QModelIndex& idx : qAsConst(l)) {
         Q_ASSERT(idx.isValid());
-        d_ptr->slotRowsInserted(idx.parent(), idx.row(), idx.row());
+        q_ptr->forceInsert(idx);
     }
 
     // This works because only the TopEdge and LeftEdge can return multiple `l`
@@ -111,7 +110,7 @@ IndexMetadata::EdgeType StateTracker::ModelItem::isTopEdge() const
 {
     //FIXME use the ModelItem cache
 
-    const auto r = d_ptr->m_pViewport->s_ptr->m_pReflector;
+    const auto r = q_ptr->viewport()->s_ptr->m_pReflector;
 
     if (r->getEdge(IndexMetadata::EdgeType::VISIBLE, Qt::TopEdge)) {
         return IndexMetadata::EdgeType::VISIBLE;
@@ -128,7 +127,7 @@ IndexMetadata::EdgeType StateTracker::ModelItem::isBottomEdge() const
 {
     //FIXME use the ModelItem cache
 
-    const auto r = d_ptr->m_pViewport->s_ptr->m_pReflector;
+    const auto r = q_ptr->viewport()->s_ptr->m_pReflector;
 
     if (r->getEdge(IndexMetadata::EdgeType::VISIBLE, Qt::BottomEdge)) {
         return IndexMetadata::EdgeType::VISIBLE;
@@ -160,10 +159,10 @@ void StateTracker::ModelItem::remove(bool reparent)
             Q_ASSERT(false); // Impossible, only corrupted memory can cause this
             break;
         case IndexMetadata::EdgeType::VISIBLE:
-            if (auto i = d_ptr->find(this, Qt::TopEdge, [](auto i) -> bool {
+            if (auto i = q_ptr->find(this, Qt::TopEdge, [](auto i) -> bool {
               return i->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE; } )) {
                 Q_ASSERT(i->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE); //TODO
-                d_ptr->setEdge(IndexMetadata::EdgeType::VISIBLE, i, Qt::TopEdge);
+                q_ptr->setEdge(IndexMetadata::EdgeType::VISIBLE, i, Qt::TopEdge);
             }
             else {
                 Q_ASSERT(false); //TODO clear the edges
@@ -181,10 +180,10 @@ void StateTracker::ModelItem::remove(bool reparent)
             Q_ASSERT(false); // Impossible, only corrupted memory can cause this
             break;
         case IndexMetadata::EdgeType::VISIBLE:
-            if (auto i = d_ptr->find(this, Qt::BottomEdge, [](auto i) -> bool {
+            if (auto i = q_ptr->find(this, Qt::BottomEdge, [](auto i) -> bool {
               return i->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE; } )) {
                 Q_ASSERT(i->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE); //TODO
-                d_ptr->setEdge(IndexMetadata::EdgeType::VISIBLE, i, Qt::BottomEdge);
+                q_ptr->setEdge(IndexMetadata::EdgeType::VISIBLE, i, Qt::BottomEdge);
             }
             else {
                 Q_ASSERT(false); //TODO clear the edges
@@ -195,7 +194,7 @@ void StateTracker::ModelItem::remove(bool reparent)
             break;
     }
 
-    d_ptr->m_pViewport->s_ptr->notifyRemoval(metadata());
+    q_ptr->viewport()->s_ptr->notifyRemoval(metadata());
     metadata() << IndexMetadata::LoadAction::REPARENT;
     Index::remove(reparent);
 }
@@ -223,7 +222,7 @@ bool StateTracker::ModelItem::show()
         item->setVisible(true);
     }
     else {
-        metadata()->setViewTracker(d_ptr->q_ptr->d_ptr->m_fFactory()->s_ptr);
+        metadata()->setViewTracker(q_ptr->itemFactory()()->s_ptr);
         Q_ASSERT(metadata()->viewTracker());
         metadata()->viewTracker()->m_pTTI = this;
 
@@ -252,7 +251,7 @@ bool StateTracker::ModelItem::show()
     // Make sure no `performAction` loop caused the item to get out of view
     Q_ASSERT(m_State == State::VISIBLE);
 
-    d_ptr->m_pViewport->s_ptr->updateGeometry(metadata());
+    q_ptr->viewport()->s_ptr->updateGeometry(metadata());
 
     // For some reason creating the visual element failed, this can and will
     // happen and need to be recovered from.
@@ -268,17 +267,17 @@ bool StateTracker::ModelItem::show()
     //FIXME do this less often
     // This has to be done after `setViewTracker` and performAction
     if (down() && down()->metadata()->isValid())
-        d_ptr->m_pViewport->s_ptr->notifyInsert(down()->metadata());
+        q_ptr->viewport()->s_ptr->notifyInsert(down()->metadata());
 
     // Make sure no `performAction` loop caused the item to get out of view
     Q_ASSERT(m_State == State::VISIBLE);
 
     // Update the edges
     if (m_State == State::VISIBLE) {
-        auto first = d_ptr->edges(IndexMetadata::EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
+        auto first = q_ptr->edges(IndexMetadata::EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
         auto prev  = up();
         auto next  = down();
-        auto last  = d_ptr->edges(IndexMetadata::EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
+        auto last  = q_ptr->edges(IndexMetadata::EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
 
         // Make sure the geometry is up to data
         metadata()->decoratedGeometry();
@@ -286,12 +285,12 @@ bool StateTracker::ModelItem::show()
 
         if (first == next) {
             Q_ASSERT((!up()) || (up()->metadata()->modelTracker()->m_State != State::VISIBLE));
-            d_ptr->setEdge(IndexMetadata::EdgeType::VISIBLE, this, Qt::TopEdge);
+            q_ptr->setEdge(IndexMetadata::EdgeType::VISIBLE, this, Qt::TopEdge);
         }
 
         if (prev == last) {
             Q_ASSERT((!down()) || (down()->metadata()->modelTracker()->m_State != State::VISIBLE));
-            d_ptr->setEdge(IndexMetadata::EdgeType::VISIBLE, this, Qt::BottomEdge);
+            q_ptr->setEdge(IndexMetadata::EdgeType::VISIBLE, this, Qt::BottomEdge);
         }
 
     }
@@ -369,7 +368,7 @@ bool StateTracker::ModelItem::detach()
     remove2();
     StateTracker::Index::remove();
 
-    d_ptr->m_pViewport->s_ptr->refreshVisible();
+    q_ptr->viewport()->s_ptr->refreshVisible();
 
     Q_ASSERT(!loadedChildrenCount() && ((!parent()) || !parent()->childrenLookup(index())));
     Q_ASSERT(!metadata()->viewTracker());
@@ -379,7 +378,7 @@ bool StateTracker::ModelItem::detach()
 
 bool StateTracker::ModelItem::refresh()
 {
-    d_ptr->m_pViewport->s_ptr->updateGeometry(metadata());
+    q_ptr->viewport()->s_ptr->updateGeometry(metadata());
 
     for (auto i = firstChild(); i; i = i->nextSibling()) {
         Q_ASSERT(i != this);
@@ -420,7 +419,7 @@ bool StateTracker::ModelItem::move()
 
 bool StateTracker::ModelItem::destroy()
 {
-    Q_ASSERT(parent() || this == d_ptr->m_pRoot);
+    Q_ASSERT(parent() || this == q_ptr->root());
     Q_ASSERT((!parent()) || parent()->hasChildren(this));
 
     detach();

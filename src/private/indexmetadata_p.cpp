@@ -27,6 +27,7 @@
 #include "viewport.h"
 #include "viewport_p.h"
 #include "contextadapterfactory.h"
+#include "treetraversalreflector_p.h"
 #include "proxies/sizehintproxymodel.h"
 #include "statetracker/geometry_p.h"
 #include "statetracker/proximity_p.h"
@@ -402,21 +403,22 @@ bool IndexMetadata::performAction(IndexMetadata::LoadAction a)
     auto mt = static_cast<StateTracker::ModelItem*>(indexTracker());
 
     Q_ASSERT(mt->state() != StateTracker::ModelItem::State::ERROR);
-    const int s   = (int)mt->state();
-    const auto ns = mt->m_State = mt->m_fStateMap[s][(int)a];
+    const auto s  = mt->state();
+    const auto ns = mt->m_State = mt->m_fStateMap[(int)s][(int)a];
     Q_ASSERT(mt->state() != StateTracker::ModelItem::State::ERROR);
 
     // This need to be done before calling the transition function because it
     // can trigger another round of state change.
-    if (s != (int)mt->state()) {
-        (mt->d_ptr->*TreeTraversalReflectorPrivate::m_fStateLogging[s][1])(mt, (StateTracker::ModelItem::State)s);
-        (mt->d_ptr->*TreeTraversalReflectorPrivate::m_fStateLogging[(int)mt->state()][0])(mt, (StateTracker::ModelItem::State)s);
+    if (s != mt->state()) {
+        const auto r = modelTracker()->q_ptr;
+        r->perfromStateChange(TreeTraversalReflector::Event::LEAVE_STATE, this, s);
+        r->perfromStateChange(TreeTraversalReflector::Event::ENTER_STATE, this, s);
     }
 
     // At this point the edges should have been updated.
-    mt->d_ptr->_test_validate_edges_simple();
+    mt->q_ptr->_test_validate_edges_simple();
 
-    bool ret = (mt->*StateTracker::ModelItem::m_fStateMachine[s][(int)a])();
+    const bool ret = (mt->*StateTracker::ModelItem::m_fStateMachine[(int)s][(int)a])();
 
     //WARNING, do not access mt form here, it might have been deleted
 
@@ -427,7 +429,7 @@ bool IndexMetadata::performAction(IndexMetadata::LoadAction a)
         ||  mt->state() == StateTracker::ModelItem::State::VISIBLE));
 
     if (ns != StateTracker::ModelItem::State::DANGLING)
-        mt->d_ptr->_test_validate_edges_simple();
+        mt->q_ptr->_test_validate_edges_simple();
 
     return ret;
 }
@@ -445,5 +447,5 @@ QModelIndex IndexMetadata::index() const
 
 bool IndexMetadata::isTopItem() const
 {
-    return indexTracker() == modelTracker()->d_ptr->m_pRoot->firstChild();
+    return indexTracker() == modelTracker()->q_ptr->firstItem();
 }

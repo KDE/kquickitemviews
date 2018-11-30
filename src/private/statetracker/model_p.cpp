@@ -19,6 +19,7 @@
 
 #include <private/indexmetadata_p.h>
 #include <private/treetraversalreflector_p.h>
+#include <private/statetracker/index_p.h>
 
 using EdgeType = IndexMetadata::EdgeType;
 
@@ -49,7 +50,7 @@ const StateTracker::Model::StateF StateTracker::Model::m_fStateMachine[5][7] = {
 /*RESETING */ { A nothing , A error  , A track  , A error  , A free   , A error   , A error },
 };
 
-StateTracker::Model::Model(TreeTraversalReflectorPrivate* d) : d_ptr(d)
+StateTracker::Model::Model(TreeTraversalReflector* d) : q_ptr(d)
 {}
 
 StateTracker::Model::State StateTracker::Model::performAction(Action a)
@@ -75,13 +76,11 @@ void StateTracker::Model::forcePaused()
     m_State = State::PAUSED;
 }
 
-
 void StateTracker::Model::track()
 {
-    Q_ASSERT(!m_pTrackedModel);
-    Q_ASSERT(m_pModel);
+    Q_ASSERT(m_pModel && !m_pTrackedModel);
 
-    d_ptr->q_ptr->connectModel(m_pModel);
+    q_ptr->connectModel(m_pModel);
 
     m_pTrackedModel = m_pModel;
 }
@@ -89,24 +88,17 @@ void StateTracker::Model::track()
 void StateTracker::Model::untrack()
 {
     Q_ASSERT(m_pTrackedModel);
-    if (!m_pTrackedModel)
+    if (!m_pTrackedModel) //TODO fix the state machine not to get here
         return;
 
-    d_ptr->q_ptr->disconnectModel(m_pTrackedModel);
+    q_ptr->disconnectModel(m_pTrackedModel);
 
     m_pTrackedModel = nullptr;
 }
 
 void StateTracker::Model::free()
 {
-    d_ptr->m_pRoot->metadata() << IndexMetadata::LoadAction::RESET;
-
-    for (int i = 0; i < 3; i++)
-        d_ptr->m_lRects[i] = {};
-
-    d_ptr->m_hMapper.clear();
-    delete d_ptr->m_pRoot;
-    d_ptr->m_pRoot = new StateTracker::ModelItem(d_ptr);
+    q_ptr->resetRoot();
 }
 
 void StateTracker::Model::reset()
@@ -116,8 +108,8 @@ void StateTracker::Model::reset()
     if (wasTracked)
         untrack(); //TODO THIS_COMMIT
 
-    d_ptr->m_pRoot->metadata() << IndexMetadata::LoadAction::RESET;
-    d_ptr->resetEdges();
+    q_ptr->root()->metadata() << IndexMetadata::LoadAction::RESET;
+    q_ptr->resetEdges();
 
     //HACK
     if (!m_pModel) {
@@ -141,20 +133,20 @@ void StateTracker::Model::populate()
 
     d_ptr->_test_validateContinuity();
 
-    if (!d_ptr->edges(EdgeType::FREE)->m_Edges)
+    if (!q_ptr->edges(EdgeType::FREE)->m_Edges)
         return;
 
-    if (d_ptr->m_pRoot->firstChild() && (d_ptr->edges(EdgeType::FREE)->m_Edges & (Qt::TopEdge|Qt::BottomEdge))) {
-        while (d_ptr->edges(EdgeType::FREE)->m_Edges & Qt::TopEdge) {
-            const auto was = d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
+    if (q_ptr->root()->firstChild() && (q_ptr->edges(EdgeType::FREE)->m_Edges & (Qt::TopEdge|Qt::BottomEdge))) {
+        while (q_ptr->edges(EdgeType::FREE)->m_Edges & Qt::TopEdge) {
+            const auto was = q_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
             //FIXME when everything fails to load, it would otherwise make an infinite loop
             if (!was)
                 break;
 
             const auto u = was->metadata()->modelTracker()->load(Qt::TopEdge);
 
-            Q_ASSERT(u || d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge)->effectiveRow() == 0);
-            Q_ASSERT(u || !d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge)->effectiveParentIndex().isValid());
+            Q_ASSERT(u || q_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge)->effectiveRow() == 0);
+            Q_ASSERT(u || !q_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge)->effectiveParentIndex().isValid());
 
             if (!u)
                 break;
@@ -162,8 +154,8 @@ void StateTracker::Model::populate()
             u->metadata() << IndexMetadata::LoadAction::SHOW;
         }
 
-        while (d_ptr->edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge) {
-            const auto was = d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
+        while (q_ptr->edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge) {
+            const auto was = q_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
 
             //FIXME when everything fails to load, it would otherwise make an infinite loop
             if (!was)
@@ -179,10 +171,10 @@ void StateTracker::Model::populate()
     }
     else if (auto rc = m_pModel->rowCount()) {
         //TODO support anchors (load from the bottom)
-        d_ptr->slotRowsInserted({}, 0, rc - 1);
+        d_ptr->forceInsert({}, 0, rc - 1);
     }
 
-    if (d_ptr->edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge) {
+    if (q_ptr->edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge) {
         d_ptr->_test_validateAtEnd();
     }
 }
@@ -229,12 +221,12 @@ void StateTracker::Model::trim()
     // Unload everything below the cache area to get rid of the insertion/moving
     // overhead. Not doing so would also require to handle "holes" in the tree
     // which is very complex and unnecessary.
-    StateTracker::Index *be = d_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge); //TODO use BUFFERED
+    StateTracker::Index *be = q_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge); //TODO use BUFFERED
 
     if (!be)
         return;
 
-    StateTracker::Index *item = d_ptr->lastItem();
+    StateTracker::Index *item = q_ptr->lastItem();
 
     if (be == item)
         return;

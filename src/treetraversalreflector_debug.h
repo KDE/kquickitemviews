@@ -233,8 +233,8 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
 
     _test_validate_edges_simple();
 
-    const auto tve = edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
-    const auto bve = edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
+    const auto tve = q_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
+    const auto bve = q_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
 
     do {
         Q_ASSERT(cur->up() == prev);
@@ -349,24 +349,24 @@ void TreeTraversalReflectorPrivate::_test_validateViewport(bool skipVItemState)
     _test_validateLinkedList(skipVItemState);
     int activeCount = 0;
 
-    Q_ASSERT(!((!edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)) ^ (!edges(EdgeType::FREE)->getEdge(Qt::TopEdge))));
-    Q_ASSERT(!((!edges(EdgeType::FREE)->getEdge(Qt::LeftEdge)) ^ (!edges(EdgeType::FREE)->getEdge(Qt::RightEdge))));
+    Q_ASSERT(!((!q_ptr->edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)) ^ (!q_ptr->edges(EdgeType::FREE)->getEdge(Qt::TopEdge))));
+    Q_ASSERT(!((!q_ptr->edges(EdgeType::FREE)->getEdge(Qt::LeftEdge)) ^ (!q_ptr->edges(EdgeType::FREE)->getEdge(Qt::RightEdge))));
 
-    if (!edges(EdgeType::FREE)->getEdge(Qt::TopEdge))
+    if (!q_ptr->edges(EdgeType::FREE)->getEdge(Qt::TopEdge))
         return;
 
-    if (edges(EdgeType::FREE)->getEdge(Qt::TopEdge) == edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)) {
-        auto u1 = edges(EdgeType::FREE)->getEdge(Qt::TopEdge)->up();
-        auto d1 = edges(EdgeType::FREE)->getEdge(Qt::TopEdge)->down();
-        auto u2 = edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)->up();
-        auto d2 = edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)->down();
+    if (q_ptr->edges(EdgeType::FREE)->getEdge(Qt::TopEdge) == q_ptr->edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)) {
+        auto u1 = q_ptr->edges(EdgeType::FREE)->getEdge(Qt::TopEdge)->up();
+        auto d1 = q_ptr->edges(EdgeType::FREE)->getEdge(Qt::TopEdge)->down();
+        auto u2 = q_ptr->edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)->up();
+        auto d2 = q_ptr->edges(EdgeType::FREE)->getEdge(Qt::BottomEdge)->down();
         Q_ASSERT((!u1) || u1->metadata()->modelTracker()->state() != StateTracker::ModelItem::State::VISIBLE);
         Q_ASSERT((!u2) || u2->metadata()->modelTracker()->state() != StateTracker::ModelItem::State::VISIBLE);
         Q_ASSERT((!d1) || d1->metadata()->modelTracker()->state() != StateTracker::ModelItem::State::VISIBLE);
         Q_ASSERT((!d2) || d2->metadata()->modelTracker()->state() != StateTracker::ModelItem::State::VISIBLE);
     }
 
-    auto item = edges(EdgeType::FREE)->getEdge(Qt::TopEdge);
+    auto item = q_ptr->edges(EdgeType::FREE)->getEdge(Qt::TopEdge);
     StateTracker::Index *old = nullptr;
 
     QRectF oldGeo;
@@ -502,12 +502,12 @@ void TreeTraversalReflectorPrivate::_test_validate_edges_simple()
     return;
 #endif
     //BEGIN test
-    auto tve = edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
+    auto tve = q_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
 
     Q_ASSERT((!tve) || (tve->metadata()->modelTracker()->state() == StateTracker::ModelItem::State::VISIBLE));
     Q_ASSERT((!tve) || (!tve->up()) || (tve->up()->metadata()->modelTracker()->state() != StateTracker::ModelItem::State::VISIBLE));
 
-    auto bve = edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
+    auto bve = q_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
 
     Q_ASSERT((!bve) || (bve->metadata()->modelTracker()->state() == StateTracker::ModelItem::State::VISIBLE));
     Q_ASSERT((!bve) || (!bve->down()) || bve->down()->metadata()->modelTracker()->state() != StateTracker::ModelItem::State::VISIBLE);
@@ -516,7 +516,7 @@ void TreeTraversalReflectorPrivate::_test_validate_edges_simple()
 
 void TreeTraversalReflectorPrivate::_test_validate_geometry_cache()
 {
-    auto bve = edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
+    auto bve = q_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
     for (auto i = m_pRoot->firstChild(); i; i = i->down()) {
         Q_ASSERT(i->metadata()->geometryTracker()->state() == StateTracker::Geometry::State::VALID);
 
@@ -566,8 +566,8 @@ void TreeTraversalReflectorPrivate::_test_validateContinuity()
 #ifndef ENABLE_EXTRA_VALIDATION
     return;
 #endif
-    auto item = edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
-    auto bve = edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
+    auto item = q_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
+    auto bve = q_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
 
     if (!item)
         return;
@@ -590,7 +590,7 @@ void TreeTraversalReflectorPrivate::_test_validateAtEnd()
 #endif
     _test_validateContinuity();
 
-    auto bve = edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
+    auto bve = q_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
     Q_ASSERT((!m_pRoot->firstChild()) || bve); //TODO wrong
 
     if (!bve)

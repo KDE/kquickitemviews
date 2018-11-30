@@ -70,6 +70,9 @@ ModelViewTester::ModelViewTester(QObject* parent) : QAbstractItemModel(parent)
 
     // Remove
     DO(removeRoot);
+    //TODO removeMiddle
+    //TODO removeLastChild
+    //TODO removeWithChildren
     DO(resetModel);
 
     // Larger tree

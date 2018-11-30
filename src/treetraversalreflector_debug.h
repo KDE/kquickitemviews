@@ -127,7 +127,7 @@ void TreeTraversalReflectorPrivate::_test_validateTree(StateTracker::Index* p)
             Q_ASSERT(next != item);
 
             if (next->effectiveParentIndex() == item->effectiveParentIndex()) {
-                const int rc = m_pModel->rowCount(item->index());
+                const int rc = m_pModelTracker->trackedModel()->rowCount(item->index());
                 Q_ASSERT(!rc);
             }
         }
@@ -239,7 +239,7 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
     do {
         Q_ASSERT(cur->up() == prev);
         Q_ASSERT(cur->index().isValid());
-        Q_ASSERT(cur->index().model() == m_pModel);
+        Q_ASSERT(cur->index().model() == m_pModelTracker->trackedModel());
 
         if (!visibleFinished) {
             // If hit, it means the visible rect wasn't refreshed.
@@ -295,7 +295,7 @@ void TreeTraversalReflectorPrivate::_test_validateLinkedList(bool skipVItemState
         // Check the the previous sibling has no children
         if (prev && cur->parent() == prev->parent()) {
             Q_ASSERT(cur->effectiveRow() == prev->effectiveRow() + 1);
-            Q_ASSERT(!m_pModel->rowCount(prev->index()));
+            Q_ASSERT(!m_pModelTracker->trackedModel()->rowCount(prev->index()));
         }
 
         // Check that there it no missing children from the previous
@@ -551,9 +551,10 @@ void TreeTraversalReflectorPrivate::_test_validateUnloaded(const QModelIndex& pa
 #ifndef ENABLE_EXTRA_VALIDATION
     return;
 #endif
-    Q_ASSERT(m_pModel);
+    Q_ASSERT(m_pModelTracker->trackedModel()); // This will assert in model_p.cpp
+
     for (int i = first; i <= last; i++) {
-        const auto idx = m_pModel->index(i, 0, parent);
+        const auto idx = m_pModelTracker->trackedModel()->index(i, 0, parent);
         Q_ASSERT(idx.isValid());
         Q_ASSERT(!ttiForIndex(idx));
     }
@@ -602,7 +603,7 @@ void TreeTraversalReflectorPrivate::_test_validateAtEnd()
 
 void TreeTraversalReflectorPrivate::_test_validateModelAboutToReplace()
 {
-    Q_ASSERT(!m_pTrackedModel);
+    Q_ASSERT(!m_pModelTracker->trackedModel());
     Q_ASSERT(m_pModelTracker->state() == StateTracker::Model::State::NO_MODEL
         || m_pModelTracker->state() == StateTracker::Model::State::PAUSED);
 }

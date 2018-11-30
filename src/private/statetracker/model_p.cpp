@@ -18,6 +18,7 @@
 #include "model_p.h"
 
 #include <private/indexmetadata_p.h>
+#include <private/treetraversalreflector_p.h>
 
 using EdgeType = IndexMetadata::EdgeType;
 
@@ -77,63 +78,23 @@ void StateTracker::Model::forcePaused()
 
 void StateTracker::Model::track()
 {
-    Q_ASSERT(!d_ptr->m_pTrackedModel);
-    Q_ASSERT(d_ptr->m_pModel);
+    Q_ASSERT(!m_pTrackedModel);
+    Q_ASSERT(m_pModel);
 
-    QObject::connect(d_ptr->m_pModel, &QAbstractItemModel::rowsInserted, d_ptr,
-        &TreeTraversalReflectorPrivate::slotRowsInserted );
-    QObject::connect(d_ptr->m_pModel, &QAbstractItemModel::rowsAboutToBeRemoved, d_ptr,
-        &TreeTraversalReflectorPrivate::slotRowsRemoved  );
-    QObject::connect(d_ptr->m_pModel, &QAbstractItemModel::layoutAboutToBeChanged, d_ptr,
-        &TreeTraversalReflectorPrivate::cleanup);
-    QObject::connect(d_ptr->m_pModel, &QAbstractItemModel::layoutChanged, d_ptr,
-        &TreeTraversalReflectorPrivate::slotLayoutChanged);
-    QObject::connect(d_ptr->m_pModel, &QAbstractItemModel::modelAboutToBeReset, d_ptr,
-        &TreeTraversalReflectorPrivate::cleanup);
-    QObject::connect(d_ptr->m_pModel, &QAbstractItemModel::modelReset, d_ptr,
-        &TreeTraversalReflectorPrivate::slotLayoutChanged);
-    QObject::connect(d_ptr->m_pModel, &QAbstractItemModel::rowsAboutToBeMoved, d_ptr,
-        &TreeTraversalReflectorPrivate::slotRowsMoved);
+    d_ptr->q_ptr->connectModel(m_pModel);
 
-#ifdef ENABLE_EXTRA_VALIDATION
-    QObject::connect(d_ptr->m_pModel, &QAbstractItemModel::rowsMoved, d_ptr,
-        [this](){d_ptr->_test_validateLinkedList();});
-    QObject::connect(d_ptr->m_pModel, &QAbstractItemModel::rowsRemoved, d_ptr,
-        [this](){d_ptr->_test_validateLinkedList();});
-#endif
-
-    d_ptr->m_pTrackedModel = d_ptr->m_pModel;
+    m_pTrackedModel = m_pModel;
 }
 
 void StateTracker::Model::untrack()
 {
-    Q_ASSERT(d_ptr->m_pTrackedModel);
-    if (!d_ptr->m_pTrackedModel)
+    Q_ASSERT(m_pTrackedModel);
+    if (!m_pTrackedModel)
         return;
 
-    QObject::disconnect(d_ptr->m_pTrackedModel, &QAbstractItemModel::rowsInserted, d_ptr,
-        &TreeTraversalReflectorPrivate::slotRowsInserted);
-    QObject::disconnect(d_ptr->m_pTrackedModel, &QAbstractItemModel::rowsAboutToBeRemoved, d_ptr,
-        &TreeTraversalReflectorPrivate::slotRowsRemoved);
-    QObject::disconnect(d_ptr->m_pTrackedModel, &QAbstractItemModel::layoutAboutToBeChanged, d_ptr,
-        &TreeTraversalReflectorPrivate::cleanup);
-    QObject::disconnect(d_ptr->m_pTrackedModel, &QAbstractItemModel::layoutChanged, d_ptr,
-        &TreeTraversalReflectorPrivate::slotLayoutChanged);
-    QObject::disconnect(d_ptr->m_pTrackedModel, &QAbstractItemModel::modelAboutToBeReset, d_ptr,
-        &TreeTraversalReflectorPrivate::cleanup);
-    QObject::disconnect(d_ptr->m_pTrackedModel, &QAbstractItemModel::modelReset, d_ptr,
-        &TreeTraversalReflectorPrivate::slotLayoutChanged);
-    QObject::disconnect(d_ptr->m_pTrackedModel, &QAbstractItemModel::rowsAboutToBeMoved, d_ptr,
-        &TreeTraversalReflectorPrivate::slotRowsMoved);
+    d_ptr->q_ptr->disconnectModel(m_pTrackedModel);
 
-#ifdef ENABLE_EXTRA_VALIDATION
-//     QObject::disconnect(d_ptr->m_pTrackedModel, &QAbstractItemModel::rowsMoved, d_ptr,
-//         [this](){d_ptr->_test_validateLinkedList();});
-//     QObject::disconnect(d_ptr->m_pTrackedModel, &QAbstractItemModel::rowsRemoved, d_ptr,
-//         [this](){d_ptr->_test_validateLinkedList();});
-#endif
-
-    d_ptr->m_pTrackedModel = nullptr;
+    m_pTrackedModel = nullptr;
 }
 
 void StateTracker::Model::free()
@@ -150,7 +111,7 @@ void StateTracker::Model::free()
 
 void StateTracker::Model::reset()
 {
-    const bool wasTracked = d_ptr->m_pTrackedModel != nullptr;
+    const bool wasTracked = m_pTrackedModel != nullptr;
 
     if (wasTracked)
         untrack(); //TODO THIS_COMMIT
@@ -159,7 +120,7 @@ void StateTracker::Model::reset()
     d_ptr->resetEdges();
 
     //HACK
-    if (!d_ptr->m_pModel) {
+    if (!m_pModel) {
         m_State = State::NO_MODEL;
         return;
     }
@@ -176,7 +137,7 @@ void StateTracker::Model::reset()
  */
 void StateTracker::Model::populate()
 {
-    Q_ASSERT(d_ptr->m_pModel);
+    Q_ASSERT(m_pModel);
 
     d_ptr->_test_validateContinuity();
 
@@ -216,7 +177,7 @@ void StateTracker::Model::populate()
             u->metadata() << IndexMetadata::LoadAction::SHOW;
         }
     }
-    else if (auto rc = d_ptr->m_pModel->rowCount()) {
+    else if (auto rc = m_pModel->rowCount()) {
         //TODO support anchors (load from the bottom)
         d_ptr->slotRowsInserted({}, 0, rc - 1);
     }
@@ -299,3 +260,35 @@ void StateTracker::Model::error()
          << StateTracker::Model::Action::RESET
          << StateTracker::Model::Action::ENABLE;
 }
+
+QAbstractItemModel *StateTracker::Model::trackedModel() const
+{
+    Q_ASSERT(m_pTrackedModel);
+    return m_pTrackedModel;
+}
+
+QAbstractItemModel *StateTracker::Model::modelCandidate() const
+{
+    return m_pModel;
+}
+
+void StateTracker::Model::setModel(QAbstractItemModel* m)
+{
+    if (m == trackedModel())
+        return;
+
+    this << StateTracker::Model::Action::DISABLE
+         << StateTracker::Model::Action::RESET
+         << StateTracker::Model::Action::FREE;
+
+    //_test_validateModelAboutToReplace();
+
+    m_pModel = m;
+
+    if (m)
+        forcePaused(); //HACK
+
+    if (!m)
+        return;
+}
+

@@ -42,8 +42,6 @@ public:
 
     /// All elements with loaded children
     QHash<QPersistentModelIndex, StateTracker::ModelItem*> m_hMapper;
-    QAbstractItemModel* m_pModel {nullptr};
-    QAbstractItemModel* m_pTrackedModel {nullptr};
     std::function<AbstractItemAdapter*()> m_fFactory;
     Viewport *m_pViewport;
 
@@ -91,7 +89,7 @@ public:
     void _test_validateModelAboutToReplace();
 
 public Q_SLOTS:
-    void cleanup();
+    void slotCleanup();
     void slotRowsInserted  (const QModelIndex& parent, int first, int last);
     void slotRowsRemoved   (const QModelIndex& parent, int first, int last);
     void slotLayoutChanged (                                              );

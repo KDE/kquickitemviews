@@ -69,7 +69,6 @@ public:
     explicit TreeTraversalReflector(Viewport* parent = nullptr);
     virtual ~TreeTraversalReflector();
 
-    QAbstractItemModel* model() const;
     void setModel(QAbstractItemModel* m);
 
     void setAvailableEdges(Qt::Edges edges, IndexMetadata::EdgeType type);
@@ -85,6 +84,10 @@ public:
 
     // Setters
     void setItemFactory(std::function<AbstractItemAdapter*()> factory);
+
+    // Mutator
+    void connectModel(QAbstractItemModel *m);
+    void disconnectModel(QAbstractItemModel *m);
 
 Q_SIGNALS:
     void contentChanged();

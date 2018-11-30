@@ -19,6 +19,8 @@
 
 class TreeTraversalReflectorPrivate;
 
+class QAbstractItemModel;
+
 namespace StateTracker
 {
 
@@ -54,12 +56,17 @@ public:
 
     void forcePaused(); //HACK remove
 
+    QAbstractItemModel *trackedModel() const;
+    QAbstractItemModel *modelCandidate() const;
+    void setModel(QAbstractItemModel* m);
+
 private:
     typedef void(StateTracker::Model::*StateF)();
 
     // Attributes
     State m_State {State::NO_MODEL};
-    TreeTraversalReflectorPrivate *d_ptr;
+    QAbstractItemModel* m_pModel        {nullptr};
+    QAbstractItemModel* m_pTrackedModel {nullptr};
 
     // Actions, do not call directly
     void track();
@@ -74,6 +81,8 @@ private:
 
     static const State m_fStateMap[5][7];
     static const StateF m_fStateMachine[5][7];
+
+    TreeTraversalReflectorPrivate *d_ptr;
 };
 
 /**

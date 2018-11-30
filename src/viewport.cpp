@@ -163,7 +163,7 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel
 
     m_pModelAdapter->view()->setCurrentY(0);
 
-    q_ptr->s_ptr->m_pReflector->setModel(m);
+    q_ptr->s_ptr->m_pReflector->modelTracker()->setModel(m);
 
     Q_ASSERT(m_pModelAdapter->rawModel() == m);
 
@@ -359,7 +359,7 @@ void ViewportPrivate::updateAvailableEdges()
     if (q_ptr->s_ptr->m_pReflector->modelTracker()->state() == StateTracker::Model::State::RESETING)
         return; //TODO it needs another state machine to get rid of the `if`
 
-    if (!q_ptr->s_ptr->m_pReflector->model())
+    if (!q_ptr->s_ptr->m_pReflector->modelTracker()->modelCandidate())
         return;
 
     Qt::Edges available;

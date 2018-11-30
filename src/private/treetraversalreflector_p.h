@@ -38,12 +38,6 @@ namespace {
     class ViewItem;
 }
 
-#ifdef ENABLE_EXTRA_VALIDATION
- #define _DO_TEST(f) f();
-#else
- #define _DO_TEST(f) /*NOP*/;
-#endif
-
 /**
  * This class refects a QAbstractItemModel (realtime) topology.
  *
@@ -127,3 +121,14 @@ Q_SIGNALS:
 private:
     TreeTraversalReflectorPrivate* d_ptr;
 };
+
+/*
+ * Inject some extra validation when executed in debug mode.
+ */
+#ifdef ENABLE_EXTRA_VALIDATION
+ #define _DO_TEST(f, ...) f(__VA_ARGS__);
+ #include "runtimetests_p.h"
+#else
+ #define _DO_TEST(f, ...) /*NOP*/;
+#endif
+

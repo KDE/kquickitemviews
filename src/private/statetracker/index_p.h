@@ -89,9 +89,6 @@ public:
     bool hasTemporaryIndex();
     void setTemporaryIndex(const QModelIndex& newParent, int row, int column);
 
-    // Runtime tests
-    void _test_validate_chain() const;
-    static void _test_bridgeGap(Index *first, Index *second);
 
     QPersistentModelIndex index() const;
     void setModelIndex(const QPersistentModelIndex& idx);
@@ -99,6 +96,12 @@ public:
     LifeCycleState lifeCycleState() const {return m_LifeCycleState;}
 
     IndexMetadata *metadata() const;
+
+    // Runtime tests
+#ifdef ENABLE_EXTRA_VALIDATION
+    void _test_validate_chain() const;
+    static void _test_bridgeGap(Index *first, Index *second);
+#endif
 
 private:
     // Because slotRowsMoved is called before the change take effect, cache
@@ -145,3 +148,12 @@ private:
     int edgeToIndex(Qt::Edge e) const;
     StateTracker::Index *m_lpEdges[Pos::Bottom+1] {nullptr, nullptr, nullptr, nullptr}; //TODO port to ModelRect
 };
+
+// Inject some extra validation when executed in debug mode.
+#ifdef ENABLE_EXTRA_VALIDATION
+ #define _DO_TEST_IDX(f, self, ...) self->f(__VA_ARGS__);
+ #define _DO_TEST_IDX_STATIC(f, ...) f(__VA_ARGS__);
+#else
+ #define _DO_TEST_IDX(f, self, ...) /*NOP*/;
+ #define _DO_TEST_IDX_STATIC(f, ...) /*NOP*/;
+#endif

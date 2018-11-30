@@ -90,22 +90,6 @@ public:
     typedef void(TreeTraversalReflectorPrivate::*StateFS)(IndexMetadata*, StateTracker::ModelItem::State);
     static const StateFS m_fStateLogging[8][2];
 
-    // Tests
-    void _test_validateTree(StateTracker::Index *p);
-    void _test_validateViewport(bool skipVItemState = false);
-    void _test_validateLinkedList(bool skipVItemState = false);
-    void _test_validate_edges();
-    void _test_validate_edges_simple();
-    void _test_validate_geometry_cache();
-    void _test_validate_move(StateTracker::Index* parentTTI,StateTracker::Index* startTTI,
-                             StateTracker::Index* endTTI, StateTracker::Index* newPrevTTI,
-                             StateTracker::Index* newNextTTI, int row);
-    void _test_print_state();
-    void _test_validateUnloaded(const QModelIndex& parent, int first, int last);
-    void _test_validateContinuity();
-    void _test_validateAtEnd();
-    void _test_validateModelAboutToReplace();
-
 public Q_SLOTS:
     void slotCleanup();
     void slotRowsInserted  (const QModelIndex& parent, int first, int last);
@@ -114,8 +98,6 @@ public Q_SLOTS:
     void slotRowsMoved     (const QModelIndex &p, int start, int end,
                             const QModelIndex &dest, int row);
 };
-
-#include <treetraversalreflector_debug.h>
 
 #define A &TreeTraversalReflectorPrivate::
 // Keep track of the number of instances per state
@@ -148,7 +130,7 @@ void TreeTraversalReflectorPrivate::insertEdge(IndexMetadata *md, StateTracker::
     if (last == prev)
         q_ptr->setEdge(EdgeType::VISIBLE, tti, Qt::BottomEdge);
 
-    _test_validate_edges_simple();
+    _DO_TEST(_test_validate_edges_simple, q_ptr)
 }
 
 void TreeTraversalReflectorPrivate::removeEdge(IndexMetadata *md, StateTracker::ModelItem::State s)
@@ -179,7 +161,7 @@ void TreeTraversalReflectorPrivate::removeEdge(IndexMetadata *md, StateTracker::
             Qt::BottomEdge
         );
 
-    _test_validate_edges_simple();
+    _DO_TEST(_test_validate_edges_simple, q_ptr)
 }
 
 /**
@@ -227,7 +209,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 
     // It is the job of isInsertActive to decide what's correct
     if (!isInsertActive(parent, first, last)) {
-        _test_validateLinkedList();
+        _DO_TEST(_test_validateLinkedList, q_ptr)
         return;
     }
 
@@ -236,7 +218,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
     //FIXME it is possible if the anchor is at the bottom that the parent
     // needs to be loaded. But this is currently too not supported.
     if (!pitem) {
-        _test_validateLinkedList();
+        _DO_TEST(_test_validateLinkedList, q_ptr)
         return;
     }
 
@@ -282,14 +264,12 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 
             if (!nextTTI) {
                 m_pViewport->s_ptr->refreshVisible();
-                _test_validateLinkedList();
+                _DO_TEST(_test_validateLinkedList, q_ptr)
                 return; //FIXME break
             }
         }
 
         auto e = addChildren(idx);
-
-//         e->parent()->_test_validate_chain();
 
         if (pitem->firstChild() && pitem->firstChild()->effectiveRow() == idx.row()+1) {
             Q_ASSERT(idx.parent() == pitem->firstChild()->effectiveParentIndex());
@@ -308,7 +288,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         //TODO merge with bridgeGap
         if (prev) {
             StateTracker::Index::bridgeGap(prev, e);
-            prev->parent()->_test_validate_chain();
+            _DO_TEST_IDX(_test_validate_chain, prev->parent())
         }
 
         // This is required before ::ATTACH because otherwise ::down() wont work
@@ -321,7 +301,8 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         const bool needUpMove = (!pitem->firstChild()) ||
             e->effectiveRow() < pitem->firstChild()->effectiveRow();
 
-        e->parent()->_test_validate_chain();
+        _DO_TEST_IDX(_test_validate_chain, e->parent())
+
         // The item is about the current parent first item
         if (needUpMove) {
 //             Q_ASSERT(false); //TODO merge with the other bridgeGap above
@@ -330,9 +311,8 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
             Q_ASSERT((!m_pRoot->firstChild()) || !m_pRoot->firstChild()->metadata()->isValid());
             StateTracker::Index::insertChildBefore(e, nullptr, pitem);
         }
-        e->parent()->_test_validate_chain();
 
-        e->parent()->_test_validate_chain();
+        _DO_TEST_IDX(_test_validate_chain, e->parent())
 
         Q_ASSERT(e->metadata()->geometryTracker()->state() == StateTracker::Geometry::State::INIT);
         Q_ASSERT(e->state() != StateTracker::ModelItem::State::VISIBLE);
@@ -340,7 +320,7 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
         // NEW -> REACHABLE, this should never fail
         if (!e->metadata()->performAction(IndexMetadata::LoadAction::ATTACH)) {
             qDebug() << "\n\nATTACH FAILED";
-            _test_validateLinkedList();
+            _DO_TEST(_test_validateLinkedList, q_ptr)
             break;
         }
 
@@ -378,8 +358,8 @@ void TreeTraversalReflectorPrivate::slotRowsInserted(const QModelIndex& parent, 
 
     m_pViewport->s_ptr->refreshVisible();
 
-    _test_validateLinkedList();
-    pitem->_test_validate_chain();
+    _DO_TEST(_test_validateLinkedList, q_ptr)
+    _DO_TEST_IDX(_test_validate_chain, pitem)
 
     Q_EMIT q_ptr->contentChanged();
 
@@ -392,9 +372,8 @@ void TreeTraversalReflectorPrivate::slotRowsRemoved(const QModelIndex& parent, i
     Q_ASSERT((!parent.isValid()) || parent.model() == m_pModelTracker->modelCandidate());
 
     if (!q_ptr->isActive(parent, first, last)) {
-        _test_validateLinkedList();
-        _test_validateUnloaded(parent, first, last);
-
+        _DO_TEST(_test_validateLinkedList, q_ptr)
+        _DO_TEST(_test_validateUnloaded, q_ptr, parent, first, last)
         return;
     }
 
@@ -575,7 +554,7 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
         if (dest)
             dest->metadata() << IndexMetadata::GeometryAction::MOVE;
 
-        _test_validate_edges_simple();
+        _DO_TEST(_test_validate_edges_simple, q_ptr)
         m_pViewport->s_ptr->notifyInsert(item->metadata());
 
         dest = item;
@@ -587,7 +566,7 @@ void TreeTraversalReflectorPrivate::slotRowsMoved(const QModelIndex &parent, int
         }
     }
 
-    _test_validate_move(newParentTTI, startTTI, endTTI, newPrevTTI, newNextTTI, row);
+    _DO_TEST(_test_validate_move, q_ptr, newParentTTI, startTTI, endTTI, newPrevTTI, newNextTTI, row)
 
     resetTemporaryIndices(tmp);
 
@@ -898,7 +877,7 @@ setEdge(EdgeType et, StateTracker::Index* tti, Qt::Edge e)
 
     edges(et)->setEdge(tti, e);
 
-    d_ptr->_test_validate_edges_simple();
+    _DO_TEST(_test_validate_edges_simple, this)
 }
 
 StateTracker::Index *TreeTraversalReflector::
@@ -962,9 +941,9 @@ void TreeTraversalReflector::connectModel(QAbstractItemModel *m)
 
 #ifdef ENABLE_EXTRA_VALIDATION
     QObject::connect(m, &QAbstractItemModel::rowsMoved, d_ptr,
-        [this](){d_ptr->_test_validateLinkedList();});
+        [this](){_DO_TEST(_test_validateLinkedList, this);});
     QObject::connect(m, &QAbstractItemModel::rowsRemoved, d_ptr,
-        [this](){d_ptr->_test_validateLinkedList();});
+        [this](){_DO_TEST(_test_validateLinkedList, this);});
 #endif
 }
 
@@ -1024,12 +1003,12 @@ void TreeTraversalReflector::perfromStateChange(Event e, IndexMetadata *md, Stat
 void TreeTraversalReflector::forceInsert(const QModelIndex& idx)
 {
     //TODO add some safety check or find a way to get rid of this hack
-    slotRowsInserted(idx.parent(), idx.row(), idx.row()));
+    d_ptr->slotRowsInserted(idx.parent(), idx.row(), idx.row());
 }
 
 void TreeTraversalReflector::forceInsert(const QModelIndex& parent, int first, int last)
 {
-    slotRowsInserted(parent, first, last);
+    d_ptr->slotRowsInserted(parent, first, last);
 }
 
 #include <treetraversalreflector_p.moc>

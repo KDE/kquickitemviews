@@ -395,9 +395,6 @@ void IndexMetadata::setCollapsed(bool c)
     d_ptr->m_IsCollapsed = c;
 }
 
-
-#include <private/treetraversalreflector_p2.h> //TODO remove
-
 bool IndexMetadata::performAction(IndexMetadata::LoadAction a)
 {
     auto mt = static_cast<StateTracker::ModelItem*>(indexTracker());
@@ -416,7 +413,7 @@ bool IndexMetadata::performAction(IndexMetadata::LoadAction a)
     }
 
     // At this point the edges should have been updated.
-    mt->q_ptr->_test_validate_edges_simple();
+    _DO_TEST(_test_validate_edges_simple, mt->q_ptr)
 
     const bool ret = (mt->*StateTracker::ModelItem::m_fStateMachine[(int)s][(int)a])();
 
@@ -428,8 +425,9 @@ bool IndexMetadata::performAction(IndexMetadata::LoadAction a)
         ||  mt->state() == StateTracker::ModelItem::State::MOVING
         ||  mt->state() == StateTracker::ModelItem::State::VISIBLE));
 
-    if (ns != StateTracker::ModelItem::State::DANGLING)
-        mt->q_ptr->_test_validate_edges_simple();
+    if (ns != StateTracker::ModelItem::State::DANGLING) {
+        _DO_TEST(_test_validate_edges_simple, mt->q_ptr)
+    }
 
     return ret;
 }

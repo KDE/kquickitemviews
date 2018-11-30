@@ -77,6 +77,7 @@ SET( kquickview_LIB_SRCS
     src/private/statetracker/modelitem_p.cpp
     src/private/indexmetadata_p.cpp
     src/private/treetraversalreflector_p.cpp
+    src/private/runtimetests_p.cpp
 )
 
 set(AUTOMOC_MOC_OPTIONS -Muri=org.kde.playground.kquickview)
@@ -103,7 +104,6 @@ SET( kquickview_LIB_HDRS
     proxies/sizehintproxymodel.h
     singlemodelviewbase.h
     contextadapterfactory.h
-    treetraversalreflector_debug.h
     viewbase.h
     views/comboboxview.h
     views/flickable.h

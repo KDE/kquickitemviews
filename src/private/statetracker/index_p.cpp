@@ -75,7 +75,7 @@ void StateTracker::Index::insertChildAfter(StateTracker::Index* self, StateTrack
         self->m_LifeCycleState = self->m_MoveToRow != -1 ?
             LifeCycleState::TRANSITION : LifeCycleState::NORMAL;
 
-        parent->_test_validate_chain();
+        _DO_TEST_IDX(_test_validate_chain, parent)
         return;
     }
 
@@ -103,7 +103,7 @@ void StateTracker::Index::insertChildAfter(StateTracker::Index* self, StateTrack
     if (parent->m_tChildren[LAST] ==  other)
         parent->m_tChildren[LAST] = self;
 
-    parent->_test_validate_chain();
+    _DO_TEST_IDX(_test_validate_chain, parent)
 }
 
 void StateTracker::Index::insertChildBefore(StateTracker::Index* self, StateTracker::Index* other, StateTracker::Index* parent)
@@ -113,7 +113,7 @@ void StateTracker::Index::insertChildBefore(StateTracker::Index* self, StateTrac
     Q_ASSERT(self->m_LifeCycleState == LifeCycleState::NEW);
     Q_ASSERT(!parent->m_hLookup.contains(self->m_Index));
 
-    parent->_test_validate_chain();
+    _DO_TEST_IDX(_test_validate_chain, parent)
 
     Q_ASSERT(!parent->m_hLookup.values().contains(self));
     parent->m_hLookup[self->m_Index] = self;
@@ -127,7 +127,7 @@ void StateTracker::Index::insertChildBefore(StateTracker::Index* self, StateTrac
         self->m_tSiblings[PREVIOUS] = self->m_tSiblings[NEXT] = nullptr;
         Q_ASSERT(!self->nextSibling());
         Q_ASSERT(!self->previousSibling());
-        parent->_test_validate_chain();
+        _DO_TEST_IDX(_test_validate_chain, parent)
         return;
     }
 
@@ -143,7 +143,7 @@ void StateTracker::Index::insertChildBefore(StateTracker::Index* self, StateTrac
         Q_ASSERT(!self->previousSibling());
         Q_ASSERT(parent->lastChild());
 
-        parent->_test_validate_chain();
+        _DO_TEST_IDX(_test_validate_chain, parent)
         return;
     }
 
@@ -170,7 +170,7 @@ void StateTracker::Index::insertChildBefore(StateTracker::Index* self, StateTrac
         other->m_tSiblings[PREVIOUS] = self;
     }
 
-    parent->_test_validate_chain();
+    _DO_TEST_IDX(_test_validate_chain, parent)
 }
 
 /// Fix the issues introduced by createGap (does not update m_pParent and m_hLookup)
@@ -210,12 +210,7 @@ void StateTracker::Index::bridgeGap(StateTracker::Index* first, StateTracker::In
     else if (first) {
 
         // `first` may be the last child of a last child (of a...)
-        if (second) {
-            Q_ASSERT(second->parent()->lastChild() == second);
-        }
-
-        Q_ASSERT(!second);
-
+        Q_ASSERT((!second) || second->parent()->lastChild() == second);
 
         // It's the last element or the second is a last leaf and first is unrelated
         first->m_tSiblings[NEXT] = nullptr;
@@ -245,7 +240,7 @@ void StateTracker::Index::bridgeGap(StateTracker::Index* first, StateTracker::In
         Q_ASSERT(false); //Something went really wrong elsewhere
     }
 
-    _test_bridgeGap(first, second);
+    _DO_TEST_IDX_STATIC(_test_bridgeGap, first, second)
 }
 
 void StateTracker::Index::remove(bool reparent)

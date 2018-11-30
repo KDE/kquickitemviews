@@ -25,8 +25,6 @@ using EdgeType = IndexMetadata::EdgeType;
 
 #include <QtGlobal>
 
-#include <private/treetraversalreflector_p2.h>
-
 #define S StateTracker::Model::State::
 const StateTracker::Model::State StateTracker::Model::m_fStateMap[5][7] = {
 /*                POPULATE     DISABLE      ENABLE       RESET        FREE         MOVE         TRIM   */
@@ -131,7 +129,7 @@ void StateTracker::Model::populate()
 {
     Q_ASSERT(m_pModel);
 
-    d_ptr->_test_validateContinuity();
+    _DO_TEST(_test_validateContinuity, q_ptr);
 
     if (!q_ptr->edges(EdgeType::FREE)->m_Edges)
         return;
@@ -171,11 +169,11 @@ void StateTracker::Model::populate()
     }
     else if (auto rc = m_pModel->rowCount()) {
         //TODO support anchors (load from the bottom)
-        d_ptr->forceInsert({}, 0, rc - 1);
+        q_ptr->forceInsert({}, 0, rc - 1);
     }
 
     if (q_ptr->edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge) {
-        d_ptr->_test_validateAtEnd();
+        _DO_TEST(_test_validateAtEnd, q_ptr);
     }
 }
 
@@ -266,7 +264,7 @@ QAbstractItemModel *StateTracker::Model::modelCandidate() const
 
 void StateTracker::Model::setModel(QAbstractItemModel* m)
 {
-    if (m == trackedModel())
+    if (m == m_pTrackedModel)
         return;
 
     this << StateTracker::Model::Action::DISABLE

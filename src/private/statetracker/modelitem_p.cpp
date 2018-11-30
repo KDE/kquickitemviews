@@ -18,7 +18,6 @@
 #include "modelitem_p.h"
 
 #include "proximity_p.h"
-#include <private/treetraversalreflector_p2.h>
 #include <private/treetraversalreflector_p.h>
 #include <viewport.h>
 #include <private/viewport_p.h>
@@ -78,7 +77,7 @@ StateTracker::ModelItem* StateTracker::ModelItem::load(Qt::Edge e) const
     // This works because only the TopEdge and LeftEdge can return multiple `l`
     i = next(e);
 
-    d_ptr->_test_validateViewport();
+    _DO_TEST(_test_validateViewport, q_ptr);
 
     return i ? i->metadata()->modelTracker() : nullptr;
 }
@@ -300,7 +299,7 @@ bool StateTracker::ModelItem::show()
     //d_ptr->_test_validate_geometry_cache(); //TODO THIS_COMMIT
     //Q_ASSERT(metadata()->isInSync()); //TODO THIS_COMMIT
 
-    d_ptr->_test_validateViewport();
+    _DO_TEST(_test_validateViewport, q_ptr)
 
     return true;
 }
@@ -345,7 +344,7 @@ bool StateTracker::ModelItem::remove2()
 bool StateTracker::ModelItem::attach()
 {
     Q_ASSERT(m_State != State::VISIBLE && !metadata()->viewTracker());
-    d_ptr->_test_validate_edges_simple();
+    _DO_TEST(_test_validate_edges_simple, q_ptr)
 
     //TODO For now the buffer isn't fully implemented, so items always get
     // shown when attached.

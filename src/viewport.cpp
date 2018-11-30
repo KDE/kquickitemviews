@@ -35,23 +35,21 @@
 #include "viewbase.h"
 #include "private/indexmetadata_p.h"
 
+using Strategy = Viewport::SizeHintStrategy;
 
 class ViewportPrivate : public QObject
 {
     Q_OBJECT
 public:
-    QQmlEngine* m_pEngine {nullptr};
-    ModelAdapter* m_pModelAdapter;
-
-    Viewport::SizeHintStrategy m_SizeStrategy { Viewport::SizeHintStrategy::JIT };
-
-    QByteArray m_SizeHintRole;
-    int m_SizeHintRoleIndex {-1};
-    bool m_KnowsRowHeight {false};
-
-    qreal m_CurrentHeight      {0};
-    qreal m_DelayedHeightDelta {0};
-    bool  m_DisableApply {false};
+    QQmlEngine   *m_pEngine            {    nullptr    };
+    ModelAdapter *m_pModelAdapter      {    nullptr    };
+    Strategy      m_SizeStrategy       { Strategy::JIT };
+    QByteArray    m_SizeHintRole       {               };
+    int           m_SizeHintRoleIndex  {     -1        };
+    bool          m_KnowsRowHeight     {    false      };
+    qreal         m_CurrentHeight      {      0        };
+    qreal         m_DelayedHeightDelta {      0        };
+    bool          m_DisableApply       {    false      };
 
     // The viewport rectangle
     QRectF m_ViewRect;
@@ -170,7 +168,7 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel
     Q_ASSERT(m_pModelAdapter->rawModel() == m);
 
     if (m_pModelAdapter->hasSizeHints())
-        q_ptr->setSizeHintStrategy(Viewport::SizeHintStrategy::PROXY);
+        q_ptr->setSizeHintStrategy(Strategy::PROXY);
 
     if (!m_SizeHintRole.isEmpty() && m)
         m_SizeHintRoleIndex = m->roleNames().key(
@@ -187,7 +185,7 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel
          << StateTracker::Model::Action::ENABLE;
     }
 
-    using SHS = Viewport::SizeHintStrategy;
+    using SHS = Strategy;
 
     if (m && (m_SizeStrategy == SHS::PROXY || m_SizeStrategy == SHS::UNIFORM || m_SizeStrategy == SHS::ROLE)) {
         connect(m, &QAbstractItemModel::rowsInserted,
@@ -227,22 +225,21 @@ QPointF Viewport::position() const
     return d_ptr->m_UsedRect.topLeft();
 }
 
-Viewport::SizeHintStrategy Viewport::sizeHintStrategy() const
+Strategy Viewport::sizeHintStrategy() const
 {
     return d_ptr->m_SizeStrategy;
 }
 
-void Viewport::setSizeHintStrategy(Viewport::SizeHintStrategy s)
+void Viewport::setSizeHintStrategy(Strategy s)
 {
-    using SHS = Viewport::SizeHintStrategy;
     const auto old = d_ptr->m_SizeStrategy;
 
-    auto needConnect = [](SHS s) {
-        return s == SHS::PROXY || s == SHS::UNIFORM || s == SHS::ROLE;
+    auto needConnect = [](Strategy s) {
+        return s == Strategy::PROXY || s == Strategy::UNIFORM || s == Strategy::ROLE;
     };
 
-    bool wasConnected = needConnect(old);
-    bool willConnect  = needConnect( s );
+    const bool wasConnected = needConnect(old);
+    const bool willConnect  = needConnect( s );
 
     s_ptr->m_pReflector->modelTracker() << StateTracker::Model::Action::RESET;
     d_ptr->m_SizeStrategy = s;
@@ -280,7 +277,7 @@ bool Viewport::isTotalSizeKnown() const
         return true;
 
     switch(d_ptr->m_SizeStrategy) {
-        case Viewport::SizeHintStrategy::JIT:
+        case Strategy::JIT:
             return false;
         default:
             return true;
@@ -386,8 +383,8 @@ void ViewportPrivate::updateAvailableEdges()
     Q_ASSERT((!bve) || tve->isValid());
 
     // Do not attempt to load the geometry yet, let the loading code do it later
-    bool tveValid = tve && tve->isValid();
-    bool bveValid = bve && bve->isValid();
+    const bool tveValid = tve && tve->isValid();
+    const bool bveValid = bve && bve->isValid();
 
     // Given 42x0 sized item are possible. However just "fixing" this by adding
     // a minimum size wont help because it will trigger the out of sync view
@@ -451,7 +448,7 @@ void ViewportPrivate::updateAvailableEdges()
 
     // Resize the contend height, it has to be done after the geometry has been
     // updated.
-    if (bve && m_SizeStrategy == Viewport::SizeHintStrategy::JIT) {
+    if (bve && m_SizeStrategy == Strategy::JIT) {
 
         const auto geo = bve->decoratedGeometry();
 
@@ -473,13 +470,13 @@ void ViewportSync::geometryUpdated(IndexMetadata *item)
     // This will recompute the geometry
     item->decoratedGeometry();
 
-    if (q_ptr->d_ptr->m_SizeStrategy == Viewport::SizeHintStrategy::JIT)
+    if (q_ptr->d_ptr->m_SizeStrategy == Strategy::JIT)
         q_ptr->d_ptr->updateAvailableEdges();
 }
 
 void ViewportSync::updateGeometry(IndexMetadata* item)
 {
-    if (q_ptr->d_ptr->m_SizeStrategy != Viewport::SizeHintStrategy::JIT)
+    if (q_ptr->d_ptr->m_SizeStrategy != Strategy::JIT)
         item->sizeHint();
 
     if (auto i = item->down())
@@ -496,13 +493,13 @@ void ViewportSync::updateGeometry(IndexMetadata* item)
 void ViewportSync::notifyChange(IndexMetadata* item)
 {
     switch(q_ptr->d_ptr->m_SizeStrategy) {
-        case Viewport::SizeHintStrategy::UNIFORM:
-        case Viewport::SizeHintStrategy::DELEGATE: //TODO
-        case Viewport::SizeHintStrategy::ROLE: //TODO
+        case Strategy::UNIFORM:
+        case Strategy::DELEGATE: //TODO
+        case Strategy::ROLE: //TODO
             return;
-        case Viewport::SizeHintStrategy::AOT:
-        case Viewport::SizeHintStrategy::JIT:
-        case Viewport::SizeHintStrategy::PROXY:
+        case Strategy::AOT:
+        case Strategy::JIT:
+        case Strategy::PROXY:
             item << IndexMetadata::GeometryAction::MODIFY;
     }
 }
@@ -706,21 +703,21 @@ qreal ViewportPrivate::getSectionHeight(const QModelIndex& parent, int first, in
     Q_UNUSED(last) //TODO not implemented
     Q_ASSERT(m_pModelAdapter->rawModel());
     switch(m_SizeStrategy) {
-        case Viewport::SizeHintStrategy::AOT:
-        case Viewport::SizeHintStrategy::JIT:
-        case Viewport::SizeHintStrategy::DELEGATE:
+        case Strategy::AOT:
+        case Strategy::JIT:
+        case Strategy::DELEGATE:
             Q_ASSERT(false); // Should not get here
             return 0.0;
-        case Viewport::SizeHintStrategy::UNIFORM:
+        case Strategy::UNIFORM:
             Q_ASSERT(m_KnowsRowHeight);
             break;
-        case Viewport::SizeHintStrategy::PROXY: {
+        case Strategy::PROXY: {
             Q_ASSERT(q_ptr->modelAdapter()->hasSizeHints());
             const auto idx = m_pModelAdapter->rawModel()->index(first, 0, parent);
             return qobject_cast<SizeHintProxyModel*>(m_pModelAdapter->rawModel())
                 ->sizeHintForIndex(idx).height();
         }
-        case Viewport::SizeHintStrategy::ROLE:
+        case Strategy::ROLE:
             Q_ASSERT(false); //TODO not implemented
             break;
     }

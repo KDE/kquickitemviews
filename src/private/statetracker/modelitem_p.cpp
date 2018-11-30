@@ -160,7 +160,8 @@ void StateTracker::ModelItem::remove(bool reparent)
             Q_ASSERT(false); // Impossible, only corrupted memory can cause this
             break;
         case IndexMetadata::EdgeType::VISIBLE:
-            if (auto i = d_ptr->find(this, Qt::TopEdge, [](auto i) -> bool { return i->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE; } )) {
+            if (auto i = d_ptr->find(this, Qt::TopEdge, [](auto i) -> bool {
+              return i->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE; } )) {
                 Q_ASSERT(i->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE); //TODO
                 d_ptr->setEdge(IndexMetadata::EdgeType::VISIBLE, i, Qt::TopEdge);
             }
@@ -180,7 +181,8 @@ void StateTracker::ModelItem::remove(bool reparent)
             Q_ASSERT(false); // Impossible, only corrupted memory can cause this
             break;
         case IndexMetadata::EdgeType::VISIBLE:
-            if (auto i = d_ptr->find(this, Qt::BottomEdge, [](auto i) -> bool { return i->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE; } )) {
+            if (auto i = d_ptr->find(this, Qt::BottomEdge, [](auto i) -> bool {
+              return i->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE; } )) {
                 Q_ASSERT(i->metadata()->modelTracker()->m_State == StateTracker::ModelItem::State::VISIBLE); //TODO
                 d_ptr->setEdge(IndexMetadata::EdgeType::VISIBLE, i, Qt::BottomEdge);
             }
@@ -217,7 +219,7 @@ bool StateTracker::ModelItem::show()
     if (auto item = metadata()->viewTracker()) {
         //TODO Implementing this *may* make sense, but for now avoid it.
         // for now it is undefined behavior, but not fatal
-        Q_ASSERT(false); //TODO not well thought
+        Q_ASSERT(false); //TODO not well thought, most definitely broken
         item->setVisible(true);
     }
     else {

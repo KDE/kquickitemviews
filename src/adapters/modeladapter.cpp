@@ -48,7 +48,7 @@ public:
     QSharedItemModel        m_pModelPtr           {       };
     QAbstractItemModel     *m_pRawModel           {nullptr};
     QQmlComponent          *m_pDelegate           {nullptr};
-    Viewport               *m_pRange              {nullptr};
+    Viewport               *m_pViewport              {nullptr};
     SelectionAdapter       *m_pSelectionManager   {nullptr};
     ViewBase               *m_pView               {nullptr};
     ContextAdapterFactory  *m_pRoleContextFactory {nullptr};
@@ -85,11 +85,11 @@ ModelAdapter::ModelAdapter(ViewBase* parent) : QObject(parent),
     selectionAdapter()->s_ptr->setView(parent);
     contextAdapterFactory()->addContextExtension(selectionAdapter()->contextExtension());
 
-    selectionAdapter()->s_ptr->setViewport(d_ptr->m_pRange = new Viewport(this));
+    selectionAdapter()->s_ptr->setViewport(d_ptr->m_pViewport = new Viewport(this));
 
-    connect(d_ptr->m_pRange, &Viewport::contentChanged,
+    connect(d_ptr->m_pViewport, &Viewport::contentChanged,
         d_ptr, &ModelAdapterPrivate::slotContentChanged);
-//     connect(d_ptr->m_pReflector, &TreeTraversalReflector::countChanged,
+//     connect(d_ptr->m_pReflector, &StateTracker::Content::countChanged,
 //         d_ptr, &ModelAdapterPrivate::slotCountChanged);
 }
 
@@ -289,7 +289,7 @@ ContextAdapterFactory* ModelAdapter::contextAdapterFactory() const
 
 QVector<Viewport*> ModelAdapter::viewports() const
 {
-    return {d_ptr->m_pRange};
+    return {d_ptr->m_pViewport};
 }
 
 void ModelAdapterPrivate::slotContentChanged()

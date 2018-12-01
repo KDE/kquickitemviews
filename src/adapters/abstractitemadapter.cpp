@@ -213,7 +213,7 @@ bool AbstractItemAdapterPrivate::move()
 
     // Views should apply the geometry they have been told to apply. Otherwise
     // all optimizations brakes.
-//     Q_ASSERT((!ret) || q_ptr->s_ptr->m_pGeometry->isInSync());
+//     Q_ASSERT((!ret) || q_ptr->s_ptr->m_pMetadata->isInSync());
 
     return ret;
 }
@@ -228,7 +228,7 @@ bool AbstractItemAdapterPrivate::remove()
     bool ret = q_ptr->remove();
 
     m_pItem->setParentItem(nullptr);
-    q_ptr->s_ptr->m_pTTI = nullptr;
+    q_ptr->s_ptr->m_pMetadata = nullptr;
 
     return ret;
 }
@@ -293,32 +293,17 @@ bool AbstractItemAdapterPrivate::destroy()
 
 bool StateTracker::ViewItem::performAction(IndexMetadata::ViewAction a)
 {
-    //if (m_State == StateTracker::ViewItem::State::FAILED)
-    //    m_pTTI->d_ptr->m_FailedCount--;
-
     const int s = (int)m_State;
 
     m_State     = d_ptr->d_ptr->m_fStateMap [s][(int)a];
     Q_ASSERT(m_State != StateTracker::ViewItem::State::ERROR);
 
-    const bool ret = (d_ptr->d_ptr ->* d_ptr->d_ptr->m_fStateMachine[s][(int)a])();
-
-    /*
-     * It can happen normally. For example, if the QML initialization sets the
-     * model before the delegate.
-     */
-    if (m_State == StateTracker::ViewItem::State::FAILED || !ret) {
-        //Q_ASSERT(false);
-        m_State = StateTracker::ViewItem::State::FAILED;
-        //m_pTTI->d_ptr->m_FailedCount++;
-    }
-
-    return ret;
+    return (d_ptr->d_ptr ->* d_ptr->d_ptr->m_fStateMachine[s][(int)a])();
 }
 
 int StateTracker::ViewItem::depth() const
 {
-    return m_pGeometry->indexTracker()->depth();
+    return m_pMetadata->indexTracker()->depth();
 }
 
 QPair<QWeakPointer<AbstractItemAdapter::SelectionLocker>, AbstractItemAdapter*>
@@ -338,7 +323,7 @@ void AbstractItemAdapterPrivate::load()
     if (m_pContext || m_pItem)
         return;
 
-    if (!q_ptr->s_ptr->m_pRange->modelAdapter()->delegate()) {
+    if (!q_ptr->s_ptr->m_pViewport->modelAdapter()->delegate()) {
         qDebug() << "Cannot attach, there is no delegate";
         return;
     }
@@ -361,24 +346,24 @@ void AbstractItemAdapterPrivate::load()
     m_pContext = pair.second;
     m_pItem    = pair.first;
 
-    Q_ASSERT(q_ptr->s_ptr->m_pGeometry);
+    Q_ASSERT(q_ptr->s_ptr->m_pMetadata);
 
-    q_ptr->s_ptr->m_pGeometry->contextAdapter()->context();
+    q_ptr->s_ptr->m_pMetadata->contextAdapter()->context();
 
-    Q_ASSERT(q_ptr->s_ptr->m_pGeometry->contextAdapter()->context() == m_pContext);
+    Q_ASSERT(q_ptr->s_ptr->m_pMetadata->contextAdapter()->context() == m_pContext);
 
     // Update the geometry cache
-    switch (q_ptr->s_ptr->m_pRange->sizeHintStrategy()){
+    switch (q_ptr->s_ptr->m_pViewport->sizeHintStrategy()){
         case Viewport::SizeHintStrategy::JIT:
         case Viewport::SizeHintStrategy::AOT:
-            q_ptr->s_ptr->m_pGeometry->setSize(
+            q_ptr->s_ptr->m_pMetadata->setSize(
                 QSizeF(m_pItem->width(), m_pItem->height())
             );
             break;
         case Viewport::SizeHintStrategy::PROXY:
         case Viewport::SizeHintStrategy::ROLE:
         case Viewport::SizeHintStrategy::DELEGATE:
-            q_ptr->s_ptr->m_pGeometry->performAction(
+            q_ptr->s_ptr->m_pMetadata->performAction(
                 IndexMetadata::GeometryAction::MODIFY
             );
             break;
@@ -386,7 +371,7 @@ void AbstractItemAdapterPrivate::load()
             break;
     }
 
-    Q_ASSERT(q_ptr->s_ptr->m_pGeometry->geometryTracker()->state() != StateTracker::Geometry::State::INIT);
+    Q_ASSERT(q_ptr->s_ptr->m_pMetadata->geometryTracker()->state() != StateTracker::Geometry::State::INIT);
 }
 
 QQmlContext *AbstractItemAdapter::context() const
@@ -403,7 +388,7 @@ QQuickItem *AbstractItemAdapter::item() const
 
 Viewport *AbstractItemAdapter::viewport() const
 {
-    return s_ptr->m_pRange;
+    return s_ptr->m_pViewport;
 }
 
 QRectF AbstractItemAdapter::geometry() const
@@ -422,17 +407,17 @@ QRectF AbstractItemAdapter::geometry() const
 
 QRectF AbstractItemAdapter::decoratedGeometry() const
 {
-    return s_ptr->m_pGeometry->decoratedGeometry();
+    return s_ptr->m_pMetadata->decoratedGeometry();
 }
 
 qreal AbstractItemAdapter::borderDecoration(Qt::Edge e) const
 {
-    return s_ptr->m_pGeometry->borderDecoration(e);
+    return s_ptr->m_pMetadata->borderDecoration(e);
 }
 
 void AbstractItemAdapter::setBorderDecoration(Qt::Edge e, qreal r)
 {
-    s_ptr->m_pGeometry->setBorderDecoration(e, r);
+    s_ptr->m_pMetadata->setBorderDecoration(e, r);
 }
 
 bool AbstractItemAdapter::refresh()
@@ -457,10 +442,10 @@ void AbstractItemAdapter::setSelected(bool /*s*/)
 
 QPair<QQuickItem*, QQmlContext*> AbstractItemAdapterPrivate::loadDelegate(QQuickItem* parentI) const
 {
-    if (!q_ptr->s_ptr->m_pRange->modelAdapter()->delegate())
+    if (!q_ptr->s_ptr->m_pViewport->modelAdapter()->delegate())
         return {};
 
-    auto pctx = q_ptr->s_ptr->m_pGeometry->contextAdapter()->context();
+    auto pctx = q_ptr->s_ptr->m_pMetadata->contextAdapter()->context();
 
     // Create a parent item to hold the delegate and all children
     auto container = qobject_cast<QQuickItem *>(sharedVariables()->component()->create(pctx));
@@ -473,7 +458,7 @@ QPair<QQuickItem*, QQmlContext*> AbstractItemAdapterPrivate::loadDelegate(QQuick
 
     // Create the delegate
     auto item = qobject_cast<QQuickItem *>(
-        q_ptr->s_ptr->m_pRange->modelAdapter()->delegate()->create(ctx)
+        q_ptr->s_ptr->m_pViewport->modelAdapter()->delegate()->create(ctx)
     );
 
     // It allows the children to be added anyway
@@ -535,12 +520,12 @@ void StateTracker::ViewItem::updateGeometry()
 
     //TODO handle up/left/right too
 
-    const auto sm = m_pRange->modelAdapter()->selectionAdapter();
+    const auto sm = m_pViewport->modelAdapter()->selectionAdapter();
 
     if (sm && sm->selectionModel() && sm->selectionModel()->currentIndex() == index())
         sm->s_ptr->updateSelection(index());
 
-    m_pRange->s_ptr->geometryUpdated(m_pGeometry);
+    m_pViewport->s_ptr->geometryUpdated(m_pMetadata);
 }
 
 QQmlContext *StateTracker::ViewItem::context() const
@@ -560,12 +545,12 @@ bool AbstractItemAdapter::isCollapsed() const
 
 QSizeF AbstractItemAdapter::sizeHint() const
 {
-    return s_ptr->m_pGeometry->sizeHint();
+    return s_ptr->m_pMetadata->sizeHint();
 }
 
 QPersistentModelIndex StateTracker::ViewItem::index() const
 {
-    return QModelIndex(m_pGeometry->indexTracker()->index());
+    return QModelIndex(m_pMetadata->indexTracker()->index());
 }
 
 /**
@@ -583,7 +568,7 @@ StateTracker::ViewItem* StateTracker::ViewItem::up() const
         // "deletion in progress" or swap the f call and set state
     );
 
-    auto ret = m_pGeometry->indexTracker()->up();
+    auto ret = m_pMetadata->indexTracker()->up();
     //TODO support collapsed nodes
 
     // Linearly look for a valid element. Doing this here allows the views
@@ -620,7 +605,7 @@ StateTracker::ViewItem* StateTracker::ViewItem::down() const
         // "deletion in progress" or swap the f call and set state
     );
 
-    auto ret = m_pGeometry->indexTracker();
+    auto ret = m_pMetadata->indexTracker();
     //TODO support collapsed entries
 
     // Recursively look for a valid element. Doing this here allows the views
@@ -658,20 +643,20 @@ StateTracker::ViewItem *StateTracker::ViewItem::next(Qt::Edge e) const
 
 int StateTracker::ViewItem::row() const
 {
-    return m_pGeometry->indexTracker()->effectiveRow();
+    return m_pMetadata->indexTracker()->effectiveRow();
 }
 
 int StateTracker::ViewItem::column() const
 {
-    return m_pGeometry->indexTracker()->effectiveColumn();
+    return m_pMetadata->indexTracker()->effectiveColumn();
 }
 
 void StateTracker::ViewItem::setCollapsed(bool v)
 {
-    m_pGeometry->setCollapsed(v);
+    m_pMetadata->setCollapsed(v);
 }
 
 bool StateTracker::ViewItem::isCollapsed() const
 {
-    return m_pGeometry->isCollapsed();
+    return m_pMetadata->isCollapsed();
 }

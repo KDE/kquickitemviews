@@ -25,7 +25,7 @@
 // KQuickItemViews
 #include "private/viewport_p.h"
 #include "proxies/sizehintproxymodel.h"
-#include "private/treetraversalreflector_p.h"
+#include "private/statetracker/content_p.h"
 #include "adapters/modeladapter.h"
 #include "contextadapterfactory.h"
 #include "adapters/contextadapter.h"
@@ -83,7 +83,7 @@ Viewport::Viewport(ModelAdapter* ma) : QObject(),
     d_ptr->q_ptr = this;
     s_ptr->q_ptr = this;
     d_ptr->m_pModelAdapter = ma;
-    s_ptr->m_pReflector    = new TreeTraversalReflector(this);
+    s_ptr->m_pReflector    = new StateTracker::Content(this);
 
     resize(QRectF { 0.0, 0.0, ma->view()->width(), ma->view()->height() });
 
@@ -99,7 +99,7 @@ Viewport::Viewport(ModelAdapter* ma) : QObject(),
 
     d_ptr->slotModelChanged(ma->rawModel(), nullptr);
 
-    connect(s_ptr->m_pReflector, &TreeTraversalReflector::contentChanged,
+    connect(s_ptr->m_pReflector, &StateTracker::Content::contentChanged,
         this, &Viewport::contentChanged);
 }
 

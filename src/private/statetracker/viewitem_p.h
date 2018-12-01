@@ -25,13 +25,14 @@ class ViewBase;
 class ViewItemContextAdapter;
 class ContextAdapter;
 class Viewport;
-class TreeTraversalReflectorPrivate;
 
 // Qt
 class QQuickItem;
 #include <QtCore/QSharedPointer>
 
 namespace StateTracker {
+
+class Content;
 
 /**
  * Polymorphic tree item for the ViewBase.
@@ -47,15 +48,14 @@ class ViewItem
     //FIXME remove all that
     friend class ViewBase;
     friend struct ::StateTracker::ModelItem;
-    friend class ViewBasePrivate;
     friend class ::AbstractItemAdapterPrivate; //TODO remove
-    friend class TreeTraversalReflector;
+    friend class ::StateTracker::Content;
+    friend class ViewBasePrivate;
     friend class ::AbstractItemAdapter;
-    friend class ::TreeTraversalReflectorPrivate; //TODO remove. debug only
     friend class ViewportPrivate; //TODO remove
 public:
     explicit ViewItem(ViewBase* p, Viewport* r) :
-        m_pRange(r), m_pView(p) {}
+        m_pViewport(r), m_pView(p) {}
 
     virtual ~ViewItem() {}
 
@@ -109,15 +109,14 @@ public:
 
     void setVisible(bool) {Q_ASSERT(false);}
 
-    Viewport      *m_pRange    {nullptr};
-    IndexMetadata *m_pGeometry {nullptr};
+    Viewport      *m_pViewport {nullptr};
+    IndexMetadata *m_pMetadata {nullptr};
 
     bool performAction(IndexMetadata::ViewAction a);
 
     AbstractItemAdapter* d_ptr;
 private:
     State      m_State {State::POOLED};
-    ModelItem *m_pTTI  {   nullptr   };
     ViewBase  *m_pView {   nullptr   };
 };
 

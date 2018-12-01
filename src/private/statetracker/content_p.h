@@ -22,21 +22,18 @@
 #include <QtCore/QAbstractItemModel>
 
 // KQuickViews
-namespace StateTracker {
-    struct ModelItem;
-    struct Model;
-}
 
-class TreeTraversalReflectorPrivate;
+class ContentPrivate;
 class AbstractItemAdapter;
 class Viewport;
 class ModelRect;
-#include "indexmetadata_p.h"
-#include "statetracker/modelitem_p.h"
+#include <private/indexmetadata_p.h>
+#include "modelitem_p.h"
 
-namespace {
-    class ViewItem;
-}
+namespace StateTracker {
+
+struct ModelItem;
+struct Model;
 
 /**
  * This class refects a QAbstractItemModel (realtime) topology.
@@ -62,26 +59,23 @@ namespace {
  * or `detachUntil` called to trigger manual changes. Otherwise it will listen
  * to the model and modify itself and the model changes.
  */
-class TreeTraversalReflector final : public QObject
+class Content final : public QObject
 {
     Q_OBJECT
-    friend struct StateTracker::ModelItem; // Internal representation
 public:
     enum class Event {
         ENTER_STATE,
         LEAVE_STATE,
     };
 
-    explicit TreeTraversalReflector(Viewport* parent = nullptr);
-    virtual ~TreeTraversalReflector();
+    explicit Content(Viewport* parent = nullptr);
+    virtual ~Content();
 
-    void setModel(QAbstractItemModel* m);
-
+    // Edges management
     void setAvailableEdges(Qt::Edges edges, IndexMetadata::EdgeType type);
     Qt::Edges availableEdges(IndexMetadata::EdgeType type) const;
     IndexMetadata *getEdge(IndexMetadata::EdgeType t, Qt::Edge e) const;
-
-    StateTracker::Model *modelTracker() const;
+    void setEdge(IndexMetadata::EdgeType et, StateTracker::Index* tti, Qt::Edge e);
 
     // Getter
     IndexMetadata *metadataForIndex(const QModelIndex& idx) const;
@@ -91,10 +85,10 @@ public:
     StateTracker::Index *firstItem() const;
     ModelRect* edges(IndexMetadata::EdgeType e) const;
     const std::function<AbstractItemAdapter*()>& itemFactory() const;
+    StateTracker::Model *modelTracker() const;
 
     // Setters
     void setItemFactory(const std::function<AbstractItemAdapter*()>& factory);
-    void setEdge(IndexMetadata::EdgeType et, StateTracker::Index* tti, Qt::Edge e);
 
     // Mutator
     void connectModel(QAbstractItemModel *m);
@@ -118,16 +112,15 @@ Q_SIGNALS:
     void countChanged  ();
 
 private:
-    TreeTraversalReflectorPrivate* d_ptr;
+    ContentPrivate* d_ptr;
 };
 
-/*
- * Inject some extra validation when executed in debug mode.
- */
+}
+
+// Inject some extra validation when executed in debug mode.
 #ifdef ENABLE_EXTRA_VALIDATION
  #define _DO_TEST(f, ...) f(__VA_ARGS__);
- #include "runtimetests_p.h"
+ #include <private/runtimetests_p.h>
 #else
  #define _DO_TEST(f, ...) /*NOP*/;
 #endif
-

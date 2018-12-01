@@ -251,7 +251,7 @@ void ContextAdapter::flushCache()
 
 void AbstractItemAdapter::dismissCacheEntry(ContextExtension* e, int id)
 {
-    auto dx = s_ptr->m_pGeometry->contextAdapter()->d_ptr;
+    auto dx = s_ptr->m_pMetadata->contextAdapter()->d_ptr;
     if (!dx)
         return;
 

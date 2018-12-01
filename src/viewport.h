@@ -39,7 +39,6 @@ class AbstractItemAdapter;
 class Q_DECL_EXPORT Viewport : public QObject
 {
     friend class AbstractItemAdapter; // for the getters defined in viewport.cpp
-    friend class TreeTraversalReflector; // notify of model changes
     friend class ViewportSync; // its own internal API
 
     Q_OBJECT
@@ -86,10 +85,11 @@ public:
 
     void resize(const QRectF& rect);
 
+    ViewportSync *s_ptr;
+
 Q_SIGNALS:
     void contentChanged();
 
 public:
-    ViewportSync *s_ptr;
     ViewportPrivate *d_ptr;
 };

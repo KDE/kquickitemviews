@@ -18,7 +18,7 @@
 #include "modelitem_p.h"
 
 #include "proximity_p.h"
-#include <private/treetraversalreflector_p.h>
+#include <private/statetracker/content_p.h>
 #include <viewport.h>
 #include <private/viewport_p.h>
 #include <private/statetracker/viewitem_p.h>
@@ -52,7 +52,7 @@ const StateTracker::ModelItem::StateF StateTracker::ModelItem::m_fStateMachine[8
 #undef A
 
 
-StateTracker::ModelItem::ModelItem(TreeTraversalReflector* q):
+StateTracker::ModelItem::ModelItem(StateTracker::Content* q):
   StateTracker::Index(q->viewport()), q_ptr(q)
 {}
 
@@ -223,7 +223,6 @@ bool StateTracker::ModelItem::show()
     else {
         metadata()->setViewTracker(q_ptr->itemFactory()()->s_ptr);
         Q_ASSERT(metadata()->viewTracker());
-        metadata()->viewTracker()->m_pTTI = this;
 
         metadata() << IndexMetadata::ViewAction::ATTACH;
         Q_ASSERT(metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::POOLED);

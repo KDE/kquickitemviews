@@ -17,12 +17,15 @@
  **************************************************************************/
 #pragma once
 
-class TreeTraversalReflector;
 class ViewportPrivate;
 class Viewport;
 class ContextAdapter;
 class ViewItemContextAdapter;
 class IndexMetadata;
+
+namespace StateTracker {
+class Content;
+}
 
 #include <QtCore/QRectF>
 #include <QtCore/QModelIndex>
@@ -31,7 +34,7 @@ class IndexMetadata;
 
 /**
  * In order to keep the separation of concerns design goal intact, this
- * interface between the TreeTraversalReflector and Viewport internal
+ * interface between the StateTracker::Content and Viewport internal
  * metadata without exposing them.
  */
 class ViewportSync final
@@ -71,5 +74,5 @@ public:
     IndexMetadata *metadataForIndex(const QModelIndex& idx) const;
 
     Viewport *q_ptr;
-    TreeTraversalReflector *m_pReflector {nullptr};
+    StateTracker::Content *m_pReflector {nullptr};
 };

@@ -1,7 +1,7 @@
 #ifdef ENABLE_EXTRA_VALIDATION
 #pragma once
 
-#include <private/treetraversalreflector_p.h>
+#include <private/statetracker/content_p.h>
 #include <private/statetracker/index_p.h>
 #include <private/statetracker/model_p.h>
 #include <private/statetracker/modelitem_p.h>
@@ -20,7 +20,7 @@
  *  * As a "sliding window" (viewport)
  */
 
-void _test_validateTree(TreeTraversalReflector *self, StateTracker::Index* p)
+void _test_validateTree(StateTracker::Content *self, StateTracker::Index* p)
 {
     // The asserts below only work on valid models with valid delegates.
     // If those conditions are not met, it *could* work anyway, but cannot be
@@ -193,7 +193,7 @@ void _test_validateTree(TreeTraversalReflector *self, StateTracker::Index* p)
     Q_ASSERT((!newest) || !newest->previousSibling());
 }
 
-void _test_validateLinkedList(TreeTraversalReflector *self, bool skipVItemState)
+void _test_validateLinkedList(StateTracker::Content *self, bool skipVItemState)
 {
 #ifndef ENABLE_EXTRA_VALIDATION
     return;
@@ -346,7 +346,7 @@ void _test_validateLinkedList(TreeTraversalReflector *self, bool skipVItemState)
 //     Q_ASSERT(maxY < self->viewport()->currentRect().bottomLeft().y() + 100);
 }
 
-void _test_validateViewport(TreeTraversalReflector *self, bool skipVItemState)
+void _test_validateViewport(StateTracker::Content *self, bool skipVItemState)
 {
 #ifndef ENABLE_EXTRA_VALIDATION
     return;
@@ -439,7 +439,7 @@ void StateTracker::Index::_test_validate_chain() const
         Q_ASSERT(prev == p->lastChild());
 }
 
-void _test_validate_edges(TreeTraversalReflector *self)
+void _test_validate_edges(StateTracker::Content *self)
 {
 #ifndef ENABLE_EXTRA_VALIDATION
     return;
@@ -461,7 +461,7 @@ void _test_validate_edges(TreeTraversalReflector *self)
 }
 
 void _test_validate_move(
-    TreeTraversalReflector *self,
+    StateTracker::Content *self,
     StateTracker::Index* parentTTI,
     StateTracker::Index* startTTI,
     StateTracker::Index* endTTI,
@@ -503,7 +503,7 @@ void _test_validate_move(
     Q_ASSERT(row || parentTTI->firstChild() == startTTI);
 }
 
-void _test_validate_edges_simple(TreeTraversalReflector *self)
+void _test_validate_edges_simple(StateTracker::Content *self)
 {
 #ifndef ENABLE_EXTRA_VALIDATION
     return;
@@ -521,7 +521,7 @@ void _test_validate_edges_simple(TreeTraversalReflector *self)
     //END test
 }
 
-void _test_validate_geometry_cache(TreeTraversalReflector *self)
+void _test_validate_geometry_cache(StateTracker::Content *self)
 {
     auto bve = self->edges(IndexMetadata::EdgeType::VISIBLE)->getEdge(Qt::BottomEdge);
     for (auto i = self->root()->firstChild(); i; i = i->down()) {
@@ -532,7 +532,7 @@ void _test_validate_geometry_cache(TreeTraversalReflector *self)
     }
 }
 
-void _test_print_state(TreeTraversalReflector *self)
+void _test_print_state(StateTracker::Content *self)
 {
 #ifndef ENABLE_EXTRA_VALIDATION
     return;
@@ -553,7 +553,7 @@ void _test_print_state(TreeTraversalReflector *self)
     } while((item = item->down()));
 }
 
-void _test_validateUnloaded(TreeTraversalReflector *self, const QModelIndex& parent, int first, int last)
+void _test_validateUnloaded(StateTracker::Content *self, const QModelIndex& parent, int first, int last)
 {
 #ifndef ENABLE_EXTRA_VALIDATION
     return;
@@ -599,7 +599,7 @@ static QModelIndex getNextIndex(const QModelIndex& idx)
 }
 
 // Validate that there is no holes in the view.
-void _test_validateContinuity(TreeTraversalReflector *self)
+void _test_validateContinuity(StateTracker::Content *self)
 {
 #ifndef ENABLE_EXTRA_VALIDATION
     return;
@@ -621,7 +621,7 @@ void _test_validateContinuity(TreeTraversalReflector *self)
     } while(item && item != bve);
 }
 
-void _test_validateAtEnd(TreeTraversalReflector *self)
+void _test_validateAtEnd(StateTracker::Content *self)
 {
 #ifndef ENABLE_EXTRA_VALIDATION
     return;
@@ -639,7 +639,7 @@ void _test_validateAtEnd(TreeTraversalReflector *self)
     Q_ASSERT(!next.isValid());
 }
 
-void _test_validateModelAboutToReplace(TreeTraversalReflector *self)
+void _test_validateModelAboutToReplace(StateTracker::Content *self)
 {
     Q_ASSERT(!self->modelTracker()->trackedModel());
     Q_ASSERT(self->modelTracker()->state() == StateTracker::Model::State::NO_MODEL

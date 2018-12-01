@@ -36,7 +36,7 @@ class IndexMetadataPrivate;
 
 /**
  * The shared view of a QModelIndex between the various adapters. The
- * TreeTraversalReflector has `StateTracker::ModelItem` and the AbstractItemAdapter
+ * StateTracker::Content has `StateTracker::ModelItem` and the AbstractItemAdapter
  * has the `StateTracker::ViewItem`. Both are the QModelIndex from their point of view
  * (model for the former and view for the later).
  *

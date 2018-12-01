@@ -18,7 +18,7 @@
 #include "model_p.h"
 
 #include <private/indexmetadata_p.h>
-#include <private/treetraversalreflector_p.h>
+#include <private/statetracker/content_p.h>
 #include <private/statetracker/index_p.h>
 
 using EdgeType = IndexMetadata::EdgeType;
@@ -48,7 +48,7 @@ const StateTracker::Model::StateF StateTracker::Model::m_fStateMachine[5][7] = {
 /*RESETING */ { A nothing , A error  , A track  , A error  , A free   , A error   , A error },
 };
 
-StateTracker::Model::Model(TreeTraversalReflector* d) : q_ptr(d)
+StateTracker::Model::Model(StateTracker::Content* d) : q_ptr(d)
 {}
 
 StateTracker::Model::State StateTracker::Model::performAction(Action a)
@@ -66,7 +66,7 @@ StateTracker::Model::State StateTracker::Model::state() const
     return m_State;
 }
 
-//TODO removing this requires moving some TreeTraversalReflectorPrivate
+//TODO removing this requires moving some StateTracker::ContentPrivate
 // attributes into this state tracker.
 void StateTracker::Model::forcePaused()
 {
@@ -184,7 +184,7 @@ void StateTracker::Model::trim()
     return;
 
 //     QTimer::singleShot(0, [this]() {
-//         if (m_TrackingState != TreeTraversalReflector::TrackingState::TRACKING)
+//         if (m_TrackingState != StateTracker::Content::TrackingState::TRACKING)
 //             return;
 //
 //         _test_validateViewport();

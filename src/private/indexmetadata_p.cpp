@@ -27,7 +27,7 @@
 #include "viewport.h"
 #include "viewport_p.h"
 #include "contextadapterfactory.h"
-#include "treetraversalreflector_p.h"
+#include "statetracker/content_p.h"
 #include "proxies/sizehintproxymodel.h"
 #include "statetracker/geometry_p.h"
 #include "statetracker/proximity_p.h"
@@ -114,11 +114,11 @@ void IndexMetadata::setViewTracker(StateTracker::ViewItem *i)
     if (d_ptr->m_pViewTracker && !i) {
         auto old = d_ptr->m_pViewTracker;
         d_ptr->m_pViewTracker = nullptr;
-        d_ptr->m_pViewport->s_ptr->notifyRemoval(old->m_pGeometry);
+        d_ptr->m_pViewport->s_ptr->notifyRemoval(old->m_pMetadata);
     }
 
     if ((d_ptr->m_pViewTracker = i)) {
-        i->m_pGeometry = this;
+        i->m_pMetadata = this;
 
         // Assign the context object
         contextAdapter()->context();
@@ -408,8 +408,8 @@ bool IndexMetadata::performAction(IndexMetadata::LoadAction a)
     // can trigger another round of state change.
     if (s != mt->state()) {
         const auto r = modelTracker()->q_ptr;
-        r->perfromStateChange(TreeTraversalReflector::Event::LEAVE_STATE, this, s);
-        r->perfromStateChange(TreeTraversalReflector::Event::ENTER_STATE, this, s);
+        r->perfromStateChange(StateTracker::Content::Event::LEAVE_STATE, this, s);
+        r->perfromStateChange(StateTracker::Content::Event::ENTER_STATE, this, s);
     }
 
     // At this point the edges should have been updated.

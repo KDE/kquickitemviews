@@ -76,7 +76,7 @@ SET( kquickview_LIB_SRCS
     src/private/statetracker/model_p.cpp
     src/private/statetracker/modelitem_p.cpp
     src/private/indexmetadata_p.cpp
-    src/private/treetraversalreflector_p.cpp
+    src/private/statetracker/content_p.cpp
     src/private/runtimetests_p.cpp
 )
 

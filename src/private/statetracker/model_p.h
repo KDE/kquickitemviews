@@ -17,17 +17,17 @@
  **************************************************************************/
 #pragma once
 
-class TreeTraversalReflector;
 
 class QAbstractItemModel;
 
 namespace StateTracker
 {
+class Content;
 
 class Model
 {
 public:
-    explicit Model(TreeTraversalReflector* q);
+    explicit Model(StateTracker::Content* q);
 
     enum class State {
         NO_MODEL , /*!< The model is not set, there is nothing to do                  */
@@ -82,7 +82,7 @@ private:
     static const State m_fStateMap[5][7];
     static const StateF m_fStateMachine[5][7];
 
-    TreeTraversalReflector *q_ptr;
+    StateTracker::Content *q_ptr;
 };
 
 /**

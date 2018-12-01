@@ -20,9 +20,10 @@
 #include <private/statetracker/index_p.h>
 #include <private/indexmetadata_p.h>
 
-class TreeTraversalReflector;
 
 namespace StateTracker {
+
+class Content;
 
 /**
  * Hold the metadata associated with the QModelIndex.
@@ -31,7 +32,7 @@ struct ModelItem final : public StateTracker::Index
 {
     friend class ::IndexMetadata; //access the state machine
 
-    explicit ModelItem(TreeTraversalReflector *q);
+    explicit ModelItem(StateTracker::Content *q);
 
     enum class State {
         NEW       = 0, /*!< During creation, not part of the tree yet         */
@@ -81,7 +82,7 @@ private:
     static const State  m_fStateMap    [8][8];
     static const StateF m_fStateMachine[8][8];
 
-    TreeTraversalReflector* q_ptr;
+    StateTracker::Content* q_ptr;
 };
 
 }

@@ -54,9 +54,7 @@ public:
 
     State state() const;
 
-    void forcePaused(); //HACK remove
-
-    QAbstractItemModel *trackedModel() const;
+    QAbstractItemModel *trackedModel  () const;
     QAbstractItemModel *modelCandidate() const;
     void setModel(QAbstractItemModel* m);
 
@@ -79,7 +77,7 @@ private:
     void fill();
     void trim();
 
-    static const State m_fStateMap[5][7];
+    static const State  m_fStateMap    [5][7];
     static const StateF m_fStateMachine[5][7];
 
     StateTracker::Content *q_ptr;

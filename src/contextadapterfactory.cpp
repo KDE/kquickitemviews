@@ -105,14 +105,14 @@ struct DynamicMetaType final
         delete[] roles;//FIXME leak [roleCount*sizeof(MetaProperty))];
     }
 
-    const size_t          roleCount      {   0   };
-    size_t                propertyCount  {   0   };
-    MetaProperty*             roles          {nullptr};
-    QSet<MetaProperty*>       used           {       };
-    QMetaObject           *m_pMetaObject {nullptr};
-    bool                  m_GroupInit    { false };
-    QHash<int, MetaProperty*> m_hRoleIds     {       };
-    uint8_t               *m_pCacheMap   {nullptr};
+    const size_t              roleCount     {   0   };
+    size_t                    propertyCount {   0   };
+    MetaProperty*             roles         {nullptr};
+    QSet<MetaProperty*>       used          {       };
+    QMetaObject              *m_pMetaObject {nullptr};
+    bool                      m_GroupInit   { false };
+    QHash<int, MetaProperty*> m_hRoleIds    {       };
+    uint8_t                  *m_pCacheMap   {nullptr};
 
     /**
      * Assuming the number of role is never *that* high, keep a jump map to
@@ -304,7 +304,7 @@ int DynamicContext::qt_metacall(QMetaObject::Call call, int id, void **argv)
     }
 
     if (call == QMetaObject::ReadProperty) {
-        if (Q_UNLIKELY(realId >= m_pMetaType->propertyCount)) {
+        if (Q_UNLIKELY(((size_t)realId) >= m_pMetaType->propertyCount)) {
             Q_ASSERT(false);
             return -1;
         }
@@ -376,7 +376,7 @@ void ContextAdapterFactoryPrivate::initGroup(const QHash<int, QByteArray>& rls)
         group->d_ptr->m_Offset = offset;
         group->d_ptr->m_Id     = groupId++;
 
-        const int gs = group->size();
+        const uint gs = group->size();
 
         for (uint i = 0; i < gs; i++)
             m_pMetaType->m_lGroupMapping[offset+i] = {group, offset};

@@ -66,14 +66,6 @@ StateTracker::Model::State StateTracker::Model::state() const
     return m_State;
 }
 
-//TODO removing this requires moving some StateTracker::ContentPrivate
-// attributes into this state tracker.
-void StateTracker::Model::forcePaused()
-{
-    Q_ASSERT(m_State == State::NO_MODEL || m_State == State::PAUSED);
-    m_State = State::PAUSED;
-}
-
 void StateTracker::Model::track()
 {
     Q_ASSERT(m_pModel && !m_pTrackedModel);
@@ -275,8 +267,10 @@ void StateTracker::Model::setModel(QAbstractItemModel* m)
 
     m_pModel = m;
 
-    if (m)
-        forcePaused(); //HACK
+    if (m) {
+        Q_ASSERT(m_State == State::NO_MODEL || m_State == State::PAUSED);
+        m_State = State::PAUSED;
+    }
 
     if (!m)
         return;

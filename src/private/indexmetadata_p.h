@@ -189,6 +189,8 @@ public:
     bool isCollapsed() const;
     void setCollapsed(bool c);
 
+    Viewport *viewport() const;
+
 private:
     IndexMetadataPrivate *d_ptr;
 };

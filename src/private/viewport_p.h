@@ -17,11 +17,15 @@
  **************************************************************************/
 #pragma once
 
-class ViewportPrivate;
+// Qt
+class QQmlComponent;
+class QQmlEngine;
+
+// KItemViews
 class Viewport;
-class ContextAdapter;
-class ViewItemContextAdapter;
 class IndexMetadata;
+class AbstractItemAdapter;
+class ViewBaseItemVariables;
 
 namespace StateTracker {
 class Content;
@@ -71,8 +75,16 @@ public:
      */
     void refreshVisible();
 
+    QQmlEngine    *engine();
+    QQmlComponent *component();
+
     IndexMetadata *metadataForIndex(const QModelIndex& idx) const;
 
     Viewport *q_ptr;
     StateTracker::Content *m_pReflector {nullptr};
+    std::function<AbstractItemAdapter*()> m_fFactory;
+
+private:
+    QQmlEngine    *m_pEngine    {nullptr};
+    QQmlComponent *m_pComponent {nullptr};
 };

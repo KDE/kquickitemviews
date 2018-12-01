@@ -60,17 +60,21 @@ struct Geometry
 
     State performAction(IndexMetadata::GeometryAction);
 
-    void setPosition(const QPointF& pos);
-    void setSize(const QSizeF& size);
-    QSizeF size() const;
     QPointF position() const;
+    void setPosition(const QPointF& pos);
+
+    QSizeF size() const;
+    void setSize(const QSizeF& size);
+
     QRectF decoratedGeometry() const;
+
     QRectF contentGeometry() const;
 
     qreal borderDecoration(Qt::Edge e) const;
     void setBorderDecoration(Qt::Edge e, qreal r);
 
     State state() const;
+
 private:
     QRectF rawGeometry() const;
 

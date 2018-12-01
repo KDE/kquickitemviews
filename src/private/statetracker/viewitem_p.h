@@ -45,17 +45,9 @@ class Content;
  */
 class ViewItem
 {
-    //FIXME remove all that
-    friend class ViewBase;
-    friend struct ::StateTracker::ModelItem;
-    friend class ::AbstractItemAdapterPrivate; //TODO remove
-    friend class ::StateTracker::Content;
-    friend class ViewBasePrivate;
-    friend class ::AbstractItemAdapter;
-    friend class ViewportPrivate; //TODO remove
 public:
-    explicit ViewItem(ViewBase* p, Viewport* r) :
-        m_pViewport(r), m_pView(p) {}
+    explicit ViewItem(Viewport* r) :
+        m_pViewport(r) {}
 
     virtual ~ViewItem() {}
 
@@ -89,35 +81,27 @@ public:
 
     // Getters
     QPersistentModelIndex index() const;
-    // Getters
-    bool hasFailed() const{
-        return m_State == State::FAILED;
-    }
-
-    /// Reference to the item own view
-    ViewBase* view() const;
 
     /// Allow implementations to be notified when it becomes selected
     virtual void setSelected(bool) final;
 
     /// Geometry relative to the ViewBase::view()
-    virtual QRectF geometry() const final;
+    virtual QRectF currentGeometry() const final;
 
     virtual QQuickItem* item() const final;
 
     QQmlContext *context() const;
-
-    void setVisible(bool) {Q_ASSERT(false);}
 
     Viewport      *m_pViewport {nullptr};
     IndexMetadata *m_pMetadata {nullptr};
 
     bool performAction(IndexMetadata::ViewAction a);
 
+    State state() const;
+
     AbstractItemAdapter* d_ptr;
 private:
-    State      m_State {State::POOLED};
-    ViewBase  *m_pView {   nullptr   };
+    State m_State {State::POOLED};
 };
 
 }

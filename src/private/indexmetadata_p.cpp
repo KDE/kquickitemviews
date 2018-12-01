@@ -220,7 +220,7 @@ QSizeF IndexMetadata::sizeHint()
                     break;
                 case Viewport::SizeHintStrategy::JIT:
                     if (viewTracker())
-                        ret = viewTracker()->geometry().size();
+                        ret = viewTracker()->currentGeometry().size();
                     else {
                         // JIT cannot be used past the loaded bounds, the value isn't known
                         Q_ASSERT(false);
@@ -446,4 +446,9 @@ QModelIndex IndexMetadata::index() const
 bool IndexMetadata::isTopItem() const
 {
     return indexTracker() == modelTracker()->q_ptr->firstItem();
+}
+
+Viewport *IndexMetadata::viewport() const
+{
+    return d_ptr->m_pViewport;
 }

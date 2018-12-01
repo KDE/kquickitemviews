@@ -69,14 +69,13 @@ public:
 
     /// All elements with loaded children
     QHash<QPersistentModelIndex, StateTracker::ModelItem*> m_hMapper;
-    std::function<AbstractItemAdapter*()> m_fFactory;
-    Viewport *m_pViewport;
-
 
     QModelIndex getNextIndex(const QModelIndex& idx) const;
 
     ModelRect m_lRects[3];
     StateTracker::Model *m_pModelTracker;
+    Viewport            *m_pViewport;
+
     StateTracker::Content* q_ptr;
 
     // Update the ModelRect
@@ -180,7 +179,7 @@ StateTracker::Content::Content(Viewport* parent) : QObject(parent),
     d_ptr(new ContentPrivate())
 {
     d_ptr->m_pViewport     = parent;
-    d_ptr->m_pRoot         = new StateTracker::ModelItem(this);
+    d_ptr->m_pRoot         = new StateTracker::ModelItem(parent);
     d_ptr->m_pModelTracker = new StateTracker::Model(this);
     d_ptr->q_ptr           = this;
 }
@@ -188,16 +187,6 @@ StateTracker::Content::Content(Viewport* parent) : QObject(parent),
 StateTracker::Content::~Content()
 {
     delete d_ptr->m_pRoot;
-}
-
-void StateTracker::Content::setItemFactory(const std::function<AbstractItemAdapter*()>& factory)
-{
-    d_ptr->m_fFactory = factory;
-}
-
-const std::function<AbstractItemAdapter*()>& StateTracker::Content::itemFactory() const
-{
-    return d_ptr->m_fFactory;
 }
 
 void ContentPrivate::slotRowsInserted(const QModelIndex& parent, int first, int last)
@@ -793,7 +782,7 @@ StateTracker::ModelItem* ContentPrivate::addChildren(const QModelIndex& index)
 {
     Q_ASSERT(index.isValid() && !m_hMapper.contains(index));
 
-    auto e = new StateTracker::ModelItem(q_ptr);
+    auto e = new StateTracker::ModelItem(m_pViewport);
     e->setModelIndex(index);
 
     m_hMapper[index] = e;
@@ -814,7 +803,7 @@ void ContentPrivate::slotCleanup()
         << IndexMetadata::LoadAction::DETACH;
 
     m_hMapper.clear();
-    m_pRoot = new StateTracker::ModelItem(q_ptr);
+    m_pRoot = new StateTracker::ModelItem(m_pViewport);
 }
 
 StateTracker::ModelItem* ContentPrivate::ttiForIndex(const QModelIndex& idx) const
@@ -978,12 +967,7 @@ void StateTracker::Content::resetRoot()
 
     d_ptr->m_hMapper.clear();
     delete d_ptr->m_pRoot;
-    d_ptr->m_pRoot = new StateTracker::ModelItem(this);
-}
-
-Viewport *StateTracker::Content::viewport() const
-{
-    return d_ptr->m_pViewport;
+    d_ptr->m_pRoot = new StateTracker::ModelItem(d_ptr->m_pViewport);
 }
 
 void StateTracker::Content::perfromStateChange(Event e, IndexMetadata *md, StateTracker::ModelItem::State s)

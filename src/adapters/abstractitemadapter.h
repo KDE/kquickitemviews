@@ -68,14 +68,9 @@ class ContextExtension;
  */
 class AbstractItemAdapter
 {
-    friend class StateTracker::ViewItem; //its internally shared properties
     friend struct StateTracker::ModelItem; //state tracking
-    friend class ViewBasePrivate; //notify when the view is resized
-    friend class AbstractItemAdapterPrivate; // d_ptr (Q_DECLARE_PRIVATE)
-    friend class ViewItemContextAdapter;
-    friend class ViewportPrivate; // Manage the geometry and size hints
-    friend class ModelAdapterPrivate; //TODO remove
-
+    friend class StateTracker::ViewItem; //its internally shared properties
+    friend class AbstractItemAdapterPrivate; // like (Q_DECLARE_PRIVATE)
 public:
     explicit AbstractItemAdapter(Viewport* r);
     virtual ~AbstractItemAdapter();
@@ -137,7 +132,7 @@ public:
      * value is updated when the `rowsAboutToBeModed` signal is sent rather
      * than after the change takes effect.
      */
-    int row   () const;
+    int row() const;
 
     /**
      * The item column.
@@ -265,7 +260,8 @@ protected:
      */
     virtual bool remove () = 0;
 
+    // Shared private data
+    StateTracker::ViewItem* s_ptr;
 private:
     AbstractItemAdapterPrivate* d_ptr;
-    StateTracker::ViewItem* s_ptr;
 };

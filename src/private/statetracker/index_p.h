@@ -55,9 +55,9 @@ public:
     static void insertChildAfter(Index* self, StateTracker::Index* other, StateTracker::Index* parent);
 
     Index *firstChild() const;
-    Index *lastChild() const;
+    Index *lastChild () const;
 
-    Index *nextSibling() const;
+    Index *nextSibling    () const;
     Index *previousSibling() const;
 
     Index *parent() const;

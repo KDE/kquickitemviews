@@ -56,7 +56,7 @@ public:
 
     explicit Viewport(ModelAdapter* ma);
 
-    virtual ~Viewport() {}
+    virtual ~Viewport();
 
     /**
      * Get the current (cartesian) rectangle represented by this range.

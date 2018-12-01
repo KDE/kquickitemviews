@@ -39,18 +39,6 @@
 #include "contextadapterfactory.h"
 #include "contextadapter.h"
 
-// Store variables shared by all items of the same view
-struct ViewBaseItemVariables
-{
-    QQmlEngine    *m_pEngine    {nullptr};
-    QQmlComponent *m_pComponent {nullptr};
-
-    QQmlEngine    *engine();
-    QQmlComponent *component();
-
-    ViewBase* q_ptr;
-};
-
 class AbstractItemAdapterPrivate
 {
 public:
@@ -81,7 +69,6 @@ public:
 
     // Helpers
     QPair<QQuickItem*, QQmlContext*> loadDelegate(QQuickItem* parentI) const;
-    ViewBaseItemVariables *sharedVariables() const;
 
     // Attributes
     AbstractItemAdapter* q_ptr;
@@ -95,12 +82,12 @@ public:
  */
 #define S StateTracker::ViewItem::State::
 const StateTracker::ViewItem::State AbstractItemAdapterPrivate::m_fStateMap[7][7] = {
-/*              ATTACH ENTER_BUFFER ENTER_VIEW UPDATE    MOVE   LEAVE_BUFFER  DETACH  */
+/*              ATTACH ENTER_BUFFER ENTER_VIEW UPDATE     MOVE   LEAVE_BUFFER   DETACH  */
 /*POOLING */ { S POOLING, S BUFFER, S ERROR , S ERROR , S ERROR , S ERROR  , S POOLED   },
 /*POOLED  */ { S POOLED , S BUFFER, S ACTIVE, S ERROR , S ERROR , S ERROR  , S DANGLING },
 /*BUFFER  */ { S ERROR  , S ERROR , S ACTIVE, S BUFFER, S ERROR , S POOLING, S DANGLING },
 /*ACTIVE  */ { S ERROR  , S BUFFER, S ERROR , S ACTIVE, S ACTIVE, S BUFFER , S POOLING  },
-/*FAILED  */ { S ERROR  , S BUFFER, S ACTIVE, S ACTIVE, S ACTIVE, S POOLING, S DANGLING },
+/*FAILED  */ { S ERROR  , S BUFFER, S ACTIVE, S ACTIVE, S ACTIVE, S POOLED , S DANGLING },
 /*DANGLING*/ { S ERROR  , S ERROR , S ERROR , S ERROR , S ERROR , S ERROR  , S DANGLING },
 /*ERROR   */ { S ERROR  , S ERROR , S ERROR , S ERROR , S ERROR , S ERROR  , S DANGLING },
 };
@@ -120,8 +107,7 @@ const AbstractItemAdapterPrivate::StateF AbstractItemAdapterPrivate::m_fStateMac
 #undef A
 
 AbstractItemAdapter::AbstractItemAdapter(Viewport* r) :
-    d_ptr(new AbstractItemAdapterPrivate),
-    s_ptr(new StateTracker::ViewItem(r->modelAdapter()->view(), r))
+    s_ptr(new StateTracker::ViewItem(r)), d_ptr(new AbstractItemAdapterPrivate)
 {
     d_ptr->q_ptr = this;
     s_ptr->d_ptr = this;
@@ -140,7 +126,7 @@ AbstractItemAdapter::~AbstractItemAdapter()
 
 ViewBase* AbstractItemAdapter::view() const
 {
-    return s_ptr->m_pView;
+    return s_ptr->m_pViewport->modelAdapter()->view();
 }
 
 void AbstractItemAdapter::resetPosition()
@@ -184,7 +170,7 @@ void StateTracker::ViewItem::setSelected(bool v)
     d_ptr->setSelected(v);
 }
 
-QRectF StateTracker::ViewItem::geometry() const
+QRectF StateTracker::ViewItem::currentGeometry() const
 {
     return d_ptr->geometry();
 }
@@ -251,7 +237,8 @@ bool AbstractItemAdapterPrivate::detach()
     remove();
 
     //FIXME
-    q_ptr->s_ptr->m_State = StateTracker::ViewItem::State::POOLED;
+    q_ptr->s_ptr->m_pMetadata << IndexMetadata::ViewAction::DETACH;
+    Q_ASSERT(q_ptr->s_ptr->state() == StateTracker::ViewItem::State::POOLED);
 
     return true;
 }
@@ -448,9 +435,9 @@ QPair<QQuickItem*, QQmlContext*> AbstractItemAdapterPrivate::loadDelegate(QQuick
     auto pctx = q_ptr->s_ptr->m_pMetadata->contextAdapter()->context();
 
     // Create a parent item to hold the delegate and all children
-    auto container = qobject_cast<QQuickItem *>(sharedVariables()->component()->create(pctx));
+    auto container = qobject_cast<QQuickItem *>(q_ptr->s_ptr->m_pViewport->s_ptr->component()->create(pctx));
     container->setWidth(q_ptr->view()->width());
-    sharedVariables()->engine()->setObjectOwnership(container, QQmlEngine::CppOwnership);
+    q_ptr->s_ptr->m_pViewport->s_ptr->engine()->setObjectOwnership(container, QQmlEngine::CppOwnership);
     container->setParentItem(parentI);
 
     // Create a context with all the tree roles
@@ -481,45 +468,8 @@ QPair<QQuickItem*, QQmlContext*> AbstractItemAdapterPrivate::loadDelegate(QQuick
     return {container, pctx};
 }
 
-QQmlEngine *ViewBaseItemVariables::engine()
-{
-    if (!m_pEngine)
-        m_pEngine = q_ptr->rootContext()->engine();
-
-    return m_pEngine;
-}
-
-QQmlComponent *ViewBaseItemVariables::component()
-{
-    engine();
-
-    m_pComponent = new QQmlComponent(m_pEngine);
-    m_pComponent->setData("import QtQuick 2.4; Item {property QtObject content: null;}", {});
-
-    return m_pComponent;
-}
-
-ViewBaseItemVariables *AbstractItemAdapterPrivate::sharedVariables() const
-{
-    if (!q_ptr->s_ptr->m_pView->m_pItemVars) {
-        q_ptr->s_ptr->m_pView->m_pItemVars = new ViewBaseItemVariables();
-        q_ptr->s_ptr->m_pView->m_pItemVars->q_ptr = q_ptr->s_ptr->m_pView;
-    }
-
-    return q_ptr->s_ptr->m_pView->m_pItemVars;
-}
-
-ViewBase* StateTracker::ViewItem::view() const
-{
-    return m_pView;
-}
-
 void StateTracker::ViewItem::updateGeometry()
 {
-    geometry();
-
-    //TODO handle up/left/right too
-
     const auto sm = m_pViewport->modelAdapter()->selectionAdapter();
 
     if (sm && sm->selectionModel() && sm->selectionModel()->currentIndex() == index())
@@ -659,4 +609,9 @@ void StateTracker::ViewItem::setCollapsed(bool v)
 bool StateTracker::ViewItem::isCollapsed() const
 {
     return m_pMetadata->isCollapsed();
+}
+
+StateTracker::ViewItem::State StateTracker::ViewItem::state() const
+{
+    return m_State;
 }

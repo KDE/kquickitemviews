@@ -122,9 +122,6 @@ ViewBase::ViewBase(QQuickItem* parent) : Flickable(parent), d_ptr(new ViewBasePr
 
 ViewBase::~ViewBase()
 {
-    if (m_pItemVars)
-        delete m_pItemVars;
-
     delete d_ptr;
 }
 

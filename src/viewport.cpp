@@ -103,6 +103,12 @@ Viewport::Viewport(ModelAdapter* ma) : QObject(),
         this, &Viewport::contentChanged);
 }
 
+Viewport::~Viewport()
+{
+    delete s_ptr;
+    delete d_ptr;
+}
+
 QRectF Viewport::currentRect() const
 {
     return d_ptr->m_UsedRect;
@@ -336,7 +342,7 @@ void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& 
 
 void Viewport::setItemFactory(ViewBase::ItemFactoryBase *factory)
 {
-    s_ptr->m_pReflector->setItemFactory([this, factory]() -> AbstractItemAdapter* {
+    s_ptr->m_fFactory = ([this, factory]() -> AbstractItemAdapter* {
         return factory->create(this);
     });
 }
@@ -785,4 +791,23 @@ IndexMetadata *ViewportSync::metadataForIndex(const QModelIndex& idx) const
 {
     return m_pReflector->metadataForIndex(idx);
 }
+
+QQmlEngine *ViewportSync::engine()
+{
+    if (!m_pEngine)
+        m_pEngine = q_ptr->modelAdapter()->view()->rootContext()->engine();
+
+    return m_pEngine;
+}
+
+QQmlComponent *ViewportSync::component()
+{
+    engine();
+
+    m_pComponent = new QQmlComponent(m_pEngine);
+    m_pComponent->setData("import QtQuick 2.4; Item {property QtObject content: null;}", {});
+
+    return m_pComponent;
+}
+
 #include <viewport.moc>

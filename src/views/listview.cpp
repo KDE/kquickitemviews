@@ -175,7 +175,7 @@ ListViewSections* ListView::section() const
 }
 
 ListViewSection::ListViewSection(ListViewItem* owner, const QVariant& value) :
-    m_Value(value), m_pOwner(owner), d_ptr(owner->d())
+    m_Value(value), d_ptr(owner->d()), m_pOwner(owner)
 {
     m_pContent = new QQmlContext(owner->view()->rootContext());
     m_pContent->setContextProperty("section", value);

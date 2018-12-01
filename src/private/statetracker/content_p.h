@@ -22,9 +22,7 @@
 #include <QtCore/QAbstractItemModel>
 
 // KQuickViews
-
 class ContentPrivate;
-class AbstractItemAdapter;
 class Viewport;
 class ModelRect;
 #include <private/indexmetadata_p.h>
@@ -36,28 +34,8 @@ struct ModelItem;
 struct Model;
 
 /**
- * This class refects a QAbstractItemModel (realtime) topology.
- *
- * It helps to handle the various model events to always keep a correct
- * overview of the model content. While the models are trees, this class expose
- * a 2D linked list API. This is "better" for the views because in the end they
- * place widgets in a 2D plane (grid) so geometric navigation makes placing
- * the widget easier.
- *
- * The format this class exposes is not as optimal as it could. However it was
- * chosen because it made the consumer code more readable and removed most of
- * the corner cases that causes QtQuick.ListView to fail to be extended to
- * tables and trees (without exponentially more complexity). It also allows a
- * nice encapsulation and separation of concern which removes the need for
- * extensive and non-reusable private APIs.
- *
- * Note that you should only use this class directly when implementing low level
- * views such as charts or graphs. The `ViewBase` is a better base
- * for most traditional views.
- *
- * The `setAvailableEdges` must be kept up to date by the owner and `populate`
- * or `detachUntil` called to trigger manual changes. Otherwise it will listen
- * to the model and modify itself and the model changes.
+ * Listen to the model changes and forward those changes to the other relevant
+ * state trackers.
  */
 class Content final : public QObject
 {
@@ -76,19 +54,13 @@ public:
     Qt::Edges availableEdges(IndexMetadata::EdgeType type) const;
     IndexMetadata *getEdge(IndexMetadata::EdgeType t, Qt::Edge e) const;
     void setEdge(IndexMetadata::EdgeType et, StateTracker::Index* tti, Qt::Edge e);
+    ModelRect* edges(IndexMetadata::EdgeType e) const;
 
     // Getter
-    IndexMetadata *metadataForIndex(const QModelIndex& idx) const;
-    Viewport *viewport() const;
-    StateTracker::Index *root() const;
-    StateTracker::Index *lastItem() const;
-    StateTracker::Index *firstItem() const;
-    ModelRect* edges(IndexMetadata::EdgeType e) const;
-    const std::function<AbstractItemAdapter*()>& itemFactory() const;
+    StateTracker::Index *root        () const;
+    StateTracker::Index *lastItem    () const;
+    StateTracker::Index *firstItem   () const;
     StateTracker::Model *modelTracker() const;
-
-    // Setters
-    void setItemFactory(const std::function<AbstractItemAdapter*()>& factory);
 
     // Mutator
     void connectModel(QAbstractItemModel *m);
@@ -100,12 +72,9 @@ public:
     void forceInsert(const QModelIndex& parent, int first, int last);
 
     // Helpers
-    bool isActive(const QModelIndex& parent, int first, int last); //TODO move to range
-    StateTracker::Index *find(
-        StateTracker::Index *i,
-        Qt::Edge direction,
-        std::function<bool(StateTracker::Index *i)>
-    ) const;
+    IndexMetadata *metadataForIndex(const QModelIndex& idx) const;
+    bool isActive(const QModelIndex& parent, int first, int last);
+    Index *find(Index *i, Qt::Edge direction, std::function<bool(Index *i)>) const;
 
 Q_SIGNALS:
     void contentChanged();

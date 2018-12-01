@@ -26,17 +26,9 @@ class QQmlComponent;
 
 // KQuickItemViews
 class ViewBasePrivate;
-class ViewBaseSync;
-class ViewBase;
 class AbstractItemAdapter;
 class ModelAdapter;
 class Viewport;
-class ViewBaseItemVariables;
-
-namespace StateTracker {
-    class ViewItem;
-    class ModelItem;
-}
 
 /**
  * Second generation of QtQuick treeview.
@@ -56,10 +48,6 @@ namespace StateTracker {
 class Q_DECL_EXPORT ViewBase : public Flickable
 {
     Q_OBJECT
-    friend struct StateTracker::ModelItem;
-    friend class StateTracker::ViewItem;
-    friend class ViewBaseSync; // internal API
-    friend class ModelAdapter; // call createItem
 public:
     struct ItemFactoryBase {
         virtual AbstractItemAdapter* create(Viewport* r) const = 0;
@@ -108,9 +96,6 @@ protected:
 Q_SIGNALS:
     void contentChanged();
 
-public:
-    // Private API
-    ViewBaseItemVariables* m_pItemVars {nullptr};
 private:
     ViewBasePrivate* d_ptr;
     Q_DECLARE_PRIVATE(ViewBase)

@@ -20,6 +20,7 @@
 #include <private/statetracker/index_p.h>
 #include <private/indexmetadata_p.h>
 
+class Viewport;
 
 namespace StateTracker {
 
@@ -32,7 +33,8 @@ struct ModelItem final : public StateTracker::Index
 {
     friend class ::IndexMetadata; //access the state machine
 
-    explicit ModelItem(StateTracker::Content *q);
+    explicit ModelItem(Viewport *v);
+    virtual ~ModelItem() {}
 
     enum class State {
         NEW       = 0, /*!< During creation, not part of the tree yet         */
@@ -47,12 +49,11 @@ struct ModelItem final : public StateTracker::Index
 
     typedef bool(ModelItem::*StateF)();
 
-    virtual ~ModelItem() {}
 
     StateTracker::ModelItem* load(Qt::Edge e) const;
 
     // Getter
-    IndexMetadata::EdgeType isTopEdge() const;
+    IndexMetadata::EdgeType isTopEdge   () const;
     IndexMetadata::EdgeType isBottomEdge() const;
     State state() const;
 

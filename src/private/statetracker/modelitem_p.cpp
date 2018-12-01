@@ -52,8 +52,8 @@ const StateTracker::ModelItem::StateF StateTracker::ModelItem::m_fStateMachine[8
 #undef A
 
 
-StateTracker::ModelItem::ModelItem(StateTracker::Content* q):
-  StateTracker::Index(q->viewport()), q_ptr(q)
+StateTracker::ModelItem::ModelItem(Viewport *v):
+  StateTracker::Index(v), q_ptr(v->s_ptr->m_pReflector)
 {}
 
 StateTracker::ModelItem* StateTracker::ModelItem::load(Qt::Edge e) const
@@ -109,7 +109,7 @@ IndexMetadata::EdgeType StateTracker::ModelItem::isTopEdge() const
 {
     //FIXME use the ModelItem cache
 
-    const auto r = q_ptr->viewport()->s_ptr->m_pReflector;
+    const auto r = metadata()->viewport()->s_ptr->m_pReflector;
 
     if (r->getEdge(IndexMetadata::EdgeType::VISIBLE, Qt::TopEdge)) {
         return IndexMetadata::EdgeType::VISIBLE;
@@ -126,7 +126,7 @@ IndexMetadata::EdgeType StateTracker::ModelItem::isBottomEdge() const
 {
     //FIXME use the ModelItem cache
 
-    const auto r = q_ptr->viewport()->s_ptr->m_pReflector;
+    const auto r = metadata()->viewport()->s_ptr->m_pReflector;
 
     if (r->getEdge(IndexMetadata::EdgeType::VISIBLE, Qt::BottomEdge)) {
         return IndexMetadata::EdgeType::VISIBLE;
@@ -193,7 +193,7 @@ void StateTracker::ModelItem::remove(bool reparent)
             break;
     }
 
-    q_ptr->viewport()->s_ptr->notifyRemoval(metadata());
+    metadata()->viewport()->s_ptr->notifyRemoval(metadata());
     metadata() << IndexMetadata::LoadAction::REPARENT;
     Index::remove(reparent);
 }
@@ -214,18 +214,19 @@ bool StateTracker::ModelItem::show()
 {
     Q_ASSERT(m_State == State::VISIBLE);
 
-    if (auto item = metadata()->viewTracker()) {
+    if (metadata()->viewTracker()) {
         //TODO Implementing this *may* make sense, but for now avoid it.
         // for now it is undefined behavior, but not fatal
         Q_ASSERT(false); //TODO not well thought, most definitely broken
-        item->setVisible(true);
+        //item->setVisible(true);
     }
     else {
-        metadata()->setViewTracker(q_ptr->itemFactory()()->s_ptr);
+        Q_ASSERT(metadata()->viewport()->s_ptr->m_fFactory);
+        metadata()->setViewTracker(metadata()->viewport()->s_ptr->m_fFactory()->s_ptr);
         Q_ASSERT(metadata()->viewTracker());
 
         metadata() << IndexMetadata::ViewAction::ATTACH;
-        Q_ASSERT(metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::POOLED);
+        Q_ASSERT(metadata()->viewTracker()->state() == StateTracker::ViewItem::State::POOLED);
         Q_ASSERT(m_State == State::VISIBLE);
 
         //DEBUG
@@ -239,21 +240,21 @@ bool StateTracker::ModelItem::show()
     Q_ASSERT(m_State == State::VISIBLE);
 
     // When the delegate fails to load (or there is none), there is nothing to do
-    if (metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::FAILED)
+    if (metadata()->viewTracker()->state() == StateTracker::ViewItem::State::FAILED)
         return false;
 
-    Q_ASSERT(metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::BUFFER);
+    Q_ASSERT(metadata()->viewTracker()->state() == StateTracker::ViewItem::State::BUFFER);
 
     metadata() << IndexMetadata::ViewAction::ENTER_VIEW;
 
     // Make sure no `performAction` loop caused the item to get out of view
     Q_ASSERT(m_State == State::VISIBLE);
 
-    q_ptr->viewport()->s_ptr->updateGeometry(metadata());
+    metadata()->viewport()->s_ptr->updateGeometry(metadata());
 
     // For some reason creating the visual element failed, this can and will
     // happen and need to be recovered from.
-    if (metadata()->viewTracker()->hasFailed()) {
+    if (metadata()->viewTracker()->state() == ViewItem::State::FAILED) {
         metadata() << IndexMetadata::ViewAction::LEAVE_BUFFER;
 
         // Make sure no `performAction` loop caused the item to get out of view
@@ -265,7 +266,7 @@ bool StateTracker::ModelItem::show()
     //FIXME do this less often
     // This has to be done after `setViewTracker` and performAction
     if (down() && down()->metadata()->isValid())
-        q_ptr->viewport()->s_ptr->notifyInsert(down()->metadata());
+        metadata()->viewport()->s_ptr->notifyInsert(down()->metadata());
 
     // Make sure no `performAction` loop caused the item to get out of view
     Q_ASSERT(m_State == State::VISIBLE);
@@ -321,18 +322,18 @@ bool StateTracker::ModelItem::remove2()
     if (!metadata()->viewTracker())
         return true;
 
-    Q_ASSERT(metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::POOLED  );
-    Q_ASSERT(metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::POOLING );
-    Q_ASSERT(metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::DANGLING);
+    Q_ASSERT(metadata()->viewTracker()->state() != StateTracker::ViewItem::State::POOLED  );
+    Q_ASSERT(metadata()->viewTracker()->state() != StateTracker::ViewItem::State::POOLING );
+    Q_ASSERT(metadata()->viewTracker()->state() != StateTracker::ViewItem::State::DANGLING);
 
     // Move the item lifecycle forward
-    while (metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::POOLED
-        && metadata()->viewTracker()->m_State != StateTracker::ViewItem::State::DANGLING)
+    while (metadata()->viewTracker()->state() != StateTracker::ViewItem::State::POOLED
+        && metadata()->viewTracker()->state() != StateTracker::ViewItem::State::DANGLING)
         metadata() << IndexMetadata::ViewAction::DETACH;
 
     // It should still exists, it may crash otherwise, so make sure early
-    Q_ASSERT(metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::POOLED
-        || metadata()->viewTracker()->m_State == StateTracker::ViewItem::State::DANGLING
+    Q_ASSERT(metadata()->viewTracker()->state() == StateTracker::ViewItem::State::POOLED
+        || metadata()->viewTracker()->state() == StateTracker::ViewItem::State::DANGLING
     );
 
     metadata()->setViewTracker(nullptr);
@@ -366,7 +367,7 @@ bool StateTracker::ModelItem::detach()
     remove2();
     StateTracker::Index::remove();
 
-    q_ptr->viewport()->s_ptr->refreshVisible();
+    metadata()->viewport()->s_ptr->refreshVisible();
 
     Q_ASSERT(!loadedChildrenCount() && ((!parent()) || !parent()->childrenLookup(index())));
     Q_ASSERT(!metadata()->viewTracker());
@@ -376,7 +377,7 @@ bool StateTracker::ModelItem::detach()
 
 bool StateTracker::ModelItem::refresh()
 {
-    q_ptr->viewport()->s_ptr->updateGeometry(metadata());
+    metadata()->viewport()->s_ptr->updateGeometry(metadata());
 
     for (auto i = firstChild(); i; i = i->nextSibling()) {
         Q_ASSERT(i != this);

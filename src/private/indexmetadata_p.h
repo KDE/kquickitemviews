@@ -20,6 +20,7 @@
 // Qt
 #include <QtCore/QRectF>
 #include <QtCore/QModelIndex>
+#include <QtCore/QItemSelectionModel>
 
 namespace StateTracker {
     class ViewItem;
@@ -27,10 +28,12 @@ namespace StateTracker {
     class ModelItem;
     class Proximity;
     class Index;
+    class Selection;
 }
 
 class ContextAdapter;
 class Viewport;
+class SelectionAdapter;
 
 class IndexMetadataPrivate;
 
@@ -128,6 +131,7 @@ public:
     StateTracker::ModelItem *modelTracker    () const;
     StateTracker::Proximity *proximityTracker() const;
     StateTracker::Geometry  *geometryTracker () const;
+    StateTracker::Selection *selectionTracker() const;
     ContextAdapter          *contextAdapter  () const;
 
     // Mutator
@@ -135,6 +139,7 @@ public:
     bool performAction(LoadAction      a);
     bool performAction(GeometryAction  a);
     bool performAction(ProximityAction a, Qt::Edge e);
+    bool performAction(QItemSelectionModel::SelectionFlag f, SelectionAdapter *ad);
 
     // Navigation
     IndexMetadata *up   () const; //DEPRECATED remove, use `next(Qt::Edge)`

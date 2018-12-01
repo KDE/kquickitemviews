@@ -75,6 +75,7 @@ SET( kquickview_LIB_SRCS
     src/private/statetracker/proximity_p.cpp
     src/private/statetracker/model_p.cpp
     src/private/statetracker/modelitem_p.cpp
+    src/private/statetracker/selection_p.cpp
     src/private/indexmetadata_p.cpp
     src/private/statetracker/content_p.cpp
     src/private/runtimetests_p.cpp

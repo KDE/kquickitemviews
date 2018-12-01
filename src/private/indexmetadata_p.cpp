@@ -32,6 +32,7 @@
 #include "statetracker/geometry_p.h"
 #include "statetracker/proximity_p.h"
 #include "statetracker/index_p.h"
+#include "statetracker/selection_p.h"
 #include "statetracker/modelitem_p.h"
 
 class IndexMetadataPrivate
@@ -44,6 +45,7 @@ public:
     StateTracker::Index     *m_pIndexTracker     { nullptr };
     StateTracker::ModelItem *m_pModelTracker     { nullptr };
     StateTracker::Proximity *m_pProximityTracker { nullptr };
+    StateTracker::Selection *m_pSelectionTracker { nullptr };
     ViewItemContextAdapter  *m_pContextAdapter   { nullptr };
     Viewport                *m_pViewport         { nullptr };
 
@@ -148,6 +150,14 @@ StateTracker::Geometry *IndexMetadata::geometryTracker() const
 StateTracker::Proximity *IndexMetadata::proximityTracker() const
 {
     return d_ptr->m_pProximityTracker;
+}
+
+StateTracker::Selection *IndexMetadata::selectionTracker() const
+{
+    if (!d_ptr->m_pSelectionTracker)
+        d_ptr->m_pSelectionTracker = new StateTracker::Selection();
+
+    return d_ptr->m_pSelectionTracker;
 }
 
 QRectF IndexMetadata::decoratedGeometry() const

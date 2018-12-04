@@ -264,8 +264,10 @@ bool AbstractItemAdapterPrivate::destroy()
     auto ptrCopy = m_pLocker;
 
     //FIXME manage to add to the pool without a SEGFAULT
-    m_pItem->setParentItem(nullptr);
-    delete m_pItem;
+    if (m_pItem) {
+        m_pItem->setParentItem(nullptr);
+        delete m_pItem;
+    }
     m_pItem = nullptr;
 
     QTimer::singleShot(0,[this, ptrCopy]() {

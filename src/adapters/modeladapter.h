@@ -39,7 +39,7 @@ class QAbstractItemModel;
  * This class also allow multiple properties to be attached to the model, such
  * as a GUI delegate.
  */
-class ModelAdapter : public QObject
+class Q_DECL_EXPORT ModelAdapter : public QObject
 {
     Q_OBJECT
 public:
@@ -49,6 +49,8 @@ public:
 
     /// The view can be collapsed
     Q_PROPERTY(bool collapsable READ isCollapsable WRITE setCollapsable)
+    /// Everything is collapsed or has no children
+    Q_PROPERTY(bool collapsed READ isCollapsed NOTIFY collapsedChanged)
     /// Expand all elements by default
     Q_PROPERTY(bool autoExpand READ isAutoExpand WRITE setAutoExpand)
     /// The maximum depth of a tree (for performance)
@@ -96,6 +98,8 @@ public:
 
     bool isEmpty() const;
 
+    bool isCollapsed() const;
+
     SelectionAdapter* selectionAdapter() const;
     ContextAdapterFactory* contextAdapterFactory() const;
 
@@ -104,8 +108,6 @@ public:
     QAbstractItemModel *rawModel() const;
 
     ViewBase *view() const;
-
-    bool hasSizeHints() const;
 
 protected:
     // Rather then scope-creeping this class, all selection related elements
@@ -118,6 +120,7 @@ Q_SIGNALS:
 //     void countChanged();
     void delegateChanged(QQmlComponent* delegate);
     void contentChanged();
+    void collapsedChanged();
 
 private:
     ModelAdapterPrivate *d_ptr;

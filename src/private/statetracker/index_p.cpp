@@ -398,31 +398,14 @@ StateTracker::Index* StateTracker::Index::right() const
     return nullptr; //TODO
 }
 
-int ModelRect::edgeToIndex(Qt::Edge e) const
-{
-    switch(e) {
-        case Qt::TopEdge:
-            return Pos::Top;
-        case Qt::LeftEdge:
-            return Pos::Left;
-        case Qt::RightEdge:
-            return Pos::Right;
-        case Qt::BottomEdge:
-            return Pos::Bottom;
-    }
-
-    Q_ASSERT(false);
-    return Pos::Top;
-}
-
 void ModelRect::setEdge(StateTracker::Index* tti, Qt::Edge e)
 {
-    m_lpEdges[edgeToIndex(e)] = tti;
+    m_lpEdges.set(tti, e);
 }
 
 StateTracker::Index* ModelRect::getEdge(Qt::Edge e) const
 {
-    return m_lpEdges[edgeToIndex(e)];
+    return m_lpEdges.get(e);
 }
 
 StateTracker::Index *StateTracker::Index::childrenLookup(const QPersistentModelIndex &index) const

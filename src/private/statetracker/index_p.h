@@ -20,7 +20,9 @@
 #include <QtCore/QModelIndex>
 #include <QtCore/QList>
 
+#include <private/geoutils_p.h>
 #include <private/indexmetadata_p.h>
+
 class Viewport;
 
 namespace StateTracker {
@@ -144,9 +146,7 @@ public:
 
     Qt::Edges m_Edges {Qt::TopEdge|Qt::LeftEdge|Qt::RightEdge|Qt::BottomEdge};
 private:
-    enum Pos {Top, Left, Right, Bottom};
-    int edgeToIndex(Qt::Edge e) const;
-    StateTracker::Index *m_lpEdges[Pos::Bottom+1] {nullptr, nullptr, nullptr, nullptr}; //TODO port to ModelRect
+    GeoRect<StateTracker::Index*> m_lpEdges; //TODO port to ModelRect
 };
 
 // Inject some extra validation when executed in debug mode.

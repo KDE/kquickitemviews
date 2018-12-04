@@ -175,38 +175,17 @@ StateTracker::Geometry::State StateTracker::Geometry::state() const
     return m_State;
 }
 
-enum Pos {Top, Left, Right, Bottom};
-static Pos edgeToPos(Qt::Edge e)
-{
-    switch(e) {
-        case Qt::TopEdge:
-            return Pos::Top;
-        case Qt::LeftEdge:
-            return Pos::Left;
-        case Qt::RightEdge:
-            return Pos::Right;
-        case Qt::BottomEdge:
-            return Pos::Bottom;
-    }
-
-    Q_ASSERT(false);
-
-    return {};
-}
-
 qreal StateTracker::Geometry::borderDecoration(Qt::Edge e) const
 {
-    return m_lBorderDecoration[edgeToPos(e)];
+    return m_lBorderDecoration.get(e);
 }
 
 void StateTracker::Geometry::setBorderDecoration(Qt::Edge e, qreal r)
 {
-    const auto pos = edgeToPos(e);
-
-    if (m_lBorderDecoration[pos] == r)
+    if (m_lBorderDecoration.get(e) == r)
         return;
 
-    m_lBorderDecoration[pos] = r;
+    m_lBorderDecoration.set(r, e);
 
     performAction(IndexMetadata::GeometryAction::DECORATE);
 }

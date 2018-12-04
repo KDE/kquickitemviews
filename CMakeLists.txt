@@ -53,11 +53,15 @@ SET(GENERIC_LIB_VERSION "1.0.0")
 
 #File to compile
 SET( kquickview_LIB_SRCS
+
+    # Adapters
     src/adapters/abstractitemadapter.cpp
     src/adapters/decorationadapter.cpp
     src/adapters/modeladapter.cpp
     src/adapters/scrollbaradapter.cpp
     src/adapters/selectionadapter.cpp
+    src/adapters/geometryadapter.cpp
+
     src/flickablescrollbar.cpp
     src/plugin.cpp
     src/proxies/sizehintproxymodel.cpp
@@ -70,15 +74,27 @@ SET( kquickview_LIB_SRCS
     src/views/treeview.cpp
     src/viewport.cpp
     src/contextadapterfactory.cpp
+
+    # State trackers
     src/private/statetracker/index_p.cpp
     src/private/statetracker/geometry_p.cpp
     src/private/statetracker/proximity_p.cpp
     src/private/statetracker/model_p.cpp
     src/private/statetracker/modelitem_p.cpp
     src/private/statetracker/selection_p.cpp
-    src/private/indexmetadata_p.cpp
     src/private/statetracker/content_p.cpp
+
     src/private/runtimetests_p.cpp
+    src/private/indexmetadata_p.cpp
+    src/private/geostrategyselector_p.cpp
+
+    # Geometry strategies
+    src/strategies/justintime.cpp
+    src/strategies/proxy.cpp
+    src/strategies/role.cpp
+    src/strategies/delegate.cpp
+    src/strategies/uniform.cpp
+    src/strategies/aheadoftime.cpp
 )
 
 set(AUTOMOC_MOC_OPTIONS -Muri=org.kde.playground.kquickview)
@@ -99,6 +115,7 @@ SET( kquickview_LIB_HDRS
     adapters/modeladapter.h
     adapters/scrollbaradapter.h
     adapters/selectionadapter.h
+    adapters/geometryadapter.h
     extensions/contextextension.h
     flickablescrollbar.h
     plugin.h
@@ -112,6 +129,14 @@ SET( kquickview_LIB_HDRS
     views/listview.h
     views/treeview.h
     viewport.h
+
+    # Geometry strategies
+    strategies/justintime.h
+    strategies/proxy.h
+    strategies/role.h
+    strategies/delegate.h
+    strategies/aheadoftime.h
+    strategies/uniform.h
 )
 
 # Create include file aliases

@@ -29,7 +29,9 @@
 // KQuickItemViews
 #include "private/statetracker/viewitem_p.h"
 #include "adapters/selectionadapter.h"
+#include "adapters/geometryadapter.h"
 #include "private/selectionadapter_p.h"
+#include "private/geostrategyselector_p.h"
 #include "viewport.h"
 #include "private/indexmetadata_p.h"
 #include "private/viewport_p.h"
@@ -339,23 +341,17 @@ void AbstractItemAdapterPrivate::load()
 
     Q_ASSERT(q_ptr->s_ptr->m_pMetadata->contextAdapter()->context() == m_pContext);
 
-    // Update the geometry cache
-    switch (q_ptr->s_ptr->m_pViewport->sizeHintStrategy()){
-        case Viewport::SizeHintStrategy::JIT:
-        case Viewport::SizeHintStrategy::AOT:
-            q_ptr->s_ptr->m_pMetadata->setSize(
-                QSizeF(m_pItem->width(), m_pItem->height())
-            );
-            break;
-        case Viewport::SizeHintStrategy::PROXY:
-        case Viewport::SizeHintStrategy::ROLE:
-        case Viewport::SizeHintStrategy::DELEGATE:
-            q_ptr->s_ptr->m_pMetadata->performAction(
-                IndexMetadata::GeometryAction::MODIFY
-            );
-            break;
-        case Viewport::SizeHintStrategy::UNIFORM:
-            break;
+    if (q_ptr->s_ptr->m_pViewport->s_ptr->m_pGeoAdapter->capabilities() & GeometryAdapter::Capabilities::HAS_AHEAD_OF_TIME) {
+        q_ptr->s_ptr->m_pMetadata->performAction(
+            IndexMetadata::GeometryAction::MODIFY
+        );
+    }
+    else {
+        //TODO it should still call the GeometryAdapter, but most of them are
+        // currently too buggy for that to help.
+        q_ptr->s_ptr->m_pMetadata->setSize(
+            QSizeF(m_pItem->width(), m_pItem->height())
+        );
     }
 
     Q_ASSERT(q_ptr->s_ptr->m_pMetadata->geometryTracker()->state() != StateTracker::Geometry::State::INIT);

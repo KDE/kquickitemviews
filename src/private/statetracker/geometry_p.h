@@ -22,6 +22,7 @@
 #include <QtGlobal>
 
 #include <private/indexmetadata_p.h>
+#include <private/geoutils_p.h>
 
 namespace StateTracker {
 
@@ -81,7 +82,7 @@ private:
     QPointF m_Position;
     QSizeF  m_Size;
 
-    qreal m_lBorderDecoration[4] {0.0, 0.0, 0.0, 0.0};
+    GeoRect<qreal> m_lBorderDecoration;
 
     typedef void(Geometry::*StateF)();
 

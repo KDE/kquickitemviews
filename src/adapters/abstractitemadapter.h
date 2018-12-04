@@ -227,6 +227,8 @@ public:
 
     void dismissCacheEntry(ContextExtension* e, int id);
 
+    // Shared private data
+    StateTracker::ViewItem *s_ptr;
 protected:
     /**
      * This instance is about to be added to the view.
@@ -259,9 +261,6 @@ protected:
      * This instance is going to be removed from the view.
      */
     virtual bool remove () = 0;
-
-    // Shared private data
-    StateTracker::ViewItem* s_ptr;
 private:
     AbstractItemAdapterPrivate* d_ptr;
 };

@@ -17,62 +17,23 @@
  **************************************************************************/
 #pragma once
 
-// Qt
-#include <QtCore/QAbstractItemModel>
-#include <QtCore/QRectF>
+#include <adapters/geometryadapter.h>
+class Viewport;
 
-// KQuickItemViews
-#include <viewbase.h>
-class ViewportPrivate;
-class ViewportSync;
-class AbstractItemAdapter;
+namespace GeometryStrategies
+{
 
 /**
-* This class exposes a way to track and iterate a subset of the model.
-*
-* It prevents all of the model reflection to have to be loaded in memory
-* and offers a simpler API to access the loaded sections.
-*
-* This class is for internal use and should not be used by views. Please use
-* `ViewBase` for all relevant use cases.
-*/
-class Q_DECL_EXPORT Viewport : public QObject
+ *
+ */
+class Q_DECL_EXPORT AheadOfTime : public GeometryAdapter
 {
-    friend class AbstractItemAdapter; // for the getters defined in viewport.cpp
-    friend class ViewportSync; // its own internal API
-
     Q_OBJECT
 public:
-    explicit Viewport(ModelAdapter* ma);
-    virtual ~Viewport();
+    explicit AheadOfTime(Viewport *parent = nullptr);
+    virtual ~AheadOfTime();
 
-    /**
-     * Get the current (cartesian) rectangle represented by this range.
-     */
-    QRectF currentRect() const;
-
-    //SizeHintStrategy sizeHintStrategy() const;
-    //void setSizeHintStrategy(SizeHintStrategy s);
-
-    ModelAdapter *modelAdapter() const;
-
-    QSizeF size() const;
-
-    QPointF position() const;
-
-    QSizeF totalSize() const;
-
-    Qt::Edges availableEdges() const;
-
-    void setItemFactory(ViewBase::ItemFactoryBase *factory);
-
-    void resize(const QRectF& rect);
-
-    ViewportSync *s_ptr;
-
-Q_SIGNALS:
-    void contentChanged();
-
-public:
-    ViewportPrivate *d_ptr;
+    Q_INVOKABLE virtual QSizeF sizeHint(const QModelIndex &index, AbstractItemAdapter *adapter) const override;
 };
+
+}

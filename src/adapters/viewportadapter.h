@@ -17,62 +17,25 @@
  **************************************************************************/
 #pragma once
 
-// Qt
-#include <QtCore/QAbstractItemModel>
-#include <QtCore/QRectF>
+class ViewportAdapterPrivate;
 
-// KQuickItemViews
-#include <viewbase.h>
-class ViewportPrivate;
-class ViewportSync;
-class AbstractItemAdapter;
+//WARNING on hold for now, nothing is implemented properly
 
 /**
-* This class exposes a way to track and iterate a subset of the model.
-*
-* It prevents all of the model reflection to have to be loaded in memory
-* and offers a simpler API to access the loaded sections.
-*
-* This class is for internal use and should not be used by views. Please use
-* `ViewBase` for all relevant use cases.
-*/
-class Q_DECL_EXPORT Viewport : public QObject
+ * Define which QModelIndex get to be loaded at any given time and keep track
+ * of the view size.
+ */
+class Q_DECL_EXPORT ViewportAdapter : public QObject
 {
-    friend class AbstractItemAdapter; // for the getters defined in viewport.cpp
-    friend class ViewportSync; // its own internal API
-
     Q_OBJECT
 public:
-    explicit Viewport(ModelAdapter* ma);
-    virtual ~Viewport();
+    Q_INVOKABLE explicit ViewportAdapter(QObject *parent = nullptr){Q_UNUSED(parent)}
+    virtual ~ViewportAdapter(){}
 
-    /**
-     * Get the current (cartesian) rectangle represented by this range.
-     */
-    QRectF currentRect() const;
+    bool isTotalSizeKnown() const{return false;};
 
-    //SizeHintStrategy sizeHintStrategy() const;
-    //void setSizeHintStrategy(SizeHintStrategy s);
+    void setModel(QAbstractItemModel *m){Q_UNUSED(m)};
 
-    ModelAdapter *modelAdapter() const;
-
-    QSizeF size() const;
-
-    QPointF position() const;
-
-    QSizeF totalSize() const;
-
-    Qt::Edges availableEdges() const;
-
-    void setItemFactory(ViewBase::ItemFactoryBase *factory);
-
-    void resize(const QRectF& rect);
-
-    ViewportSync *s_ptr;
-
-Q_SIGNALS:
-    void contentChanged();
-
-public:
-    ViewportPrivate *d_ptr;
+private:
+    ViewportAdapterPrivate *d_ptr;
 };

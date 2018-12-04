@@ -22,12 +22,14 @@
 #include "adapters/contextadapter.h"
 #include "adapters/modeladapter.h"
 #include "viewport.h"
+#include "private/viewport_p.h"
+#include "private/geostrategyselector_p.h"
 
 class SingleModelViewBasePrivate
 {
 public:
-    bool          m_IsSortingEnabled {      false      };
-    ModelAdapter *m_pModelAdapter    {     nullptr     };
+    bool          m_IsSortingEnabled {  false  };
+    ModelAdapter *m_pModelAdapter    { nullptr };
 
     SingleModelViewBase* q_ptr;
 };
@@ -140,8 +142,8 @@ void SingleModelViewBase::setCurrentIndex(const QModelIndex& index, QItemSelecti
 
 bool SingleModelViewBase::hasUniformRowHeight() const
 {
-    return d_ptr->m_pModelAdapter->viewports().constFirst()->
-        sizeHintStrategy() == Viewport::SizeHintStrategy::UNIFORM;
+    return d_ptr->m_pModelAdapter->viewports().constFirst()->s_ptr->
+        m_pGeoAdapter->capabilities() & GeometryAdapter::Capabilities::HAS_UNIFORM_HEIGHT;
 }
 
 void SingleModelViewBase::setUniformRowHeight(bool value)
@@ -152,8 +154,8 @@ void SingleModelViewBase::setUniformRowHeight(bool value)
 
 bool SingleModelViewBase::hasUniformColumnWidth() const
 {
-    return d_ptr->m_pModelAdapter->viewports().constFirst()->
-        sizeHintStrategy() == Viewport::SizeHintStrategy::UNIFORM;
+    return d_ptr->m_pModelAdapter->viewports().constFirst()->s_ptr->
+        m_pGeoAdapter->capabilities() & GeometryAdapter::Capabilities::HAS_UNIFORM_WIDTH;
 }
 
 void SingleModelViewBase::setUniformColumnColumnWidth(bool value)

@@ -52,13 +52,14 @@ public:
     SelectionAdapter       *m_pSelectionManager   {nullptr};
     ViewBase               *m_pView               {nullptr};
     ContextAdapterFactory  *m_pRoleContextFactory {nullptr};
-    bool                    m_ModelHasSizeHints   { false };
 
     bool m_Collapsable {true };
     bool m_AutoExpand  {false};
     int  m_MaxDepth    { -1  };
     int  m_CacheBuffer { 10  };
     int  m_PoolSize    { 10  };
+
+    int m_ExpandedCount { 999 }; //TODO
 
     ModelAdapter::RecyclingMode m_RecyclingMode {
         ModelAdapter::RecyclingMode::NoRecycling
@@ -118,11 +119,6 @@ void ModelAdapterPrivate::setModelCommon(QAbstractItemModel* m, QAbstractItemMod
 
     if (auto f = m_pRoleContextFactory)
         f->setModel(m);
-
-    // Check if the proxyModel is used
-    m_ModelHasSizeHints = m && m->metaObject()->inherits(
-        &SizeHintProxyModel::staticMetaObject
-    );
 }
 
 void ModelAdapter::setModel(const QVariant& var)
@@ -320,9 +316,11 @@ ViewBase *ModelAdapter::view() const
     return d_ptr->m_pView;
 }
 
-bool ModelAdapter::hasSizeHints() const
+bool ModelAdapter::isCollapsed() const
 {
-    return d_ptr->m_ModelHasSizeHints;
+    // Having no expanded elements allows some optimizations to kick-in such
+    // as total size using multiplications when the size is uniform.
+    return d_ptr->m_ExpandedCount == 0;
 }
 
 #include <modeladapter.moc>

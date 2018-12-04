@@ -34,8 +34,6 @@ public:
     static const State  m_fStateMap    [6][3];
     static const StateF m_fStateMachine[6][3];
 
-    enum Pos {Top, Left, Right, Bottom};
-
     State m_State[4] {
         State::UNKNOWN, State::UNKNOWN,
         State::UNKNOWN, State::UNKNOWN,
@@ -69,24 +67,6 @@ const ProximityPrivate::StateF ProximityPrivate::m_fStateMachine[6][3] = {
 /* UNLOADED_BOTH   */ { A nothing, A nothing, A nothing },
 };
 #undef A
-
-static ProximityPrivate::Pos edgeToPos(Qt::Edge e)
-{
-    switch(e) {
-        case Qt::TopEdge:
-            return ProximityPrivate::Pos::Top;
-        case Qt::LeftEdge:
-            return ProximityPrivate::Pos::Left;
-        case Qt::RightEdge:
-            return ProximityPrivate::Pos::Right;
-        case Qt::BottomEdge:
-            return ProximityPrivate::Pos::Bottom;
-    }
-
-    Q_ASSERT(false);
-
-    return {};
-}
 
 StateTracker::Proximity::Proximity(IndexMetadata *q, StateTracker::Index *self) :
     d_ptr(new ProximityPrivate())

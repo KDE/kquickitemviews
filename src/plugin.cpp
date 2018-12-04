@@ -21,12 +21,19 @@
 
 #include "adapters/decorationadapter.h"
 #include "adapters/scrollbaradapter.h"
+#include "adapters/geometryadapter.h"
 #include "views/hierarchyview.h"
 #include "views/listview.h"
 #include "views/treeview.h"
 #include "views/comboboxview.h"
 #include "flickablescrollbar.h"
 #include "proxies/sizehintproxymodel.h"
+
+// Strategies
+#include "strategies/justintime.h"
+#include "strategies/role.h"
+#include "strategies/proxy.h"
+
 
 void KQuickView::registerTypes(const char *uri)
 {
@@ -36,11 +43,16 @@ void KQuickView::registerTypes(const char *uri)
     qmlRegisterType<TreeView>(uri, 1, 0, "TreeView");
     qmlRegisterType<ListView>(uri, 1, 0, "ListView");
     qmlRegisterType<ScrollBarAdapter>(uri, 1, 0, "ScrollBarAdapter");
+    qmlRegisterType<GeometryAdapter>(uri, 1, 0, "GeometryAdapter");
     qmlRegisterType<DecorationAdapter>(uri, 1,0, "DecorationAdapter");
     qmlRegisterType<ComboBoxView>(uri, 1, 0, "ComboBoxView");
     qmlRegisterType<FlickableScrollBar>(uri, 1, 0, "FlickableScrollBar");
     qmlRegisterType<SizeHintProxyModel>(uri, 1, 0, "SizeHintProxyModel");
     qmlRegisterUncreatableType<ListViewSections>(uri, 1, 0, "ListViewSections", "");
+
+    const char *suri = QString(QString(uri) + QString(".Strategies")).toLatin1().data();
+    qmlRegisterType<GeometryStrategies::JustInTime>(suri, 1, 0, "JustInTime");
+    qmlRegisterType<GeometryStrategies::Role>(suri, 1, 0, "Role");
 }
 
 void KQuickView::initializeEngine(QQmlEngine *engine, const char *uri)

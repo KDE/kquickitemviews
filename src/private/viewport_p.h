@@ -25,6 +25,7 @@ class QQmlEngine;
 class Viewport;
 class IndexMetadata;
 class AbstractItemAdapter;
+class GeoStrategySelector;
 class ViewBaseItemVariables;
 
 namespace StateTracker {
@@ -82,6 +83,7 @@ public:
 
     Viewport *q_ptr;
     StateTracker::Content *m_pReflector {nullptr};
+    GeoStrategySelector *m_pGeoAdapter  { nullptr };
     std::function<AbstractItemAdapter*()> m_fFactory;
 
 private:

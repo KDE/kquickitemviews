@@ -22,6 +22,7 @@
 
 //
 #include <private/statetracker/viewitem_p.h>
+#include <private/geostrategyselector_p.h>
 #include "adapters/contextadapter.h"
 #include "adapters/modeladapter.h"
 #include "viewport.h"
@@ -223,39 +224,18 @@ QSizeF IndexMetadata::sizeHint()
             break;
 
         case StateTracker::Geometry::State::POSITION:
-        case StateTracker::Geometry::State::INIT:
-            switch (d_ptr->m_pViewport->sizeHintStrategy()) {
-                case Viewport::SizeHintStrategy::AOT:
-                    Q_ASSERT(false);
-                    break;
-                case Viewport::SizeHintStrategy::JIT:
-                    if (viewTracker())
-                        ret = viewTracker()->currentGeometry().size();
-                    else {
-                        // JIT cannot be used past the loaded bounds, the value isn't known
-                        Q_ASSERT(false);
-                    }
-                    break;
-                case Viewport::SizeHintStrategy::UNIFORM:
-                    Q_ASSERT(false);
-                    break;
-                case Viewport::SizeHintStrategy::PROXY:
-                    Q_ASSERT(d_ptr->m_pViewport->modelAdapter()->hasSizeHints());
+        case StateTracker::Geometry::State::INIT: {
+            Q_ASSERT(viewTracker());
 
-                    ret = qobject_cast<SizeHintProxyModel*>(
-                        d_ptr->m_pViewport->modelAdapter()->rawModel()
-                    )->sizeHintForIndex(index());
-
-                    break;
-                case Viewport::SizeHintStrategy::ROLE:
-                case Viewport::SizeHintStrategy::DELEGATE:
-                    Q_ASSERT(false);
-                    break;
-            }
+            const auto ret = d_ptr->m_pViewport->s_ptr->m_pGeoAdapter->sizeHint(
+                index(),
+                viewTracker() ? viewTracker()->d_ptr : nullptr
+            );
 
             d_ptr->m_GeoTracker.setSize(ret);
 
             break;
+        }
         case StateTracker::Geometry::State::SIZE:
             break;
     }
@@ -422,8 +402,8 @@ bool IndexMetadata::performAction(IndexMetadata::LoadAction a)
         r->perfromStateChange(StateTracker::Content::Event::ENTER_STATE, this, s);
     }
 
-    // At this point the edges should have been updated.
-    _DO_TEST(_test_validate_edges_simple, mt->q_ptr)
+    // At this point the edges should have been updated (or deleted).
+    if (mt->q_ptr) { _DO_TEST(_test_validate_edges_simple, mt->q_ptr) }
 
     const bool ret = (mt->*StateTracker::ModelItem::m_fStateMachine[(int)s][(int)a])();
 

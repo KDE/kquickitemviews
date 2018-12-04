@@ -81,7 +81,6 @@ private:
 
 public Q_SLOTS:
     void slotContentChanged();
-    void slotCountChanged();
 };
 
 /// Add the same property as the QtQuick.ListView
@@ -148,11 +147,6 @@ void ViewBase::reload()
 void ViewBasePrivate::slotContentChanged()
 {
     emit q_ptr->contentChanged();
-}
-
-void ViewBasePrivate::slotCountChanged()
-{
-//     emit q_ptr->countChanged();
 }
 
 bool ViewBasePrivate::nothing()
@@ -222,9 +216,6 @@ void ViewBase::addModelAdapter(ModelAdapter* a)
 {
     connect(a, &ModelAdapter::contentChanged,
         d_ptr, &ViewBasePrivate::slotContentChanged);
-//FIXME it was wrong and broken anyway
-//     connect(a, &ModelAdapter::countChanged,
-//         d_ptr, &ViewBasePrivate::slotCountChanged);
 
     a->contextAdapterFactory()->addContextExtension(new ModelIndexGroup());
 
@@ -245,7 +236,7 @@ QVector<ModelAdapter*> ViewBase::modelAdapters() const
 bool ViewBase::isEmpty() const
 {
     for (auto a : qAsConst(d_ptr->m_lAdapters)) {
-        if (a->isEmpty())
+        if (!a->isEmpty())
             return false;
     }
 

@@ -351,9 +351,6 @@ void ContentPrivate::slotRowsInserted(const QModelIndex& parent, int first, int 
     _DO_TEST_IDX(_test_validate_chain, pitem)
 
     Q_EMIT q_ptr->contentChanged();
-
-    if (!parent.isValid())
-        Q_EMIT q_ptr->countChanged();
 }
 
 void ContentPrivate::slotRowsRemoved(const QModelIndex& parent, int first, int last)
@@ -391,9 +388,6 @@ void ContentPrivate::slotRowsRemoved(const QModelIndex& parent, int first, int l
         }
     }
 
-    if (!parent.isValid())
-        Q_EMIT q_ptr->countChanged();
-
     Q_EMIT q_ptr->contentChanged();
 }
 
@@ -403,8 +397,6 @@ void ContentPrivate::slotLayoutChanged()
         slotRowsInserted({}, 0, rc - 1);
 
     Q_EMIT q_ptr->contentChanged();
-
-    Q_EMIT q_ptr->countChanged();
 }
 
 void ContentPrivate::slotRowsMoved(const QModelIndex &parent, int start, int end,

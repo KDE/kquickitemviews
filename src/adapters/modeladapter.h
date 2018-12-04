@@ -45,7 +45,7 @@ class Q_DECL_EXPORT ModelAdapter : public QObject
 public:
     Q_PROPERTY(QVariant model READ model WRITE setModel NOTIFY modelChanged)
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged)
-    Q_PROPERTY(bool empty READ isEmpty /*NOTIFY countChanged*/)
+    Q_PROPERTY(bool empty READ isEmpty NOTIFY contentChanged)
 
     /// The view can be collapsed
     Q_PROPERTY(bool collapsable READ isCollapsable WRITE setCollapsable)
@@ -117,7 +117,6 @@ protected:
 Q_SIGNALS:
     void modelAboutToChange(QAbstractItemModel* m, QAbstractItemModel* old);
     void modelChanged(QAbstractItemModel* m, QAbstractItemModel* old);
-//     void countChanged();
     void delegateChanged(QQmlComponent* delegate);
     void contentChanged();
     void collapsedChanged();

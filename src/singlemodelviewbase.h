@@ -42,7 +42,6 @@ public:
     Q_PROPERTY(QModelIndex currentIndex READ currentIndex WRITE setCurrentIndex)
     Q_PROPERTY(QVariant model READ model WRITE setModel NOTIFY modelChanged)
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged)
-    Q_PROPERTY(bool empty READ isEmpty/* NOTIFY countChanged*/)
 
     /// Assume each hierarchy level have the same height (for performance)
     Q_PROPERTY(bool uniformRowHeight READ hasUniformRowHeight   WRITE setUniformRowHeight)
@@ -86,8 +85,6 @@ public:
 
     bool hasUniformColumnWidth() const;
     void setUniformColumnColumnWidth(bool value);
-
-    bool isEmpty() const;
 
 protected Q_SLOTS:
 

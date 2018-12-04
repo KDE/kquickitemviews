@@ -30,6 +30,8 @@
 #include "contextadapterfactory.h"
 #include "private/selectionadapter_p.h"
 #include "private/statetracker/viewitem_p.h"
+#include "private/statetracker/content_p.h"
+#include "private/viewport_p.h"
 #include "abstractitemadapter.h"
 #include "proxies/sizehintproxymodel.h"
 
@@ -48,7 +50,7 @@ public:
     QSharedItemModel        m_pModelPtr           {       };
     QAbstractItemModel     *m_pRawModel           {nullptr};
     QQmlComponent          *m_pDelegate           {nullptr};
-    Viewport               *m_pViewport              {nullptr};
+    Viewport               *m_pViewport           {nullptr};
     SelectionAdapter       *m_pSelectionManager   {nullptr};
     ViewBase               *m_pView               {nullptr};
     ContextAdapterFactory  *m_pRoleContextFactory {nullptr};
@@ -72,7 +74,6 @@ public:
 
 public Q_SLOTS:
     void slotContentChanged();
-    void slotCountChanged();
 };
 
 ModelAdapter::ModelAdapter(ViewBase* parent) : QObject(parent),
@@ -90,8 +91,6 @@ ModelAdapter::ModelAdapter(ViewBase* parent) : QObject(parent),
 
     connect(d_ptr->m_pViewport, &Viewport::contentChanged,
         d_ptr, &ModelAdapterPrivate::slotContentChanged);
-//     connect(d_ptr->m_pReflector, &StateTracker::Content::countChanged,
-//         d_ptr, &ModelAdapterPrivate::slotCountChanged);
 }
 
 ModelAdapter::~ModelAdapter()
@@ -291,11 +290,6 @@ QVector<Viewport*> ModelAdapter::viewports() const
 void ModelAdapterPrivate::slotContentChanged()
 {
     emit q_ptr->contentChanged();
-}
-
-void ModelAdapterPrivate::slotCountChanged()
-{
-//     emit q_ptr->countChanged();
 }
 
 QAbstractItemModel *ModelAdapter::rawModel() const

@@ -78,7 +78,6 @@ public:
 
 Q_SIGNALS:
     void contentChanged();
-    void countChanged  ();
 
 private:
     ContentPrivate* d_ptr;

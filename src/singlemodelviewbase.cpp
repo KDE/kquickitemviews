@@ -51,8 +51,6 @@ SingleModelViewBase::SingleModelViewBase(ItemFactoryBase *factory, QQuickItem* p
         this, &SingleModelViewBase::currentIndexChanged);
     connect(sm, &SelectionAdapter::selectionModelChanged,
         this, &SingleModelViewBase::selectionModelChanged);
-//     connect(d_ptr->m_pModelAdapter, &ModelAdapter::countChanged,
-//         this, &SingleModelViewBase::countChanged);
     connect(d_ptr->m_pModelAdapter, &ModelAdapter::modelAboutToChange,
         this, &SingleModelViewBase::applyModelChanges);
 }
@@ -162,9 +160,4 @@ void SingleModelViewBase::setUniformColumnColumnWidth(bool value)
 {
     Q_UNUSED(value)
     //d_ptr->m_pModelAdapter->setUniformColumnColumnWidth(value);
-}
-
-bool SingleModelViewBase::isEmpty() const
-{
-    return d_ptr->m_pModelAdapter->isEmpty();
 }

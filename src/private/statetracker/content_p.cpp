@@ -186,6 +186,8 @@ StateTracker::Content::Content(Viewport* parent) : QObject(parent),
 
 StateTracker::Content::~Content()
 {
+    delete d_ptr->m_pModelTracker;
+    d_ptr->m_pModelTracker = nullptr;
     delete d_ptr->m_pRoot;
 }
 
@@ -411,7 +413,7 @@ void ContentPrivate::slotRowsMoved(const QModelIndex &parent, int start, int end
 
     // Whatever has to be done only affect a part that's not currently tracked.
     if (!q_ptr->isActive(destination, row, row)) {
-        Q_ASSERT(false); //TODO so I don't forget
+        //Q_ASSERT(false); //TODO so I don't forget
         return;
     }
 

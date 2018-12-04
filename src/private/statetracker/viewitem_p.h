@@ -49,7 +49,9 @@ public:
     explicit ViewItem(Viewport* r) :
         m_pViewport(r) {}
 
-    virtual ~ViewItem() {}
+    virtual ~ViewItem() {
+        m_pMetadata->setViewTracker(nullptr);
+    }
 
     enum class State {
         POOLING , /*!< Being currently removed from view                      */

@@ -19,6 +19,7 @@
 
 // Qt
 #include <QtCore/QAbstractItemModel>
+#include <QtCore/QMutex>
 #include <QtCore/private/qmetaobjectbuilder_p.h>
 #include <QQmlContext>
 #include <QQuickItem>
@@ -144,6 +145,8 @@ public:
     QQmlContext           * m_pCtx      {nullptr};
     QPersistentModelIndex   m_Index     {       };
     QQmlContext           * m_pParentCtx{nullptr};
+    QMetaObject::Connection m_Conn;
+    QMutex                  m_Mutex;
 
     ContextAdapterFactoryPrivate* d_ptr {nullptr};
     ContextAdapter* m_pBuilder;
@@ -298,15 +301,20 @@ const QMetaObject *DynamicContext::metaObject() const
 
 int DynamicContext::qt_metacall(QMetaObject::Call call, int id, void **argv)
 {
+    if (!m_Mutex.try_lock())
+        return -1;
+
     const int realId = id - m_pMetaType->m_pMetaObject->propertyOffset();
 
     if (realId < 0) {
+        m_Mutex.unlock();
         return QObject::qt_metacall(call, id, argv);
     }
 
     if (call == QMetaObject::ReadProperty) {
         if (Q_UNLIKELY(((size_t)realId) >= m_pMetaType->propertyCount)) {
             Q_ASSERT(false);
+            m_Mutex.unlock();
             return -1;
         }
 
@@ -341,6 +349,8 @@ int DynamicContext::qt_metacall(QMetaObject::Call call, int id, void **argv)
         *reinterpret_cast<int*>(argv[2]) = 1;  // setProperty return value
         QMetaObject::activate(this, m_pMetaObject, realId, nullptr);*/
     }
+
+    m_Mutex.unlock();
 
     return -1;
 }
@@ -558,12 +568,24 @@ ContextAdapterFactory::createAdapter(FactoryFunctor f, QQmlContext *parentContex
 {
     ContextAdapter* ret = f(parentContext);
 
+    Q_ASSERT(!ret->d_ptr);
+
     d_ptr->finish();
     ret->d_ptr = new DynamicContext(const_cast<ContextAdapterFactory*>(this));
     ret->d_ptr->d_ptr = d_ptr;
     ret->d_ptr->setParent(parentContext);
     ret->d_ptr->m_pBuilder   = ret;
     ret->d_ptr->m_pParentCtx = parentContext;
+
+    //HACK QtQuick ignores
+    ret->d_ptr->m_Conn = QObject::connect(ret->d_ptr, &QObject::destroyed, ret->d_ptr, [ret, this, parentContext]() {
+        qWarning() << "Rebuilding the cache because QtQuick bugs trashed it";
+        ret->d_ptr = new DynamicContext(const_cast<ContextAdapterFactory*>(this));
+        ret->d_ptr->d_ptr = d_ptr;
+        ret->d_ptr->setParent(parentContext);
+        ret->d_ptr->m_pBuilder   = ret;
+        ret->d_ptr->m_pParentCtx = parentContext;
+    });
 
     return ret;
 }
@@ -579,7 +601,16 @@ ContextAdapter::ContextAdapter(QQmlContext *parentContext)
 }
 
 ContextAdapter::~ContextAdapter()
-{}
+{
+    if (d_ptr->m_pCtx)
+        d_ptr->m_pCtx->setContextObject(nullptr);
+
+    QObject::disconnect(d_ptr->m_Conn);
+
+    d_ptr->m_pBuilder = nullptr;
+
+    delete d_ptr;
+}
 
 bool ContextAdapter::isCacheEnabled() const
 {

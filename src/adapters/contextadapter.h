@@ -87,5 +87,5 @@ protected:
     explicit ContextAdapter(QQmlContext *parentContext = nullptr);
 
 private:
-    DynamicContext* d_ptr;
+    DynamicContext* d_ptr {nullptr};
 };

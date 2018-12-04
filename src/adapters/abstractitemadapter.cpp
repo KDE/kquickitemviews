@@ -41,8 +41,9 @@
 #include "contextadapterfactory.h"
 #include "contextadapter.h"
 
-class AbstractItemAdapterPrivate
+class AbstractItemAdapterPrivate : public QObject
 {
+    Q_OBJECT
 public:
     typedef bool(AbstractItemAdapterPrivate::*StateF)();
 
@@ -74,6 +75,9 @@ public:
 
     // Attributes
     AbstractItemAdapter* q_ptr;
+
+public Q_SLOTS:
+    void slotDestroyed();
 };
 
 /*
@@ -338,6 +342,9 @@ void AbstractItemAdapterPrivate::load()
 
     m_pContext = pair.second;
     m_pItem    = pair.first;
+
+    // QtQuick can decide to destroy it even with C++ ownership, so be it
+    connect(m_pItem, &QObject::destroyed, this, &AbstractItemAdapterPrivate::slotDestroyed);
 
     Q_ASSERT(q_ptr->s_ptr->m_pMetadata);
 
@@ -620,3 +627,10 @@ StateTracker::ViewItem::State StateTracker::ViewItem::state() const
 {
     return m_State;
 }
+
+void AbstractItemAdapterPrivate::slotDestroyed()
+{
+    m_pItem = nullptr;
+}
+
+#include <abstractitemadapter.moc>

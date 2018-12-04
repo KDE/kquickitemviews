@@ -418,7 +418,7 @@ bool StateTracker::ModelItem::move()
 
 bool StateTracker::ModelItem::destroy()
 {
-    Q_ASSERT(parent() || this == q_ptr->root());
+    Q_ASSERT((!q_ptr) || parent() || this == q_ptr->root());
     Q_ASSERT((!parent()) || parent()->hasChildren(this));
 
     detach();

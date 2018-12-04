@@ -93,6 +93,7 @@ const IndexMetadataPrivate::StateF IndexMetadataPrivate::m_fStateMachine[5][7] =
 IndexMetadata::IndexMetadata(StateTracker::Index *idxT, Viewport *p) :
     d_ptr(new IndexMetadataPrivate(this))
 {
+    Q_ASSERT(idxT);
     d_ptr->m_pIndexTracker     = idxT;
     d_ptr->m_pModelTracker     = (StateTracker::ModelItem*) idxT;
     d_ptr->m_pViewport         = p;
@@ -396,7 +397,9 @@ bool IndexMetadata::performAction(IndexMetadata::LoadAction a)
 
     // This need to be done before calling the transition function because it
     // can trigger another round of state change.
-    if (s != mt->state()) {
+    if (s != mt->state() && modelTracker()->q_ptr) {
+        //Note that modelTracker()->q_ptr is nullptr if this == root
+
         const auto r = modelTracker()->q_ptr;
         r->perfromStateChange(StateTracker::Content::Event::LEAVE_STATE, this, s);
         r->perfromStateChange(StateTracker::Content::Event::ENTER_STATE, this, s);

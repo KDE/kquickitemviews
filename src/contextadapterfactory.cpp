@@ -22,6 +22,7 @@
 #include <QtCore/private/qmetaobjectbuilder_p.h>
 #include <QQmlContext>
 #include <QQuickItem>
+#include <QQmlEngine>
 
 // KQuickItemViews
 #include "adapters/abstractitemadapter.h"
@@ -607,6 +608,9 @@ QQmlContext* ContextAdapter::context() const
     if (!d_ptr->m_pCtx) {
         d_ptr->m_pCtx = new QQmlContext(d_ptr->m_pParentCtx, d_ptr->parent());
         d_ptr->m_pCtx->setContextObject(d_ptr);
+        d_ptr->m_pCtx->engine()->setObjectOwnership(
+            d_ptr, QQmlEngine::CppOwnership
+        );
     }
 
     return d_ptr->m_pCtx;

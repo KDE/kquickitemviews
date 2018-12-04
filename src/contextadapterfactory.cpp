@@ -304,8 +304,10 @@ int DynamicContext::qt_metacall(QMetaObject::Call call, int id, void **argv)
     if (!m_Mutex.try_lock())
         return -1;
 
+
     const int realId = id - m_pMetaType->m_pMetaObject->propertyOffset();
 
+    //qDebug() << "META" << id << realId << call << QMetaObject::ReadProperty;
     if (realId < 0) {
         m_Mutex.unlock();
         return QObject::qt_metacall(call, id, argv);
@@ -340,14 +342,25 @@ int DynamicContext::qt_metacall(QMetaObject::Call call, int id, void **argv)
 //             delete value;
     }
     else if (call == QMetaObject::WriteProperty) {
-        Q_ASSERT(false); //TODO call setData
-        /*const int roleId = m_hIdMapper.value(realId);
-        m_Index.model()->setData(
-            m_Index, roleId, QVariant(property.typeId, argv[0])
-        );
-        m_lUsedProperties << roleId;
+        //qDebug() << "SET" << argv[0];
+
+        //FIXME enable setData
+        //const QModelIndex idx = m_pBuilder->item() ? m_pBuilder->item()->index() : m_Index;
+        //Q_ASSERT(false); //TODO call setData
+        //const int roleId = m_hIdMapper.value(realId);
+        //m_Index.model()->setData(
+        //    m_Index, roleId, QVariant(property.typeId, argv[0])
+        //);
+        //m_lUsedProperties << roleId;
+
         *reinterpret_cast<int*>(argv[2]) = 1;  // setProperty return value
-        QMetaObject::activate(this, m_pMetaObject, realId, nullptr);*/
+        QMetaObject::activate(this, m_pMetaType->m_pMetaObject, realId, nullptr);
+    }
+    else if (call == QMetaObject::InvokeMetaMethod) {
+        int sigId = id - m_pMetaType->m_pMetaObject->methodOffset();
+        qDebug() << "LA LA INVOKE" << sigId << id;
+        QMetaObject::activate(this,  m_pMetaType->m_pMetaObject, id, nullptr);
+        return -1;
     }
 
     m_Mutex.unlock();
@@ -501,10 +514,26 @@ bool ContextAdapter::updateRoles(const QVector<int> &modified) const
         // Only update the roles known to have an impact
         for (auto mr : qAsConst(d_ptr->d_ptr->m_pMetaType->used)) {
             if (d_ptr->m_lVariants[mr->propId]) {
-                delete d_ptr->m_lVariants[mr->propId];
+                if (auto v = d_ptr->m_lVariants[mr->propId])
+                    delete v;
+
                 d_ptr->m_lVariants[mr->propId] = nullptr;
-                QMetaMethod m = d_ptr->metaObject()->method(mr->signalId);
-                m.invoke(d_ptr);
+
+                //FIXME this should work, but it doesn't
+                auto mo = d_ptr->d_ptr->m_pMetaType->m_pMetaObject;
+                const int methodId = mo->methodOffset() + mr->signalId;
+                QMetaMethod m = mo->method(methodId);
+                //m.invoke(d_ptr);
+                Q_ASSERT(m.name() == (*mr->name)+"Changed");
+
+                //FIXME this should also work, but also doesn't
+                //QMetaObject::activate(d_ptr, mo, mr->signalId, nullptr);
+
+                //FIXME Use this for now, but it prevent setData from being implemented
+                d_ptr->setProperty(*mr->name, 0x1337);
+
+                QMetaObject::activate(d_ptr, mo, mr->signalId, nullptr);
+
                 ret = true;
             }
         }
@@ -641,6 +670,9 @@ QQmlContext* ContextAdapter::context() const
         d_ptr->m_pCtx->setContextObject(d_ptr);
         d_ptr->m_pCtx->engine()->setObjectOwnership(
             d_ptr, QQmlEngine::CppOwnership
+        );
+        d_ptr->m_pCtx->engine()->setObjectOwnership(
+            d_ptr->m_pCtx, QQmlEngine::CppOwnership
         );
     }
 

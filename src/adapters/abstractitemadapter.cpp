@@ -455,6 +455,7 @@ QPair<QQuickItem*, QQmlContext*> AbstractItemAdapterPrivate::loadDelegate(QQuick
 
     // Create the delegate
     auto item = qobject_cast<QQuickItem *>(delegate->create(ctx));
+    q_ptr->s_ptr->m_pViewport->s_ptr->engine()->setObjectOwnership(item, QQmlEngine::CppOwnership);
 
     // It allows the children to be added anyway
     if(!item) {

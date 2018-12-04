@@ -25,6 +25,7 @@
 #include <viewport.h>
 #include <private/viewport_p.h>
 #include <private/indexmetadata_p.h>
+#include <adapters/contextadapter.h>
 
 // Qt
 #include <QtCore/QDebug>
@@ -94,6 +95,8 @@ public Q_SLOTS:
     void slotRowsInserted  (const QModelIndex& parent, int first, int last);
     void slotRowsRemoved   (const QModelIndex& parent, int first, int last);
     void slotLayoutChanged (                                              );
+    void slotDataChanged   (const QModelIndex& tl, const QModelIndex& br,
+                            const QVector<int> &roles  );
     void slotRowsMoved     (const QModelIndex &p, int start, int end,
                             const QModelIndex &dest, int row);
 };
@@ -391,6 +394,24 @@ void ContentPrivate::slotRowsRemoved(const QModelIndex& parent, int first, int l
     }
 
     Q_EMIT q_ptr->contentChanged();
+}
+
+//TODO optimize this
+void ContentPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& br, const QVector<int> &roles)
+{
+    Q_UNUSED(roles)
+    if (!q_ptr->isActive(tl.parent(), tl.row(), br.row()))
+        return;
+
+    for (int i = tl.row(); i <= br.row(); i++) {
+        const auto idx = m_pModelTracker->modelCandidate()->index(i, tl.column(), tl.parent());
+        if (auto tti = ttiForIndex(idx)) {
+            if (tti->metadata()->viewTracker()) {
+                tti->metadata()->contextAdapter()->updateRoles(roles);
+                tti->metadata() << IndexMetadata::ViewAction::UPDATE;
+            }
+        }
+    }
 }
 
 void ContentPrivate::slotLayoutChanged()
@@ -913,6 +934,8 @@ void StateTracker::Content::connectModel(QAbstractItemModel *m)
         &ContentPrivate::slotLayoutChanged);
     QObject::connect(m, &QAbstractItemModel::rowsAboutToBeMoved, d_ptr,
         &ContentPrivate::slotRowsMoved);
+    QObject::connect(m, &QAbstractItemModel::dataChanged, d_ptr,
+        &ContentPrivate::slotDataChanged);
 
 #ifdef ENABLE_EXTRA_VALIDATION
     QObject::connect(m, &QAbstractItemModel::rowsMoved, d_ptr,
@@ -938,6 +961,8 @@ void StateTracker::Content::disconnectModel(QAbstractItemModel *m)
         &ContentPrivate::slotLayoutChanged);
     QObject::disconnect(m, &QAbstractItemModel::rowsAboutToBeMoved, d_ptr,
         &ContentPrivate::slotRowsMoved);
+    QObject::disconnect(m, &QAbstractItemModel::dataChanged, d_ptr,
+        &ContentPrivate::slotDataChanged);
 
 #ifdef ENABLE_EXTRA_VALIDATION
 //     QObject::disconnect(m, &QAbstractItemModel::rowsMoved, d_ptr,

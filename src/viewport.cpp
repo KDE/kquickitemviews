@@ -57,7 +57,6 @@ public Q_SLOTS:
     void slotModelChanged(QAbstractItemModel* m, QAbstractItemModel* o);
     void slotModelAboutToChange(QAbstractItemModel* m, QAbstractItemModel* o);
     void slotViewportChanged(const QRectF &viewport);
-    void slotDataChanged(const QModelIndex& tl, const QModelIndex& br, const QVector<int> &roles);
 };
 
 Viewport::Viewport(ModelAdapter* ma) : QObject(),
@@ -101,9 +100,6 @@ QRectF Viewport::currentRect() const
 void ViewportPrivate::slotModelAboutToChange(QAbstractItemModel* m, QAbstractItemModel* o)
 {
     Q_UNUSED(m)
-    if (o)
-        disconnect(o, &QAbstractItemModel::dataChanged,
-            this, &ViewportPrivate::slotDataChanged);
 }
 
 void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel* o)
@@ -119,10 +115,6 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel
         m_pViewAdapter->setModel(m);
 
     q_ptr->s_ptr->m_pGeoAdapter->setModel(m);
-
-    if (m)
-        connect(m, &QAbstractItemModel::dataChanged,
-            this, &ViewportPrivate::slotDataChanged);
 
     if (m_ViewRect.size().isValid() && m_pModelAdapter->delegate()) {
         q_ptr->s_ptr->m_pReflector->modelTracker()
@@ -161,48 +153,6 @@ QSizeF Viewport::totalSize() const
         return {0.0, 0.0};
 
     return {}; //TODO
-}
-
-//TODO remove this content and check each range
-void ViewportPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& br, const QVector<int> &roles)
-{
-    if (tl.model() && tl.model() != m_pModelAdapter->rawModel()) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    if (br.model() && br.model() != m_pModelAdapter->rawModel()) {
-        Q_ASSERT(false);
-        return;
-    }
-
-    if ((!tl.isValid()) || (!br.isValid()))
-        return;
-
-    if (!q_ptr->s_ptr->m_pReflector->isActive(tl.parent(), tl.row(), br.row()))
-        return;
-
-    //FIXME tolerate other cases
-    Q_ASSERT(m_pModelAdapter->rawModel());
-    Q_ASSERT(tl.model() == m_pModelAdapter->rawModel() && br.model() == m_pModelAdapter->rawModel());
-    Q_ASSERT(tl.parent() == br.parent());
-
-    //TODO Use a smaller range when possible
-
-    for (int i = tl.row(); i <= br.row(); i++) {
-        const auto idx = m_pModelAdapter->rawModel()->index(i, tl.column(), tl.parent());
-        if (auto item = q_ptr->s_ptr->m_pReflector->metadataForIndex(idx)) {
-            // Prevent performing action if we know the changes wont affect the
-            // view.
-            if (item->contextAdapter()->updateRoles(roles)) {
-                // (maybe) dismiss geometry cache
-                q_ptr->s_ptr->notifyChange(item);
-
-                if (item->viewTracker())
-                    item << IndexMetadata::ViewAction::UPDATE;
-            }
-        }
-    }
 }
 
 void Viewport::setItemFactory(ViewBase::ItemFactoryBase *factory)

@@ -31,6 +31,7 @@
 #include "private/selectionadapter_p.h"
 #include "private/statetracker/viewitem_p.h"
 #include "private/statetracker/content_p.h"
+#include "private/statetracker/model_p.h"
 #include "private/viewport_p.h"
 #include "abstractitemadapter.h"
 #include "proxies/sizehintproxymodel.h"
@@ -180,6 +181,15 @@ void ModelAdapter::setDelegate(QQmlComponent* delegate)
 
     d_ptr->m_pDelegate = delegate;
     emit delegateChanged(delegate);
+
+    if (d_ptr->m_Mode != ModelAdapterPrivate::Mode::NONE && d_ptr->m_pViewport) {
+        //FIXME handle this properly
+        auto content = d_ptr->m_pViewport->s_ptr->m_pReflector;
+
+        content->modelTracker()
+            << StateTracker::Model::Action::POPULATE
+            << StateTracker::Model::Action::ENABLE;
+    }
 }
 
 QQmlComponent* ModelAdapter::delegate() const

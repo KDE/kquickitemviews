@@ -448,6 +448,9 @@ void ListViewSection::reparentSection(ListViewItem* newParent, ViewBase* view)
 
 bool ListViewItem::move()
 {
+    if (!item())
+        return false;
+
     auto prev = static_cast<ListViewItem*>(next(Qt::TopEdge));
 
     const QQuickItem* prevItem = nullptr;

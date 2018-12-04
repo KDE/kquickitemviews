@@ -17,6 +17,8 @@
  **************************************************************************/
 #include "model_p.h"
 
+#include <QtCore/QDebug>
+
 #include <private/indexmetadata_p.h>
 #include <private/statetracker/content_p.h>
 #include <private/statetracker/index_p.h>

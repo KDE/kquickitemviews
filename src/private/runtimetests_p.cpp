@@ -1,5 +1,4 @@
 #ifdef ENABLE_EXTRA_VALIDATION
-#pragma once
 
 #include <private/statetracker/content_p.h>
 #include <private/statetracker/index_p.h>
@@ -132,7 +131,7 @@ void _test_validateTree(StateTracker::Content *self, StateTracker::Index* p)
             Q_ASSERT(next != item);
 
             if (next->effectiveParentIndex() == item->effectiveParentIndex()) {
-                const int rc = self->modelTracker()->trackedModel()->rowCount(item->index());
+                const int rc = self->modelTracker()->modelCandidate()->rowCount(item->index());
                 Q_ASSERT(!rc);
             }
         }
@@ -244,7 +243,7 @@ void _test_validateLinkedList(StateTracker::Content *self, bool skipVItemState)
     do {
         Q_ASSERT(cur->up() == prev);
         Q_ASSERT(cur->index().isValid());
-        Q_ASSERT(cur->index().model() == self->modelTracker()->trackedModel());
+        Q_ASSERT(cur->index().model() == self->modelTracker()->modelCandidate());
 
         if (!visibleFinished) {
             // If hit, it means the visible rect wasn't refreshed.
@@ -300,7 +299,7 @@ void _test_validateLinkedList(StateTracker::Content *self, bool skipVItemState)
         // Check the the previous sibling has no children
         if (prev && cur->parent() == prev->parent()) {
             Q_ASSERT(cur->effectiveRow() == prev->effectiveRow() + 1);
-            Q_ASSERT(!self->modelTracker()->trackedModel()->rowCount(prev->index()));
+            Q_ASSERT(!self->modelTracker()->modelCandidate()->rowCount(prev->index()));
         }
 
         // Check that there it no missing children from the previous
@@ -469,6 +468,7 @@ void _test_validate_move(
     StateTracker::Index* newNextTTI,
     int row)
 {
+    Q_UNUSED(self)
 #ifndef ENABLE_EXTRA_VALIDATION
     return;
 #endif
@@ -558,10 +558,10 @@ void _test_validateUnloaded(StateTracker::Content *self, const QModelIndex& pare
 #ifndef ENABLE_EXTRA_VALIDATION
     return;
 #endif
-    Q_ASSERT(self->modelTracker()->trackedModel()); // This will assert in model_p.cpp
+    Q_ASSERT(self->modelTracker()->modelCandidate()); // This will assert in model_p.cpp
 
     for (int i = first; i <= last; i++) {
-        const auto idx = self->modelTracker()->trackedModel()->index(i, 0, parent);
+        const auto idx = self->modelTracker()->modelCandidate()->index(i, 0, parent);
         Q_ASSERT(idx.isValid());
         //Q_ASSERT(!self->ttiForIndex(idx));
     }
@@ -641,7 +641,7 @@ void _test_validateAtEnd(StateTracker::Content *self)
 
 void _test_validateModelAboutToReplace(StateTracker::Content *self)
 {
-    Q_ASSERT(!self->modelTracker()->trackedModel());
+    Q_ASSERT(!self->modelTracker()->modelCandidate());
     Q_ASSERT(self->modelTracker()->state() == StateTracker::Model::State::NO_MODEL
         || self->modelTracker()->state() == StateTracker::Model::State::PAUSED);
 }

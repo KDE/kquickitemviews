@@ -314,7 +314,9 @@ void AbstractItemAdapterPrivate::load()
     if (m_pContext || m_pItem)
         return;
 
+    // Usually if we get here something already failed
     if (!q_ptr->s_ptr->m_pViewport->modelAdapter()->delegate()) {
+        Q_ASSERT(false);
         qDebug() << "Cannot attach, there is no delegate";
         return;
     }
@@ -427,8 +429,11 @@ void AbstractItemAdapter::setSelected(bool /*s*/)
 
 QPair<QQuickItem*, QQmlContext*> AbstractItemAdapterPrivate::loadDelegate(QQuickItem* parentI) const
 {
-    if (!q_ptr->s_ptr->m_pViewport->modelAdapter()->delegate())
+    const auto delegate = q_ptr->s_ptr->m_pViewport->modelAdapter()->delegate();
+    if (!delegate) {
+        qWarning() << "No delegate is set";
         return {};
+    }
 
     auto pctx = q_ptr->s_ptr->m_pMetadata->contextAdapter()->context();
 
@@ -442,13 +447,15 @@ QPair<QQuickItem*, QQmlContext*> AbstractItemAdapterPrivate::loadDelegate(QQuick
     auto ctx = new QQmlContext(pctx);
 
     // Create the delegate
-    auto item = qobject_cast<QQuickItem *>(
-        q_ptr->s_ptr->m_pViewport->modelAdapter()->delegate()->create(ctx)
-    );
+    auto item = qobject_cast<QQuickItem *>(delegate->create(ctx));
 
     // It allows the children to be added anyway
-    if(!item)
+    if(!item) {
+        if (!delegate->errorString().isEmpty())
+            qWarning() << delegate->errorString();
+
         return {container, pctx};
+    }
 
     item->setWidth(q_ptr->view()->width());
     item->setParentItem(container);

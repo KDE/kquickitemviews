@@ -50,7 +50,7 @@ void KQuickView::registerTypes(const char *uri)
     qmlRegisterType<SizeHintProxyModel>(uri, 1, 0, "SizeHintProxyModel");
     qmlRegisterUncreatableType<ListViewSections>(uri, 1, 0, "ListViewSections", "");
 
-    const char *suri = QString(QString(uri) + QString(".Strategies")).toLatin1().data();
+    auto suri = QString(QString(uri) + QString(".Strategies")).toLatin1();
     qmlRegisterType<GeometryStrategies::JustInTime>(suri, 1, 0, "JustInTime");
     qmlRegisterType<GeometryStrategies::Role>(suri, 1, 0, "Role");
 }

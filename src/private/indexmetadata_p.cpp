@@ -415,7 +415,8 @@ bool IndexMetadata::performAction(IndexMetadata::LoadAction a)
         ||  mt->state() == StateTracker::ModelItem::State::MOVING
         ||  mt->state() == StateTracker::ModelItem::State::VISIBLE));
 
-    if (ns != StateTracker::ModelItem::State::DANGLING) {
+    //mt->q_ptr will be nullptr during a reset
+    if (ns != StateTracker::ModelItem::State::DANGLING && mt->q_ptr) {
         _DO_TEST(_test_validate_edges_simple, mt->q_ptr)
     }
 

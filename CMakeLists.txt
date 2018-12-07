@@ -62,18 +62,22 @@ SET( kquickview_LIB_SRCS
     src/adapters/selectionadapter.cpp
     src/adapters/geometryadapter.cpp
 
+    # Building blocks
     src/flickablescrollbar.cpp
     src/plugin.cpp
     src/proxies/sizehintproxymodel.cpp
     src/singlemodelviewbase.cpp
     src/viewbase.cpp
+    src/viewport.cpp
+    src/contextadapterfactory.cpp
+
+    # Views
     src/views/comboboxview.cpp
     src/views/flickable.cpp
     src/views/hierarchyview.cpp
     src/views/listview.cpp
     src/views/treeview.cpp
-    src/viewport.cpp
-    src/contextadapterfactory.cpp
+    src/views/indexview.cpp
 
     # State trackers
     src/private/statetracker/index_p.cpp
@@ -125,6 +129,7 @@ SET( kquickview_LIB_HDRS
     viewbase.h
     views/comboboxview.h
     views/flickable.h
+    views/indexview.h
     views/hierarchyview.h
     views/listview.h
     views/treeview.h

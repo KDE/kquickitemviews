@@ -26,6 +26,7 @@
 #include "views/listview.h"
 #include "views/treeview.h"
 #include "views/comboboxview.h"
+#include "views/indexview.h"
 #include "flickablescrollbar.h"
 #include "proxies/sizehintproxymodel.h"
 
@@ -42,6 +43,7 @@ void KQuickView::registerTypes(const char *uri)
     qmlRegisterType<HierarchyView>(uri, 1, 0, "HierarchyView");
     qmlRegisterType<TreeView>(uri, 1, 0, "TreeView");
     qmlRegisterType<ListView>(uri, 1, 0, "ListView");
+    qmlRegisterType<IndexView>(uri, 1, 0, "IndexView");
     qmlRegisterType<ScrollBarAdapter>(uri, 1, 0, "ScrollBarAdapter");
     qmlRegisterType<GeometryAdapter>(uri, 1, 0, "GeometryAdapter");
     qmlRegisterType<DecorationAdapter>(uri, 1,0, "DecorationAdapter");

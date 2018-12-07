@@ -25,6 +25,7 @@
 #include "views/hierarchyview.h"
 #include "views/listview.h"
 #include "views/treeview.h"
+#include "qmodelindexwatcher.h"
 #include "views/comboboxview.h"
 #include "views/indexview.h"
 #include "flickablescrollbar.h"
@@ -49,6 +50,7 @@ void KQuickView::registerTypes(const char *uri)
     qmlRegisterType<DecorationAdapter>(uri, 1,0, "DecorationAdapter");
     qmlRegisterType<ComboBoxView>(uri, 1, 0, "ComboBoxView");
     qmlRegisterType<FlickableScrollBar>(uri, 1, 0, "FlickableScrollBar");
+    qmlRegisterType<QModelIndexWatcher>(uri, 1, 0, "QModelIndexWatcher");
     qmlRegisterType<SizeHintProxyModel>(uri, 1, 0, "SizeHintProxyModel");
     qmlRegisterUncreatableType<ListViewSections>(uri, 1, 0, "ListViewSections", "");
 

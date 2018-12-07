@@ -17,52 +17,41 @@
  **************************************************************************/
 #pragma once
 
-#include <QQuickItem>
-#include <QQmlComponent>
+#include <QtCore/QObject>
+#include <QtCore/QModelIndex>
 
 class QAbstractItemModel;
-
-class IndexViewPrivate;
+class QModelIndexWatcherPrivate;
 
 /**
- * This view has a single delegate instance and display data for a single
- * QModelIndex.
- *
- * This is useful for mobile application pages to get more information out of
- * a list item. It allows for more compact list while avoiding the boilerplate
- * of having a non-model component.
- *
- * It can also be used to create the equivalent of "editor widgets" from the
- * QtWidgets era.
- *
- * The IndexView will take the implicit width and height of the component
- * unless it is resized or in a managed layout, where it will resize the
- * delegate.
+ * This class allows to get events on a QModelIndex from QML.
  */
-class Q_DECL_EXPORT IndexView : public QQuickItem
+class QModelIndexWatcher : public QObject
 {
     Q_OBJECT
 public:
-    explicit IndexView(QQuickItem *parent = nullptr);
-    virtual ~IndexView();
+    explicit QModelIndexWatcher(QObject *parent = nullptr);
+    virtual ~QModelIndexWatcher();
 
-    Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged)
+    Q_PROPERTY(bool valid READ isValid NOTIFY validChanged)
     Q_PROPERTY(QModelIndex modelIndex READ modelIndex WRITE setModelIndex NOTIFY indexChanged)
-    Q_PROPERTY(QAbstractItemModel* model READ model NOTIFY indexChanged)
-
-    virtual void setDelegate(QQmlComponent* delegate);
-    QQmlComponent* delegate() const;
-
-    QAbstractItemModel *model() const;
+    Q_PROPERTY(QAbstractItemModel* model READ model NOTIFY validChanged)
 
     QModelIndex modelIndex() const;
     void setModelIndex(const QModelIndex &index);
 
+    QAbstractItemModel *model() const;
+
+    bool isValid() const;
+
 Q_SIGNALS:
-    void delegateChanged(QQmlComponent* delegate);
+    void removed();
+    void moved();
+    void dataChanged(const QVector<int>& roles);
+    void validChanged();
     void indexChanged();
 
 private:
-    IndexViewPrivate *d_ptr;
-    Q_DECLARE_PRIVATE(IndexView)
+    QModelIndexWatcherPrivate *d_ptr;
+    Q_DECLARE_PRIVATE(QModelIndexWatcher)
 };

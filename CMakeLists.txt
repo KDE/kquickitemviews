@@ -70,6 +70,7 @@ SET( kquickview_LIB_SRCS
     src/viewbase.cpp
     src/viewport.cpp
     src/contextadapterfactory.cpp
+    src/qmodelindexwatcher.cpp
 
     # Views
     src/views/comboboxview.cpp
@@ -126,6 +127,7 @@ SET( kquickview_LIB_HDRS
     proxies/sizehintproxymodel.h
     singlemodelviewbase.h
     contextadapterfactory.h
+    qmodelindexwatcher.h
     viewbase.h
     views/comboboxview.h
     views/flickable.h

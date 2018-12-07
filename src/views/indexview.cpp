@@ -91,6 +91,11 @@ QModelIndex IndexView::modelIndex() const
     return d_ptr->m_Index;
 }
 
+QAbstractItemModel *IndexView::model() const
+{
+    return d_ptr->m_pModel;
+}
+
 void IndexView::setModelIndex(const QModelIndex &index)
 {
     if (index == d_ptr->m_Index)
@@ -132,6 +137,7 @@ void IndexView::setModelIndex(const QModelIndex &index)
     d_ptr->m_pCTX->setModelIndex(index);
 
     d_ptr->initDelegate();
+    emit indexChanged();
 }
 
 void IndexViewPrivate::slotDismiss()
@@ -155,6 +161,7 @@ void IndexViewPrivate::slotDismiss()
 
     m_pModel = nullptr;
     m_Index  = QModelIndex();
+    emit q_ptr->indexChanged();
 }
 
 void IndexViewPrivate::slotDataChanged(const QModelIndex &tl, const QModelIndex &br, const QVector<int> &roles)
@@ -195,7 +202,6 @@ void IndexViewPrivate::initDelegate()
 
     ctx->engine()->setObjectOwnership(m_pItem, QQmlEngine::CppOwnership);
     m_pItem->setParentItem(q_ptr);
-    volatile auto cc = QQmlEngine::contextForObject(m_pItem);
 }
 
 #include <indexview.moc>

@@ -351,9 +351,6 @@ bool ListViewItem::attach()
     if (!item())
         return false;
 
-    context()->setContextProperty("isCurrentItem", false);
-    context()->setContextProperty("modelIndex", index());
-
     // When the item resizes itself
     QObject::connect(item(), &QQuickItem::heightChanged, item(), [this](){
         updateGeometry();

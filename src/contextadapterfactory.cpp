@@ -513,7 +513,9 @@ bool ContextAdapter::updateRoles(const QVector<int> &modified) const
     else {
         // Only update the roles known to have an impact
         for (auto mr : qAsConst(d_ptr->d_ptr->m_pMetaType->used)) {
-            if (d_ptr->m_lVariants[mr->propId]) {
+            // Use `READ` instead of checking the cache because it could have
+            // been dismissed for many reasons.
+            if ((!d_ptr->m_Cache) || mr->flags & MetaProperty::Flags::READ) {
                 if (auto v = d_ptr->m_lVariants[mr->propId])
                     delete v;
 
@@ -658,7 +660,15 @@ QModelIndex ContextAdapter::index() const
 
 void ContextAdapter::setModelIndex(const QModelIndex& index)
 {
+    const bool hasIndex = d_ptr->m_Index.isValid();
+
+    if (d_ptr->m_Cache)
+        flushCache();
+
     d_ptr->m_Index = index;
+
+    if (hasIndex)
+        updateRoles({});
 }
 
 QQmlContext* ContextAdapter::context() const

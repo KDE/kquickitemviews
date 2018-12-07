@@ -24,17 +24,30 @@
 // KQuickItemViews
 #include <contextadapterfactory.h>
 #include <adapters/contextadapter.h>
+#include <extensions/contextextension.h>
+#include <qmodelindexwatcher.h>
+
+/// Make QModelIndexBinder life easier
+class MIWContextExtension final : public ContextExtension
+{
+public:
+    virtual ~MIWContextExtension() {}
+    virtual QVector<QByteArray>& propertyNames() const override;
+    virtual QVariant getProperty(AbstractItemAdapter* item, uint id, const QModelIndex& index) const override;
+
+    IndexViewPrivate *d_ptr;
+};
 
 class IndexViewPrivate : public QObject
 {
     Q_OBJECT
 public:
     QQmlComponent         *m_pComponent {nullptr};
-    QAbstractItemModel    *m_pModel     {nullptr};
     ContextAdapter        *m_pCTX       {nullptr};
     ContextAdapterFactory *m_pFactory   {nullptr};
     QQuickItem            *m_pItem      {nullptr};
-    QPersistentModelIndex  m_Index      {       };
+    MIWContextExtension   *m_pExt       {nullptr};
+    QModelIndexWatcher    *m_pWatcher   {nullptr};
 
     // Helper
     void initDelegate();
@@ -43,14 +56,18 @@ public:
 
 public Q_SLOTS:
     void slotDismiss();
-    void slotDataChanged(const QModelIndex &tl, const QModelIndex &br, const QVector<int> &roles);
-    void slotRemoved(const QModelIndex &parent, int first, int last);
+    void slotDataChanged(const QVector<int> &roles);
 };
 
 IndexView::IndexView(QQuickItem *parent) : QQuickItem(parent),
     d_ptr(new IndexViewPrivate())
 {
     d_ptr->q_ptr = this;
+    d_ptr->m_pWatcher = new QModelIndexWatcher(this);
+    connect(d_ptr->m_pWatcher, &QModelIndexWatcher::removed,
+        d_ptr, &IndexViewPrivate::slotDismiss);
+    connect(d_ptr->m_pWatcher, &QModelIndexWatcher::dataChanged,
+        d_ptr, &IndexViewPrivate::slotDataChanged);
 }
 
 IndexView::~IndexView()
@@ -64,6 +81,10 @@ IndexView::~IndexView()
     if (d_ptr->m_pFactory)
         delete d_ptr->m_pFactory;
 
+    if (d_ptr->m_pExt)
+        delete d_ptr->m_pExt;
+
+    delete d_ptr->m_pWatcher;
     delete d_ptr;
 }
 
@@ -88,32 +109,33 @@ QQmlComponent* IndexView::delegate() const
 
 QModelIndex IndexView::modelIndex() const
 {
-    return d_ptr->m_Index;
+    return d_ptr->m_pWatcher->modelIndex();
 }
 
 QAbstractItemModel *IndexView::model() const
 {
-    return d_ptr->m_pModel;
+    return d_ptr->m_pWatcher->model();
 }
 
 void IndexView::setModelIndex(const QModelIndex &index)
 {
-    if (index == d_ptr->m_Index)
+    if (index == modelIndex())
         return;
 
     // Disconnect old models
-    if (d_ptr->m_pModel && d_ptr->m_pModel != index.model())
+    if (model() && model() != index.model())
         d_ptr->slotDismiss();
 
 
-    if (d_ptr->m_pModel != index.model()) {
+    if (model() != index.model()) {
+        if (!d_ptr->m_pFactory) {
+            d_ptr->m_pExt        = new MIWContextExtension  ();
+            d_ptr->m_pFactory    = new ContextAdapterFactory();
+            d_ptr->m_pExt->d_ptr = d_ptr;
+            d_ptr->m_pFactory->addContextExtension(d_ptr->m_pExt);
+        }
 
-        d_ptr->m_pModel = const_cast<QAbstractItemModel*>(index.model());
-
-        if (!d_ptr->m_pFactory)
-            d_ptr->m_pFactory = new ContextAdapterFactory();
-
-        d_ptr->m_pFactory->setModel(d_ptr->m_pModel);
+        d_ptr->m_pFactory->setModel(const_cast<QAbstractItemModel*>(index.model()));
 
         const auto ctx = QQmlEngine::contextForObject(this);
 
@@ -124,17 +146,10 @@ void IndexView::setModelIndex(const QModelIndex &index)
 
         d_ptr->m_pCTX = d_ptr->m_pFactory->createAdapter(ctx);
         Q_ASSERT(d_ptr->m_pCTX->context()->parentContext() == ctx);
-
-        connect(d_ptr->m_pModel, &QAbstractItemModel::destroyed,
-            d_ptr, &IndexViewPrivate::slotDismiss);
-        connect(d_ptr->m_pModel, &QAbstractItemModel::dataChanged,
-            d_ptr, &IndexViewPrivate::slotDataChanged);
-        connect(d_ptr->m_pModel, &QAbstractItemModel::rowsAboutToBeRemoved,
-            d_ptr, &IndexViewPrivate::slotRemoved);
     }
 
-    d_ptr->m_Index = index;
-    d_ptr->m_pCTX->setModelIndex(index);
+    d_ptr->m_pWatcher->setModelIndex(index);
+    d_ptr->m_pCTX    ->setModelIndex(index);
 
     d_ptr->initDelegate();
     emit indexChanged();
@@ -147,48 +162,22 @@ void IndexViewPrivate::slotDismiss()
         m_pItem = nullptr;
     }
 
-    disconnect(m_pModel, &QAbstractItemModel::destroyed,
-        this, &IndexViewPrivate::slotDismiss);
-    disconnect(m_pModel, &QAbstractItemModel::dataChanged,
-        this, &IndexViewPrivate::slotDataChanged);
-    disconnect(m_pModel, &QAbstractItemModel::rowsAboutToBeRemoved,
-        this, &IndexViewPrivate::slotRemoved);
-
     if (m_pCTX) {
         delete m_pCTX;
         m_pCTX = nullptr;
     }
 
-    m_pModel = nullptr;
-    m_Index  = QModelIndex();
     emit q_ptr->indexChanged();
 }
 
-void IndexViewPrivate::slotDataChanged(const QModelIndex &tl, const QModelIndex &br, const QVector<int> &roles)
+void IndexViewPrivate::slotDataChanged(const QVector<int> &roles)
 {
-    if (tl.parent() != m_Index.parent())
-        return;
-
-    if (tl.row() > m_Index.row() || br.row() < m_Index.row())
-        return;
-
-    if (tl.column() > m_Index.column() || br.column() < m_Index.column())
-        return;
-
     m_pCTX->updateRoles(roles);
-}
-
-void IndexViewPrivate::slotRemoved(const QModelIndex &parent, int first, int last)
-{
-    if (parent != m_Index.parent() || !(m_Index.row() >= first && m_Index.row() <= last))
-        return;
-
-    slotDismiss();
 }
 
 void IndexViewPrivate::initDelegate()
 {
-    if (m_pItem || (!m_pComponent) || !m_Index.isValid())
+    if (m_pItem || (!m_pComponent) || !q_ptr->modelIndex().isValid())
         return;
 
     m_pItem = qobject_cast<QQuickItem *>(m_pComponent->create(m_pCTX->context()));
@@ -202,6 +191,21 @@ void IndexViewPrivate::initDelegate()
 
     ctx->engine()->setObjectOwnership(m_pItem, QQmlEngine::CppOwnership);
     m_pItem->setParentItem(q_ptr);
+}
+
+
+QVector<QByteArray>& MIWContextExtension::propertyNames() const
+{
+    static QVector<QByteArray> ret { "_modelIndexWatcher", };
+    return ret;
+}
+
+QVariant MIWContextExtension::getProperty(AbstractItemAdapter* item, uint id, const QModelIndex& index) const
+{
+    Q_UNUSED(item)
+    Q_UNUSED(index)
+    Q_ASSERT(!id);
+    return QVariant::fromValue(d_ptr->m_pWatcher);
 }
 
 #include <indexview.moc>

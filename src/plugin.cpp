@@ -59,6 +59,12 @@ void KQuickView::registerTypes(const char *uri)
     auto suri = QString(QString(uri) + QString(".Strategies")).toLatin1();
     qmlRegisterType<GeometryStrategies::JustInTime>(suri, 1, 0, "JustInTime");
     qmlRegisterType<GeometryStrategies::Role>(suri, 1, 0, "Role");
+
+    // Alias
+    qmlRegisterUncreatableType<QModelIndexBinder>(
+        "org.kde.playground.kquickview", 1, 0, "RoleBinder",
+        "Cannot create objects of type RoleBinder, use it as an attached poperty"
+    );
 }
 
 void KQuickView::initializeEngine(QQmlEngine *engine, const char *uri)

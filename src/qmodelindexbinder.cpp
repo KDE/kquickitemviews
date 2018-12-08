@@ -30,6 +30,11 @@ class QModelIndexBinderPrivate : public QObject
 {
     Q_OBJECT
 public:
+    enum class Mode {
+        CONTAINER,
+        ATTACHED,
+    };
+
     QByteArray          m_Role     {       };
     QByteArray          m_Prop     {       };
     QObject            *m_pContent {nullptr};
@@ -40,6 +45,7 @@ public:
     ContextAdapter     *m_pAdapter {nullptr};
     QModelIndexWatcher *m_pWatcher {nullptr};
     bool                m_isBinded { false };
+    Mode                m_Mode;
 
     // Helper
     void bind();
@@ -56,10 +62,25 @@ QModelIndexBinder::QModelIndexBinder(QQuickItem *parent) :
     QQuickItem(parent), d_ptr(new QModelIndexBinderPrivate())
 {
     d_ptr->q_ptr = this;
+    d_ptr->m_Mode = QModelIndexBinderPrivate::Mode::CONTAINER;
 
     //TODO actually track the context, it could be reparented
     QTimer::singleShot(0, d_ptr, SLOT(loadWatcher()));
 }
+
+QModelIndexBinder::QModelIndexBinder(QObject *parent) :
+    QQuickItem(nullptr), d_ptr(new QModelIndexBinderPrivate())
+{
+    QObject::setParent(parent);
+
+    d_ptr->q_ptr = this;
+    d_ptr->m_Mode = QModelIndexBinderPrivate::Mode::ATTACHED;
+
+    //TODO actually track the context, it could be reparented
+    QTimer::singleShot(0, d_ptr, SLOT(loadWatcher()));
+    _setObject(parent);
+}
+
 
 QModelIndexBinder::~QModelIndexBinder()
 {
@@ -96,8 +117,11 @@ QObject *QModelIndexBinder::_object() const
 void QModelIndexBinder::_setObject(QObject *o)
 {
     // If the object is a QQuickItem, add it to the view
-    if (auto w = qobject_cast<QQuickItem*>(o))
-        w->setParentItem(this);
+    if (d_ptr->m_Mode == QModelIndexBinderPrivate::Mode::CONTAINER) {
+        if (auto w = qobject_cast<QQuickItem*>(o)) {
+            w->setParentItem(this);
+        }
+    }
 
     d_ptr->m_pContent = o;
     emit changed();
@@ -148,7 +172,13 @@ void QModelIndexBinderPrivate::loadWatcher()
     if (m_pWatcher)
         return;
 
+    // Container mode
     m_pCTX = QQmlEngine::contextForObject(q_ptr);
+
+    // Attached mode
+    if ((!m_pCTX) || m_pContent)
+        m_pCTX = QQmlEngine::contextForObject(m_pContent);
+
     Q_ASSERT(m_pCTX);
 
     if (!m_pCTX)
@@ -161,6 +191,9 @@ void QModelIndexBinderPrivate::loadWatcher()
     m_pWatcher = qobject_cast<QModelIndexWatcher*>(
         qvariant_cast<QObject*>(v)
     );
+
+    Q_ASSERT(m_pAdapter);
+    Q_ASSERT(m_pWatcher);
 
     bind();
 }
@@ -175,6 +208,13 @@ void QModelIndexBinderPrivate::bind()
     // Find the properties on both side
     const int objPropId  = m_pContent->metaObject()->indexOfProperty(m_Prop);
     const int rolePropId = co->metaObject()->indexOfProperty(m_Role);
+
+    if (rolePropId == -1)
+        qWarning() << "Role" << m_Role << "not found";
+
+    if (objPropId == -1)
+        qWarning() << "Property" << m_Prop << "not found";
+
     Q_ASSERT(objPropId  != -1 && rolePropId != -1);
 
     auto metaProp = m_pContent->metaObject()->property(objPropId);
@@ -205,6 +245,11 @@ void QModelIndexBinderPrivate::slotObjectPropChanged()
     const auto prop = m_pContent->property(m_Prop);
     //qDebug() << "PROP CHANGED" << role << prop;
     //m_pAdapter->contextObject()->setProperty(m_Role, prop); //FIXME fix the model::setData support
+}
+
+QModelIndexBinder *QModelIndexBinder::qmlAttachedProperties(QObject *object)
+{
+    return new QModelIndexBinder(object);
 }
 
 #include <qmodelindexbinder.moc>

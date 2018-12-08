@@ -26,6 +26,7 @@
 #include <adapters/contextadapter.h>
 #include <extensions/contextextension.h>
 #include <qmodelindexwatcher.h>
+#include <qmodelindexbinder.h>
 
 /// Make QModelIndexBinder life easier
 class MIWContextExtension final : public ContextExtension

@@ -93,10 +93,18 @@ public:
      */
     Q_INVOKABLE bool applyNow() const;
 
+    static QModelIndexBinder *qmlAttachedProperties(QObject *object);
+
 Q_SIGNALS:
     void changed();
+
+protected:
+    // This is the attached contructor
+    QModelIndexBinder(QObject *o);
 
 private:
     QModelIndexBinderPrivate *d_ptr;
     Q_DECLARE_PRIVATE(QModelIndexBinder)
 };
+
+QML_DECLARE_TYPEINFO(QModelIndexBinder, QML_HAS_ATTACHED_PROPERTIES)

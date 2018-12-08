@@ -116,7 +116,7 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel
 
     q_ptr->s_ptr->m_pGeoAdapter->setModel(m);
 
-    if (m_ViewRect.size().isValid() && m_pModelAdapter->delegate()) {
+    if (m && m_ViewRect.size().isValid() && m_pModelAdapter->delegate()) {
         q_ptr->s_ptr->m_pReflector->modelTracker()
          << StateTracker::Model::Action::POPULATE
          << StateTracker::Model::Action::ENABLE;

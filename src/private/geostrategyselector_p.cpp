@@ -137,11 +137,17 @@ void GeoStrategySelectorPrivate::slotRowsInserted()
 
 bool GeoStrategySelectorPrivate::checkHasContent()
 {
+    if (!m_pModel)
+        return false;
+
     return m_pModel->index(0, 0).isValid();
 }
 
 bool GeoStrategySelectorPrivate::checkHasRole()
 {
+    if (!m_pModel)
+        return false;
+
     const QModelIndex i = m_pModel->index(0, 0);
 
     return i.data(Qt::SizeHintRole).isValid();

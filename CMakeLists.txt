@@ -71,6 +71,7 @@ SET( kquickview_LIB_SRCS
     src/viewport.cpp
     src/contextadapterfactory.cpp
     src/qmodelindexwatcher.cpp
+    src/qmodelindexbinder.cpp
 
     # Views
     src/views/comboboxview.cpp
@@ -128,6 +129,7 @@ SET( kquickview_LIB_HDRS
     singlemodelviewbase.h
     contextadapterfactory.h
     qmodelindexwatcher.h
+    qmodelindexbinder.h
     viewbase.h
     views/comboboxview.h
     views/flickable.h

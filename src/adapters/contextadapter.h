@@ -82,10 +82,13 @@ public:
      */
     void flushCache();
 
-protected:
     QObject *contextObject() const;
+
+protected:
     explicit ContextAdapter(QQmlContext *parentContext = nullptr);
 
 private:
     DynamicContext* d_ptr {nullptr};
 };
+
+Q_DECLARE_METATYPE(ContextAdapter*)

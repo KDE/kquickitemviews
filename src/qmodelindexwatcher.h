@@ -26,7 +26,7 @@ class QModelIndexWatcherPrivate;
 /**
  * This class allows to get events on a QModelIndex from QML.
  */
-class QModelIndexWatcher : public QObject
+class Q_DECL_EXPORT QModelIndexWatcher : public QObject
 {
     Q_OBJECT
 public:

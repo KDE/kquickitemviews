@@ -193,10 +193,9 @@ void IndexViewPrivate::initDelegate()
     m_pItem->setParentItem(q_ptr);
 }
 
-
 QVector<QByteArray>& MIWContextExtension::propertyNames() const
 {
-    static QVector<QByteArray> ret { "_modelIndexWatcher", };
+    static QVector<QByteArray> ret { "_modelIndexWatcher", "_contextAdapter" };
     return ret;
 }
 
@@ -204,8 +203,7 @@ QVariant MIWContextExtension::getProperty(AbstractItemAdapter* item, uint id, co
 {
     Q_UNUSED(item)
     Q_UNUSED(index)
-    Q_ASSERT(!id);
-    return QVariant::fromValue(d_ptr->m_pWatcher);
+    return id ? QVariant::fromValue(d_ptr->m_pCTX) : QVariant::fromValue(d_ptr->m_pWatcher);
 }
 
 #include <indexview.moc>

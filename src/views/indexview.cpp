@@ -52,6 +52,7 @@ public:
 
     // Helper
     void initDelegate();
+    void initContext();
 
     IndexView *q_ptr;
 
@@ -138,22 +139,34 @@ void IndexView::setModelIndex(const QModelIndex &index)
 
         d_ptr->m_pFactory->setModel(const_cast<QAbstractItemModel*>(index.model()));
 
-        const auto ctx = QQmlEngine::contextForObject(this);
-
         if (d_ptr->m_pItem) {
             delete d_ptr->m_pItem;
             d_ptr->m_pItem = nullptr;
         }
 
-        d_ptr->m_pCTX = d_ptr->m_pFactory->createAdapter(ctx);
-        Q_ASSERT(d_ptr->m_pCTX->context()->parentContext() == ctx);
+        d_ptr->m_pCTX = nullptr;
     }
 
     d_ptr->m_pWatcher->setModelIndex(index);
-    d_ptr->m_pCTX    ->setModelIndex(index);
+
+    d_ptr->initContext();
+
+    d_ptr->m_pCTX->setModelIndex(index);
 
     d_ptr->initDelegate();
     emit indexChanged();
+}
+
+void IndexViewPrivate::initContext()
+{
+    if (m_pCTX)
+        return;
+
+    Q_ASSERT(m_pFactory);
+
+    const auto ctx = QQmlEngine::contextForObject(q_ptr);
+    m_pCTX = m_pFactory->createAdapter(ctx);
+    Q_ASSERT(m_pCTX && m_pCTX->context()->parentContext() == ctx);
 }
 
 void IndexViewPrivate::slotDismiss()
@@ -180,6 +193,8 @@ void IndexViewPrivate::initDelegate()
 {
     if (m_pItem || (!m_pComponent) || !q_ptr->modelIndex().isValid())
         return;
+
+    initContext();
 
     m_pItem = qobject_cast<QQuickItem *>(m_pComponent->create(m_pCTX->context()));
 

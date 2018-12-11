@@ -72,6 +72,8 @@ SET( kquickview_LIB_SRCS
     src/contextadapterfactory.cpp
     src/qmodelindexwatcher.cpp
     src/qmodelindexbinder.cpp
+    src/delegatechoice.cpp
+    src/delegatechooser.cpp
 
     # Views
     src/views/comboboxview.cpp
@@ -139,6 +141,8 @@ SET( kquickview_LIB_HDRS
     views/listview.h
     views/treeview.h
     viewport.h
+    delegatechoice.h
+    delegatechooser.h
 
     # Geometry strategies
     strategies/justintime.h

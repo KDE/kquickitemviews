@@ -30,6 +30,8 @@
 #include "views/comboboxview.h"
 #include "views/indexview.h"
 #include "flickablescrollbar.h"
+#include "delegatechoice.h"
+#include "delegatechooser.h"
 #include "proxies/sizehintproxymodel.h"
 
 // Strategies
@@ -54,6 +56,8 @@ void KQuickView::registerTypes(const char *uri)
     qmlRegisterType<QModelIndexWatcher>(uri, 1, 0, "QModelIndexWatcher");
     qmlRegisterType<QModelIndexBinder>(uri, 1, 0, "QModelIndexBinder");
     qmlRegisterType<SizeHintProxyModel>(uri, 1, 0, "SizeHintProxyModel");
+    qmlRegisterType<SizeHintProxyModel>(uri, 1, 0, "DelegateChoice");
+    qmlRegisterType<SizeHintProxyModel>(uri, 1, 0, "DelegateChooser");
     qmlRegisterUncreatableType<ListViewSections>(uri, 1, 0, "ListViewSections", "");
 
     auto suri = QString(QString(uri) + QString(".Strategies")).toLatin1();

@@ -27,6 +27,8 @@ class Viewport;
 
 namespace StateTracker {
 
+class Continuity;
+
 /**
  * Internal navigation structure designed to support partial tree loading.
  *
@@ -42,6 +44,7 @@ namespace StateTracker {
  */
 class Index
 {
+    friend class Continuity; //Manage the m_pContinuity
 public:
     enum class LifeCycleState {
         NEW        , /*!< Not part of a tree yet                              */
@@ -91,6 +94,10 @@ public:
     bool hasTemporaryIndex();
     void setTemporaryIndex(const QModelIndex& newParent, int row, int column);
 
+    /** Return true when both elements have the same parent and are continuous.
+     * If other is `nullptr` and `i` is first (or last), then that's also true
+     */
+    bool isNeighbor(Index *other) const;
 
     QPersistentModelIndex index() const;
     void setModelIndex(const QPersistentModelIndex& idx);
@@ -98,6 +105,9 @@ public:
     LifeCycleState lifeCycleState() const {return m_LifeCycleState;}
 
     IndexMetadata *metadata() const;
+
+    //TODO have one for vertical and horizontal axis
+    Continuity *continuityTracker() const;
 
     // Runtime tests
 #ifdef ENABLE_EXTRA_VALIDATION
@@ -126,6 +136,7 @@ private:
     //TODO use a btree, not an hash
     QHash<QPersistentModelIndex, Index*> m_hLookup;
     mutable IndexMetadata m_Geometry;
+    Continuity *m_pContinuity {nullptr};
 };
 
 }

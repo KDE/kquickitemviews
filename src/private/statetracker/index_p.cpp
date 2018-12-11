@@ -17,6 +17,7 @@
  **************************************************************************/
 #include "index_p.h"
 
+#include "continuity_p.h"
 
 // Use some constant for readability
 #define PREVIOUS 0
@@ -75,6 +76,8 @@ void StateTracker::Index::insertChildAfter(StateTracker::Index* self, StateTrack
         self->m_LifeCycleState = self->m_MoveToRow != -1 ?
             LifeCycleState::TRANSITION : LifeCycleState::NORMAL;
 
+        StateTracker::Continuity::select(self);
+
         _DO_TEST_IDX(_test_validate_chain, parent)
         return;
     }
@@ -103,6 +106,8 @@ void StateTracker::Index::insertChildAfter(StateTracker::Index* self, StateTrack
     if (parent->m_tChildren[LAST] ==  other)
         parent->m_tChildren[LAST] = self;
 
+    StateTracker::Continuity::select(self);
+
     _DO_TEST_IDX(_test_validate_chain, parent)
 }
 
@@ -127,6 +132,9 @@ void StateTracker::Index::insertChildBefore(StateTracker::Index* self, StateTrac
         self->m_tSiblings[PREVIOUS] = self->m_tSiblings[NEXT] = nullptr;
         Q_ASSERT(!self->nextSibling());
         Q_ASSERT(!self->previousSibling());
+
+        StateTracker::Continuity::select(self);
+
         _DO_TEST_IDX(_test_validate_chain, parent)
         return;
     }
@@ -142,6 +150,8 @@ void StateTracker::Index::insertChildBefore(StateTracker::Index* self, StateTrac
         parent->m_tChildren[FIRST] = self;
         Q_ASSERT(!self->previousSibling());
         Q_ASSERT(parent->lastChild());
+
+        StateTracker::Continuity::select(self);
 
         _DO_TEST_IDX(_test_validate_chain, parent)
         return;
@@ -169,6 +179,8 @@ void StateTracker::Index::insertChildBefore(StateTracker::Index* self, StateTrac
         self->m_tSiblings[NEXT] = other;
         other->m_tSiblings[PREVIOUS] = self;
     }
+
+    StateTracker::Continuity::select(self);
 
     _DO_TEST_IDX(_test_validate_chain, parent)
 }
@@ -247,6 +259,10 @@ void StateTracker::Index::remove(bool reparent)
 {
     if (m_LifeCycleState == LifeCycleState::NEW)
         return;
+
+    // Make sure the StateTracker::Continuity doesn't lose its state too early
+    // and end up in a crash or memory corruption
+    StateTracker::Continuity::remove(this);
 
     // You can't remove ROOT, so this should always be true
     Q_ASSERT(m_pParent);
@@ -475,9 +491,9 @@ void StateTracker::Index::setTemporaryIndex(const QModelIndex& newParent, int ro
 {
     //TODO handle parent
     Q_ASSERT(m_LifeCycleState == LifeCycleState::NORMAL);
-    m_MoveToParent = newParent;
-    m_MoveToRow    = row;
-    m_MoveToColumn = column;
+    m_MoveToParent   = newParent;
+    m_MoveToRow      = row;
+    m_MoveToColumn   = column;
     m_LifeCycleState = LifeCycleState::TRANSITION;
 }
 
@@ -503,9 +519,30 @@ int StateTracker::Index::depth() const
     return d;//FIXME m_pTTI->m_Depth;
 }
 
+bool StateTracker::Index::isNeighbor(Index *other) const
+{
+    if (!other)
+        return parent()->lastChild() == this || parent()->firstChild() == this;
+
+    return previousSibling() == other || nextSibling() == other;
+}
+
 IndexMetadata *StateTracker::Index::metadata() const
 {
     return &m_Geometry;
+}
+
+StateTracker::Continuity *StateTracker::Index::continuityTracker() const
+{
+    Q_ASSERT(m_pContinuity);
+
+    // This should not happen and means the StateTracker::Continuity::size()
+    // is currently returning the wrong value, but it can be recovered from and
+    // is not worth crashing over this in release mode.
+    if (!m_pContinuity)
+        StateTracker::Continuity::select(const_cast<Index*>(this));
+
+    return m_pContinuity;
 }
 
 #undef PREVIOUS

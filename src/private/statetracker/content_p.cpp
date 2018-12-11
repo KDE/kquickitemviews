@@ -25,6 +25,7 @@
 #include <viewport.h>
 #include <private/viewport_p.h>
 #include <private/indexmetadata_p.h>
+#include <private/statetracker/continuity_p.h>
 #include <adapters/contextadapter.h>
 
 // Qt
@@ -736,7 +737,7 @@ bool ContentPrivate::isInsertActive(const QModelIndex& p, int first, int last) c
 
     //FIXME use up()
     if (first && pitem)
-        prev = pitem->childrenLookup(m_pModelTracker->trackedModel()->index(first-1, 0, p));
+        prev = pitem->childrenLookup(m_pModelTracker->modelCandidate()->index(first-1, 0, p));
 
     if (first && !prev)
         return false;
@@ -1001,8 +1002,39 @@ void StateTracker::Content::forceInsert(const QModelIndex& idx)
     d_ptr->slotRowsInserted(idx.parent(), idx.row(), idx.row());
 }
 
+// Also make sure not to load the same element twice
 void StateTracker::Content::forceInsert(const QModelIndex& parent, int first, int last)
 {
+    auto parNode = parent.isValid() ? d_ptr->m_hMapper[parent] : d_ptr->m_pRoot;
+
+    // If the parent isn't loaded, there is no risk of collision
+    if (!parNode) {
+        //TODO loading the parent chain of `parent` is needed
+        d_ptr->slotRowsInserted(parent, first, last);
+        return;
+    }
+
+    // If the parent has no children elements, then there is no collisions
+    if (!parNode->firstChild()) {
+        d_ptr->slotRowsInserted(parent, first, last);
+        return;
+    }
+
+    // If the range isn't overlapping, there is no collisions
+    if (parNode->lastChild()->effectiveRow() < first || parNode->firstChild()->effectiveRow() > last) {
+        d_ptr->slotRowsInserted(parent, first, last);
+        return;
+    }
+
+    // If there is a continuity encompassing `first` and `last` then there
+    // is nothing to do.
+    if (parNode->firstChild()->continuityTracker()->size() >= last) {
+        return;
+    }
+
+    //TODO the case above only works if firstChild()->row() == 0. If another
+    // case is hit, then it will assert in slotRowsInserted
+
     d_ptr->slotRowsInserted(parent, first, last);
 }
 

@@ -28,26 +28,28 @@ using EdgeType = IndexMetadata::EdgeType;
 #include <QtGlobal>
 
 #define S StateTracker::Model::State::
-const StateTracker::Model::State StateTracker::Model::m_fStateMap[5][7] = {
-/*                POPULATE     DISABLE      ENABLE       RESET        FREE         MOVE         TRIM   */
-/*NO_MODEL */ { S NO_MODEL , S NO_MODEL , S NO_MODEL, S NO_MODEL, S NO_MODEL , S NO_MODEL , S NO_MODEL },
-/*PAUSED   */ { S POPULATED, S PAUSED   , S TRACKING, S PAUSED  , S PAUSED   , S PAUSED   , S PAUSED   },
-/*POPULATED*/ { S TRACKING , S PAUSED   , S TRACKING, S RESETING, S POPULATED, S POPULATED, S POPULATED},
-/*TRACKING */ { S TRACKING , S POPULATED, S TRACKING, S RESETING, S TRACKING , S TRACKING , S TRACKING },
-/*RESETING */ { S RESETING , S RESETING , S TRACKING, S RESETING, S PAUSED   , S RESETING , S RESETING },
+const StateTracker::Model::State StateTracker::Model::m_fStateMap[6][7] = {
+/*                POPULATE     DISABLE       ENABLE       RESET         FREE         MOVE         TRIM   */
+/*NO_MODEL */ { S NO_MODEL , S NO_MODEL , S NO_MODEL , S NO_MODEL , S NO_MODEL , S NO_MODEL , S NO_MODEL },
+/*PAUSED   */ { S POPULATED, S PAUSED   , S TRACKING , S PAUSED   , S PAUSED   , S PAUSED   , S PAUSED   },
+/*POPULATED*/ { S TRACKING , S PAUSED   , S TRACKING , S RESETING , S POPULATED, S POPULATED, S POPULATED},
+/*TRACKING */ { S TRACKING , S POPULATED, S TRACKING , S RESETING , S TRACKING , S TRACKING , S TRACKING },
+/*RESETING */ { S RESETING , S RESETING , S TRACKING , S RESETING , S PAUSED   , S RESETING , S RESETING },
+/*MUTATING */ { S MUTATING , S MUTATING , S MUTATING , S MUTATING , S MUTATING , S MUTATING , S MUTATING },
 };
 #undef S
 
 // This state machine is self healing, error can be called in release mode
 // and it will only disable the view without further drama.
 #define A &StateTracker::Model::
-const StateTracker::Model::StateF StateTracker::Model::m_fStateMachine[5][7] = {
+const StateTracker::Model::StateF StateTracker::Model::m_fStateMachine[6][7] = {
 /*               POPULATE     DISABLE    ENABLE     RESET       FREE       MOVE   ,   TRIM */
 /*NO_MODEL */ { A nothing , A nothing, A nothing, A nothing, A nothing, A nothing , A error },
 /*PAUSED   */ { A populate, A nothing, A error  , A nothing, A free   , A nothing , A trim  },
 /*POPULATED*/ { A error   , A nothing, A track  , A reset  , A free   , A fill    , A trim  },
 /*TRACKING */ { A nothing , A untrack, A nothing, A reset  , A free   , A fill    , A trim  },
 /*RESETING */ { A nothing , A error  , A track  , A error  , A free   , A error   , A error },
+/*MUTATING */ { A nothing , A nothing, A nothing, A nothing, A nothing, A nothing , A nothing},
 };
 
 StateTracker::Model::Model(StateTracker::Content* d) : q_ptr(d)
@@ -128,6 +130,14 @@ void StateTracker::Model::populate()
     if (!q_ptr->edges(EdgeType::FREE)->m_Edges)
         return;
 
+    //HACK stash the state, this needs more refactoring
+    // Sometime, if the viewport size depends on the content size, inserting
+    // will cause some viewport "Resize" events which will call `populate`.
+    // This could potentially create a very confusing situation where in single
+    // QModelIndex is being inserted recursively and a stack overflow.
+    const auto s = m_State;
+    m_State = State::MUTATING;
+
     if (q_ptr->root()->firstChild() && (q_ptr->edges(EdgeType::FREE)->m_Edges & (Qt::TopEdge|Qt::BottomEdge))) {
         while (q_ptr->edges(EdgeType::FREE)->m_Edges & Qt::TopEdge) {
             const auto was = q_ptr->edges(EdgeType::VISIBLE)->getEdge(Qt::TopEdge);
@@ -162,9 +172,14 @@ void StateTracker::Model::populate()
         }
     }
     else if (auto rc = m_pModel->rowCount()) {
+
         //TODO support anchors (load from the bottom)
         q_ptr->forceInsert({}, 0, rc - 1);
+
     }
+
+    //HACK Restore the stashed state
+    m_State = s;
 
     if (q_ptr->edges(EdgeType::FREE)->m_Edges & Qt::BottomEdge) {
         _DO_TEST(_test_validateAtEnd, q_ptr);

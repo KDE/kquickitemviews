@@ -35,6 +35,7 @@ public:
         POPULATED, /*!< The initial insertion has been done, it is ready for tracking */
         TRACKING , /*!< The model is set and the reflector is listening to changes    */
         RESETING , /*!< The model is undergoing a reset process                       */
+        MUTATING , /*!< Insertion events are not re-entrant, prevent this             */
     };
 
     enum class Action {
@@ -77,8 +78,8 @@ private:
     void fill();
     void trim();
 
-    static const State  m_fStateMap    [5][7];
-    static const StateF m_fStateMachine[5][7];
+    static const State  m_fStateMap    [6][7];
+    static const StateF m_fStateMachine[6][7];
 
     StateTracker::Content *q_ptr;
 };

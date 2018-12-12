@@ -9,7 +9,7 @@ endif(POLICY CMP0063)
 find_package(ECM 1.1.0 REQUIRED NO_MODULE)
 list(APPEND CMAKE_MODULE_PATH "${ECM_MODULE_PATH}")
 
-option(BUILD_SHARED_LIBS "" OFF )
+option(BUILD_SHARED_LIBS "" OFF)
 
 include(ECMInstallIcons)
 include(ECMOptionalAddSubdirectory)
@@ -17,6 +17,10 @@ include(ECMOptionalAddSubdirectory)
 include(KDEInstallDirs)
 include(KDECMakeSettings)
 include(KDECompilerSettings)
+
+SET(CMAKE_C_VISIBILITY_PRESET hidden)
+SET(CMAKE_CXX_VISIBILITY_PRESET hidden)
+SET(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
 if(NOT BUILD_SHARED_LIBS)
     set(STATIC_LIBRARY 1)
@@ -43,6 +47,9 @@ find_package(Qt5 CONFIG REQUIRED
 )
 
 add_definitions(-isystem ${Qt5Core_PRIVATE_INCLUDE_DIRS})
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/private/)
+include_directories("${CMAKE_CURRENT_BINARY_DIR}/include")
 
 if("${CMAKE_BUILD_TYPE}" MATCHES "DEBUG")
     add_definitions(-DENABLE_EXTRA_VALIDATION=1)
@@ -107,7 +114,7 @@ set( kquickitemviews_LIB_SRCS
 
 set(AUTOMOC_MOC_OPTIONS -Muri=org.kde.playground.kquickitemviews)
 
-add_library(kquickitemviews STATIC ${kquickitemviews_LIB_SRCS} )
+add_library(kquickitemviews ${kquickitemviews_LIB_SRCS} )
 
 target_link_libraries( kquickitemviews
     Qt5::Core
@@ -165,17 +172,38 @@ set( kquickitemviews_LIB_HDRS
     DelegateChooser
 )
 
+set(kquickitemviews_EXPORT_HDRS "")
+
 # Create include file aliases
 function(process_header prefix files)
+    set(header_path ${CMAKE_CURRENT_BINARY_DIR}/include/KQuickItemViews/${prefix})
+    set(tmp ${kquickitemviews_EXPORT_HDRS})
+
     foreach(header ${files})
         string(TOLOWER ${header} real_path)
         file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/${prefix}${real_path}.h
-            DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/include/KQuickItemViews/${prefix}
+            DESTINATION ${header_path}
         )
-        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/include/KQuickItemViews/${prefix}${header}
+        file(WRITE ${header_path}${header}
             "#include \"${real_path}.h\""
         )
+
+        # Add to the `install` list
+        list(APPEND tmp ${header_path}${real_path}.h)
+        list(APPEND tmp ${header_path}${header})
+
+        install(
+            FILES
+                ${header_path}${header}
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/${prefix}${real_path}.h
+            DESTINATION
+                ${CMAKE_INSTALL_FULL_INCLUDEDIR}/KQuickItemViews/${prefix}
+            COMPONENT
+                Headers
+        )
     endforeach()
+
+    set(kquickitemviews_EXPORT_HDRS ${tmp} PARENT_SCOPE)
 endfunction()
 
 process_header(adapters/ "${kquickitemviews_adapters_LIB_HDRS}")
@@ -185,20 +213,35 @@ process_header(extensions/ "${kquickitemviews_extensions_LIB_HDRS}")
 process_header(proxies/ "${kquickitemviews_proxies_LIB_HDRS}")
 process_header("" "${kquickitemviews_LIB_HDRS}")
 
-target_include_directories(kquickitemviews PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-    $<INSTALL_INTERFACE:include/KQuickItemViews>
-)
-
-set_target_properties(kquickitemviews
- PROPERTIES INCLUDE_DIRECTORIES
-    "${CMAKE_CURRENT_SOURCE_DIR}/src;${CMAKE_CURRENT_SOURCE_DIR}/include/"
+target_include_directories(kquickitemviews
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+        $<INSTALL_INTERFACE:include/KQuickItemViews>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/private/
+        ${CMAKE_CURRENT_BINARY_DIR}/include
 )
 
 set_target_properties(kquickitemviews PROPERTIES
     PUBLIC_HEADER
-    "${CMAKE_CURRENT_BINARY_DIR}/include/"
+    "${kquickitemviews_EXPORT_HDRS}"
 )
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/src/private/)
-include_directories("${CMAKE_CURRENT_BINARY_DIR}/include")
+export(TARGETS kquickitemviews
+    FILE "${PROJECT_BINARY_DIR}/cmake/KQuickItemViewsTargets.cmake"
+)
+
+install(TARGETS kquickitemviews
+    EXPORT KQuickItemViewsTargets
+    LIBRARY DESTINATION "${CMAKE_INSTALL_FULL_LIBDIR}" COMPONENT kquickitemviews
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+    COMPONENT Devel
+)
+
+install(EXPORT KQuickItemViewsTargets
+    DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}/cmake/KQuickItemViews
+    COMPONENT Devel
+)
+

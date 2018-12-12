@@ -15,7 +15,8 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#ifndef KQUICKITEMVIEWS_DECORATIONADAPTER_H
+#define KQUICKITEMVIEWS_DECORATIONADAPTER_H
 
 // Qt
 #include <QQuickPaintedItem>
@@ -52,3 +53,5 @@ private:
     DecorationAdapterPrivate *d_ptr;
     Q_DECLARE_PRIVATE(DecorationAdapter)
 };
+
+#endif

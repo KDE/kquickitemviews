@@ -15,7 +15,8 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#ifndef KQUICKITEMVIEWS_VIEWPORT_H
+#define KQUICKITEMVIEWS_VIEWPORT_H
 
 // Qt
 #include <QtCore/QAbstractItemModel>
@@ -76,3 +77,5 @@ Q_SIGNALS:
 public:
     ViewportPrivate *d_ptr;
 };
+
+#endif

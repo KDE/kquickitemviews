@@ -15,15 +15,15 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#ifndef HIERARCHYVIEW_H
+#define HIERARCHYVIEW_H
 
-#include <singlemodelviewbase.h>
+// KQuickItemViews
+#include <KQuickItemViews/singlemodelviewbase.h>
+class HierarchyViewPrivate;
 
 // Qt
 class QQuickItem;
-
-// KQuickItemViews
-class HierarchyViewPrivate;
 
 /**
  * Second generation of QtQuick treeview.
@@ -53,3 +53,5 @@ private:
     HierarchyViewPrivate* d_ptr;
     Q_DECLARE_PRIVATE(HierarchyView)
 };
+
+#endif

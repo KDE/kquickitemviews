@@ -15,7 +15,8 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#ifndef KQUICKITEMVIEWS_SELECTIONADAPTER_H
+#define KQUICKITEMVIEWS_SELECTIONADAPTER_H
 
 // Qt
 #include <QtCore/QObject>
@@ -64,3 +65,5 @@ private:
     SelectionAdapterPrivate* d_ptr;
     Q_DECLARE_PRIVATE(SelectionAdapter);
 };
+
+#endif

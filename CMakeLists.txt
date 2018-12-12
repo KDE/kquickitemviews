@@ -1,6 +1,6 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
 
-PROJECT(kquickview)
+PROJECT(kquickitemviews)
 
 IF(POLICY CMP0063)
    CMAKE_POLICY(SET CMP0063 NEW)
@@ -52,7 +52,7 @@ endif()
 SET(GENERIC_LIB_VERSION "1.0.0")
 
 #File to compile
-SET( kquickview_LIB_SRCS
+SET( kquickitemviews_LIB_SRCS
 
     # Adapters
     src/adapters/abstractitemadapter.cpp
@@ -106,18 +106,18 @@ SET( kquickview_LIB_SRCS
     src/strategies/aheadoftime.cpp
 )
 
-set(AUTOMOC_MOC_OPTIONS -Muri=org.kde.playground.kquickview)
+set(AUTOMOC_MOC_OPTIONS -Muri=org.kde.playground.kquickitemviews)
 
-add_library(kquickview STATIC ${kquickview_LIB_SRCS} )
+add_library(kquickitemviews STATIC ${kquickitemviews_LIB_SRCS} )
 
-target_link_libraries( kquickview
+target_link_libraries( kquickitemviews
     Qt5::Core
     Qt5::Gui
     Qt5::Quick
     Qt5::QuickControls2
 )
 
-SET( kquickview_LIB_HDRS
+SET( kquickitemviews_adapters_LIB_HDRS
     adapters/abstractitemadapter.h
     adapters/contextadapter.h
     adapters/decorationadapter.h
@@ -125,26 +125,18 @@ SET( kquickview_LIB_HDRS
     adapters/scrollbaradapter.h
     adapters/selectionadapter.h
     adapters/geometryadapter.h
-    extensions/contextextension.h
-    flickablescrollbar.h
-    plugin.h
-    proxies/sizehintproxymodel.h
-    singlemodelviewbase.h
-    contextadapterfactory.h
-    qmodelindexwatcher.h
-    qmodelindexbinder.h
-    viewbase.h
+)
+
+SET( kquickitemviews_views_LIB_HDRS
     views/comboboxview.h
     views/flickable.h
     views/indexview.h
     views/hierarchyview.h
     views/listview.h
     views/treeview.h
-    viewport.h
-    delegatechoice.h
-    delegatechooser.h
+)
 
-    # Geometry strategies
+SET( kquickitemviews_strategies_LIB_HDRS
     strategies/justintime.h
     strategies/proxy.h
     strategies/role.h
@@ -153,27 +145,81 @@ SET( kquickview_LIB_HDRS
     strategies/uniform.h
 )
 
+SET( kquickitemviews_extensions_LIB_HDRS
+    extensions/contextextension.h
+)
+
+
+SET( kquickitemviews_proxies_LIB_HDRS
+    proxies/sizehintproxymodel.h
+)
+
+SET( kquickitemviews_LIB_HDRS
+    flickablescrollbar.h
+    plugin.h
+    singlemodelviewbase.h
+    contextadapterfactory.h
+    qmodelindexwatcher.h
+    qmodelindexbinder.h
+    viewbase.h
+    viewport.h
+    delegatechoice.h
+    delegatechooser.h
+)
+
 # Create include file aliases
-foreach(header ${kquickview_LIB_HDRS})
+foreach(header ${kquickitemviews_adapters_LIB_HDRS})
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/${header}
-        DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/api/KQuickView/
+        DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bobcat/KQuickItemViews/adapters/
+    )
+endforeach()
+foreach(header ${kquickitemviews_views_LIB_HDRS})
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/${header}
+        DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bobcat/KQuickItemViews/views/
+    )
+endforeach()
+foreach(header ${kquickitemviews_strategies_LIB_HDRS})
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/${header}
+        DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bobcat/KQuickItemViews/strategies
+    )
+endforeach()
+foreach(header ${kquickitemviews_extensions_LIB_HDRS})
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/${header}
+        DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bobcat/KQuickItemViews/extensions
+    )
+endforeach()
+foreach(header ${kquickitemviews_proxies_LIB_HDRS})
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/${header}
+        DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bobcat/KQuickItemViews/proxies
+    )
+endforeach()
+foreach(header ${kquickitemviews_LIB_HDRS})
+    file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/${header}
+        DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/bobcat/KQuickItemViews/
     )
 endforeach()
 
-target_include_directories(kquickview PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/src;${CMAKE_CURRENT_BINARY_DIR}/api"
+target_include_directories(kquickitemviews PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/bobcat>
+    $<INSTALL_INTERFACE:bobcat/KQuickItemViews>
 )
 
-set_target_properties(kquickview
+# target_include_directories(mylib PUBLIC
+#   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/bobcat/mylib>
+#   $<INSTALL_INTERFACE:include/mylib>  # <prefix>/bobcat/mylib
+# )
+
+set_target_properties(kquickitemviews
  PROPERTIES INCLUDE_DIRECTORIES
-    "${CMAKE_CURRENT_BINARY_DIR}/api;${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src;${CMAKE_CURRENT_SOURCE_DIR}/bobcat/"
 )
 
-set_target_properties(kquickview PROPERTIES
+set_target_properties(kquickitemviews PROPERTIES
     PUBLIC_HEADER
-    "${CMAKE_CURRENT_BINARY_DIR}/api;${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_BINARY_DIR}/bobcat/"
 )
 
 add_subdirectory(tests)
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/api/)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/src/private/)
+include_directories("${CMAKE_CURRENT_BINARY_DIR}/bobcat")

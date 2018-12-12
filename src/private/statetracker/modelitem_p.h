@@ -15,7 +15,8 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#ifndef KQUICKITEMVIEWS_MODELITEM_P_H
+#define KQUICKITEMVIEWS_MODELITEM_P_H
 
 #include <private/statetracker/index_p.h>
 #include <private/indexmetadata_p.h>
@@ -87,3 +88,5 @@ private:
 };
 
 }
+
+#endif

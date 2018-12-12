@@ -15,16 +15,16 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#ifndef LISTVIEW_H
+#define LISTVIEW_H
 
-#include <singlemodelviewbase.h>
+// KQuickItemViews
+#include <KQuickItemViews/singlemodelviewbase.h>
+class ListViewPrivate;
+class ListView;
 
 // Qt
 class QQuickItem;
-
-// KQuickItemViews
-class ListViewPrivate;
-class ListView;
 
 /**
  * Equivalent of the QtQuick.ListView.Section class to keep the API mostly
@@ -116,3 +116,5 @@ private:
     ListViewPrivate* d_ptr;
     Q_DECLARE_PRIVATE(ListView)
 };
+
+#endif

@@ -15,9 +15,10 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#ifndef TREEVIEW_H
+#define TREEVIEW_H
 
-#include <singlemodelviewbase.h>
+#include <KQuickItemViews/singlemodelviewbase.h>
 
 // Qt
 class QQuickItem;
@@ -53,3 +54,5 @@ private:
     TreeViewPrivate* d_ptr;
     Q_DECLARE_PRIVATE(TreeView)
 };
+
+#endif

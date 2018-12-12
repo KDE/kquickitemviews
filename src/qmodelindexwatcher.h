@@ -15,7 +15,8 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#ifndef KQUICKITEMVIEWS_QMODELINDEXWATCHER_H
+#define KQUICKITEMVIEWS_QMODELINDEXWATCHER_H
 
 #include <QtCore/QObject>
 #include <QtCore/QModelIndex>
@@ -55,3 +56,5 @@ private:
     QModelIndexWatcherPrivate *d_ptr;
     Q_DECLARE_PRIVATE(QModelIndexWatcher)
 };
+
+#endif

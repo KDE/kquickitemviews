@@ -15,7 +15,8 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#ifndef KQUICKITEMVIEWS_VIEWPORT_P_H
+#define KQUICKITEMVIEWS_VIEWPORT_P_H
 
 // Qt
 class QQmlComponent;
@@ -90,3 +91,5 @@ private:
     QQmlEngine    *m_pEngine    {nullptr};
     QQmlComponent *m_pComponent {nullptr};
 };
+
+#endif

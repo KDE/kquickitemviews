@@ -15,7 +15,8 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#ifndef KQUICKITEMVIEWS_CONTEXTADAPTERFACTORY_H
+#define KQUICKITEMVIEWS_CONTEXTADAPTERFACTORY_H
 
 // Qt
 #include <QtCore/QObject>
@@ -97,3 +98,5 @@ private:
     ContextAdapterFactoryPrivate* d_ptr;
     Q_DECLARE_PRIVATE(ContextAdapterFactory);
 };
+
+#endif

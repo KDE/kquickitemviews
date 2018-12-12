@@ -1,4 +1,5 @@
-#pragma once
+#ifndef KQUICKITEMVIEWS_RUNTIMETESTS_P_H
+#define KQUICKITEMVIEWS_RUNTIMETESTS_P_H
 
 void _test_validateTree(StateTracker::Content *self, StateTracker::Index* p);
 void _test_validateLinkedList(StateTracker::Content *self, bool skipVItemState = false);
@@ -19,3 +20,5 @@ void _test_validateUnloaded(StateTracker::Content *self, const QModelIndex& pare
 void _test_validateContinuity(StateTracker::Content *self);
 void _test_validateAtEnd(StateTracker::Content *self);
 void _test_validateModelAboutToReplace(StateTracker::Content *self);
+
+#endif

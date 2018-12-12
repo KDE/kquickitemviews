@@ -15,7 +15,8 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#ifndef INDEXVIEW_H
+#define INDEXVIEW_H
 
 #include <QQuickItem>
 #include <QQmlComponent>
@@ -66,3 +67,5 @@ private:
     IndexViewPrivate *d_ptr;
     Q_DECLARE_PRIVATE(IndexView)
 };
+
+#endif

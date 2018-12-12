@@ -15,7 +15,8 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#ifndef FLICKABLE_H
+#define FLICKABLE_H
 
 #include <QQuickItem>
 
@@ -102,3 +103,5 @@ private:
     FlickablePrivate* d_ptr;
     Q_DECLARE_PRIVATE(Flickable)
 };
+
+#endif

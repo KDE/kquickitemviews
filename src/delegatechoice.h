@@ -15,7 +15,8 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#ifndef KQUICKITEMVIEWS_DELEGATECHOICE_H
+#define KQUICKITEMVIEWS_DELEGATECHOICE_H
 
 // Qt
 #include <QQmlComponent>
@@ -80,3 +81,5 @@ private:
     DelegateChoicePrivate *d_ptr;
     Q_DECLARE_PRIVATE(DelegateChoice)
 };
+
+#endif

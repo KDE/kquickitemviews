@@ -15,7 +15,8 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#ifndef KQUICKITEMVIEWS_INDEX_P_H
+#define KQUICKITEMVIEWS_INDEX_P_H
 
 #include <QtCore/QModelIndex>
 #include <QtCore/QList>
@@ -167,4 +168,6 @@ private:
 #else
  #define _DO_TEST_IDX(f, self, ...) /*NOP*/;
  #define _DO_TEST_IDX_STATIC(f, ...) /*NOP*/;
+#endif
+
 #endif

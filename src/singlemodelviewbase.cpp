@@ -18,10 +18,10 @@
 #include "singlemodelviewbase.h"
 
 // KQuickItemViews
-#include "adapters/selectionadapter.h"
-#include "adapters/contextadapter.h"
-#include "adapters/modeladapter.h"
-#include "viewport.h"
+#include <KQuickItemViews/adapters/selectionadapter.h>
+#include <KQuickItemViews/adapters/contextadapter.h>
+#include <KQuickItemViews/adapters/modeladapter.h>
+#include <KQuickItemViews/viewport.h>
 #include "private/viewport_p.h"
 #include "private/geostrategyselector_p.h"
 

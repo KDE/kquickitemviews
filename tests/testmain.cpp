@@ -28,9 +28,9 @@
 
 #include "modelviewtester.h"
 
-#include <views/hierarchyview.h>
-#include <views/listview.h>
-#include <views/treeview.h>
+#include <KQuickItemViews/views/hierarchyview.h>
+#include <KQuickItemViews/views/listview.h>
+#include <KQuickItemViews/views/treeview.h>
 
 int main(int argc, char **argv)
 {

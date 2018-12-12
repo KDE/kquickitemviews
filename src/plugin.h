@@ -15,7 +15,8 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#ifndef KQUICKITEMVIEWS_PLUGIN_H
+#define KQUICKITEMVIEWS_PLUGIN_H
 
 #include <QQmlExtensionPlugin>
 #include <QDebug>
@@ -31,3 +32,5 @@ public:
     virtual void initializeEngine(QQmlEngine *engine, const char *uri) override;
 };
 //![plugin]
+
+#endif

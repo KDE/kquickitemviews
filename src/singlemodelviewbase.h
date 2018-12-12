@@ -15,9 +15,10 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#pragma once
+#ifndef SINGLEMODELVIEWBASE_H
+#define SINGLEMODELVIEWBASE_H
 
-#include <viewbase.h>
+#include <KQuickItemViews/viewbase.h>
 
 class SingleModelViewBasePrivate;
 
@@ -114,3 +115,5 @@ Q_SIGNALS:
 private:
     SingleModelViewBasePrivate* d_ptr;
 };
+
+#endif

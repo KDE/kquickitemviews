@@ -35,6 +35,7 @@ public Q_SLOTS:
     void slotWindowChanged(QQuickWindow *window);
     void slotActivated(int index);
     void slotCurrentChanged(const QModelIndex& idx);
+    void slotResize();
 };
 
 ComboBoxView::ComboBoxView(QQuickItem* parent) : QQuickItem(parent),
@@ -102,10 +103,20 @@ void ComboBoxViewPrivate::slotWindowChanged(QQuickWindow *window)
         connect(m_pItem, SIGNAL(activated(int)),
             this, SLOT(slotActivated(int)));
 
+        connect(m_pItem, SIGNAL(implicitWidthChanged()),
+            this, SLOT(slotResize()));
+
         q_ptr->setHeight(m_pItem->height());
         m_pItem->setParentItem(q_ptr);
         engine->setObjectOwnership(m_pItem, QQmlEngine::CppOwnership);
+        slotResize();
     }
+}
+
+void ComboBoxViewPrivate::slotResize()
+{
+    q_ptr->setImplicitWidth(m_pItem->implicitWidth());
+    q_ptr->setImplicitHeight(m_pItem->implicitHeight());
 }
 
 void ComboBoxViewPrivate::slotActivated(int index)
@@ -122,6 +133,8 @@ void ComboBoxViewPrivate::slotActivated(int index)
         m_pSelectionModel->setCurrentIndex(
             m->index(index, 0),QItemSelectionModel::ClearAndSelect
         );
+
+    slotResize();
 }
 
 void ComboBoxViewPrivate::slotCurrentChanged(const QModelIndex& idx)

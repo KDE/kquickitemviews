@@ -80,7 +80,7 @@ public:
      * matching the entries in this list, assume the size hint needs to be
      * recomputed.
      *
-     * When used with the other KQuickView views, they will be notified.
+     * When used with the other KQuickItemViews views, they will be notified.
      *
      * Note that the constants wont be invalidated.
      */

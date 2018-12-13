@@ -13,6 +13,7 @@ option(BUILD_SHARED_LIBS "" OFF)
 
 include(ECMInstallIcons)
 include(ECMOptionalAddSubdirectory)
+include(CMakePackageConfigHelpers)
 
 include(KDEInstallDirs)
 include(KDECMakeSettings)
@@ -23,9 +24,9 @@ SET(CMAKE_CXX_VISIBILITY_PRESET hidden)
 SET(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
 if(NOT BUILD_SHARED_LIBS)
-    set(STATIC_LIBRARY 1)
+    set(ENABLE__STATIC_PLUGIN 1)
 else()
-    set(STATIC_LIBRARY 0)
+    set(ENABLE__STATIC_PLUGIN 0)
 endif()
 
 set(CMAKE_AUTOMOC ON)
@@ -33,14 +34,13 @@ set(CMAKE_AUTORCC ON)
 
 set(CMAKE_CXX_STANDARD 14)
 
-if(STATIC_LIBRARY)
+if(ENABLE__STATIC_PLUGIN)
     add_definitions(-DQT_PLUGIN)
     add_definitions(-DQT_STATICPLUGIN=1)
-else(STATIC_LIBRARY)
-    if (BUILD_TESTING)
-        add_subdirectory(tests)
-    endif()
-endif(STATIC_LIBRARY)
+    add_definitions(-DKQUICKITEMVIEWS_USE_STATIC_PLUGIN=1)
+elseif (BUILD_TESTING)
+    add_subdirectory(tests)
+endif(ENABLE__STATIC_PLUGIN)
 
 find_package(Qt5 CONFIG REQUIRED
     Core Gui Quick QuickControls2
@@ -213,6 +213,21 @@ process_header(extensions/ "${kquickitemviews_extensions_LIB_HDRS}")
 process_header(proxies/ "${kquickitemviews_proxies_LIB_HDRS}")
 process_header("" "${kquickitemviews_LIB_HDRS}")
 
+# Configure the target config
+set(kquickitemviews_CONFIG_PATH "${CMAKE_CURRENT_BINARY_DIR}/KQuickItemViewsConfig.cmake")
+
+configure_package_config_file(
+   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/KQuickItemViewsConfig.cmake.in" ${kquickitemviews_CONFIG_PATH}
+   INSTALL_DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}/cmake/KQuickItemViews/
+   PATH_VARS INCLUDE_INSTALL_DIR
+)
+
+install( FILES ${kquickitemviews_CONFIG_PATH}
+    DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}/cmake/KQuickItemViews/
+    COMPONENT Devel
+)
+
+# Create the target
 target_include_directories(kquickitemviews
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
@@ -245,3 +260,11 @@ install(EXPORT KQuickItemViewsTargets
     COMPONENT Devel
 )
 
+# Allow #include <KQuickItemViews/Foo> to work both both in add_subdirectory
+# and on installed targets
+install(CODE "execute_process( \
+    COMMAND ${CMAKE_COMMAND} -E create_symlink \
+        ${CMAKE_INSTALL_FULL_INCLUDEDIR}/KQuickItemViews \
+        ${CMAKE_INSTALL_FULL_INCLUDEDIR}/KQuickItemViews/KQuickItemViews   \
+    )"
+)

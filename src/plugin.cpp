@@ -40,9 +40,9 @@
 #include "strategies/proxy.h"
 
 
-void KQuickView::registerTypes(const char *uri)
+void KQuickItemViews::registerTypes(const char *uri)
 {
-    Q_ASSERT(uri == QLatin1String("org.kde.playground.kquickview"));
+    Q_ASSERT(uri == QLatin1String("org.kde.playground.kquickitemviews"));
 
     qmlRegisterType<HierarchyView>(uri, 1, 0, "HierarchyView");
     qmlRegisterType<TreeView>(uri, 1, 0, "TreeView");
@@ -66,12 +66,12 @@ void KQuickView::registerTypes(const char *uri)
 
     // Alias
     qmlRegisterUncreatableType<QModelIndexBinder>(
-        "org.kde.playground.kquickview", 1, 0, "RoleBinder",
+        "org.kde.playground.kquickitemviews", 1, 0, "RoleBinder",
         "Cannot create objects of type RoleBinder, use it as an attached poperty"
     );
 }
 
-void KQuickView::initializeEngine(QQmlEngine *engine, const char *uri)
+void KQuickItemViews::initializeEngine(QQmlEngine *engine, const char *uri)
 {
     Q_UNUSED(engine)
     Q_UNUSED(uri)

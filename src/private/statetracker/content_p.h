@@ -22,7 +22,7 @@
 #include <QtCore/QObject>
 #include <QtCore/QAbstractItemModel>
 
-// KQuickViews
+// KQuickItemViews
 class ContentPrivate;
 class Viewport;
 class ModelRect;

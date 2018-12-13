@@ -22,10 +22,10 @@
 #include <QDebug>
 
 //![plugin]
-class Q_DECL_EXPORT KQuickView final : public QQmlExtensionPlugin
+class Q_DECL_EXPORT KQuickItemViews final : public QQmlExtensionPlugin
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.kde.playground.kquickview" FILE "kquickview.json")
+    Q_PLUGIN_METADATA(IID "org.kde.playground.kquickitemviews" FILE "kquickitemviews.json")
 
 public:
     void registerTypes(const char *uri) override;

@@ -28,9 +28,11 @@
 
 #include "modelviewtester.h"
 
-#include <KQuickItemViews/views/hierarchyview.h>
-#include <KQuickItemViews/views/listview.h>
-#include <KQuickItemViews/views/treeview.h>
+#include <KQuickItemViews/plugin.h>
+
+#ifdef KQUICKITEMVIEWS_USE_STATIC_PLUGIN
+Q_IMPORT_PLUGIN(KQuickItemViews)
+#endif
 
 int main(int argc, char **argv)
 {
@@ -38,23 +40,11 @@ int main(int argc, char **argv)
 
     QQmlApplicationEngine engine;
 
-    qmlRegisterType<ModelViewTester>("RingQmlWidgets", 1, 0, "ModelViewTester");
-    qmlRegisterType<HierarchyView  >("RingQmlWidgets", 1, 0, "HierarchyView");
-    qmlRegisterType<TreeView       >("RingQmlWidgets", 1, 0, "QuickTreeView");
-    qmlRegisterType<ListView       >("RingQmlWidgets", 1, 0, "QuickListView");
+#ifdef KQUICKITEMVIEWS_USE_STATIC_PLUGIN
+    qobject_cast<QQmlExtensionPlugin*>(qt_static_plugin_KQuickItemViews().instance())->registerTypes("org.kde.playground.kquickitemviews");
+#endif
 
-//     view.setResizeMode(QQuickView::SizeRootObjectToView);
     engine.load(QUrl("qrc:///modeltest.qml"));
 
-    if (engine.rootObjects().isEmpty()) {
-        qDebug() << "\n\nFAILED TO LOAD";
-        return -1;
-    }
-
-
-
-
-    return app.exec();
+    return engine.rootObjects().isEmpty() ? app.exec() : -1;
 }
-
-#include <testmain.moc>

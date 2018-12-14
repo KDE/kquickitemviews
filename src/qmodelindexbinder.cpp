@@ -224,27 +224,42 @@ void QModelIndexBinderPrivate::bind()
     auto metaSlotProp = metaObject()->method(metaObject()->indexOfMethod("slotObjectPropChanged()"));
     auto metaSlotRole = metaObject()->method(metaObject()->indexOfMethod("slotModelPropChanged()"));
 
+    // Set the initial value before connecting
+    slotModelPropChanged();
+
     connect(m_pContent, metaProp.notifySignal(), this, metaSlotProp);
     connect(co        , metaRole.notifySignal(), this, metaSlotRole);
-
-    // Set the initial value
-    slotModelPropChanged();
 }
 
 void QModelIndexBinderPrivate::slotModelPropChanged()
 {
     const auto role = m_pAdapter->contextObject()->property(m_Role);
+
+    //HACK this is a bug in ContextAdapterFactory
+    if (!role.isValid())
+        return;
+
     const auto prop = m_pContent->property(m_Prop);
-    //qDebug() << "ROLE CHANGED" << role << prop;
-    m_pContent->setProperty(m_Prop, role);
+
+    // Some widgets may not try to detect if the value **really** changes and
+    // emit signals anyway.
+    if (role != m_pContent->property(m_Prop))
+        m_pContent->setProperty(m_Prop, role);
 }
 
 void QModelIndexBinderPrivate::slotObjectPropChanged()
 {
     const auto role = m_pAdapter->contextObject()->property(m_Role);
+
+    Q_ASSERT(role.isValid());
+    //HACK this is a bug in ContextAdapterFactory
+    if (!role.isValid())
+        return;
+
     const auto prop = m_pContent->property(m_Prop);
-    //qDebug() << "PROP CHANGED" << role << prop;
-    //m_pAdapter->contextObject()->setProperty(m_Role, prop); //FIXME fix the model::setData support
+
+    if (role != prop)
+        m_pAdapter->contextObject()->setProperty(m_Role, prop); //FIXME fix the model::setData support
 }
 
 QModelIndexBinder *QModelIndexBinder::qmlAttachedProperties(QObject *object)

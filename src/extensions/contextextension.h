@@ -92,7 +92,7 @@ public:
     /**
         * Optionally make the property read/write.
         */
-    virtual void setProperty(AbstractItemAdapter* item, uint id, const QVariant& value) const;
+    virtual bool setProperty(AbstractItemAdapter* item, uint id, const QVariant& value, const QModelIndex& index) const;
 
     /**
         * Notify that content of this property has changed.

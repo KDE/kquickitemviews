@@ -110,7 +110,7 @@ struct DynamicMetaType final
     const size_t              roleCount     {   0   };
     size_t                    propertyCount {   0   };
     MetaProperty*             roles         {nullptr};
-    QSet<MetaProperty*>       used          {       };
+    QSet<MetaProperty*>       m_lUsed       {       };
     QMetaObject              *m_pMetaObject {nullptr};
     bool                      m_GroupInit   { false };
     QHash<int, MetaProperty*> m_hRoleIds    {       };
@@ -146,7 +146,6 @@ public:
     QPersistentModelIndex   m_Index     {       };
     QQmlContext           * m_pParentCtx{nullptr};
     QMetaObject::Connection m_Conn;
-    QMutex                  m_Mutex;
 
     ContextAdapterFactoryPrivate* d_ptr {nullptr};
     ContextAdapter* m_pBuilder;
@@ -183,6 +182,8 @@ public:
     virtual QVariant getProperty(AbstractItemAdapter* item, uint id, const QModelIndex& index) const override;
     virtual uint size() const override;
     virtual QByteArray getPropertyName(uint id) const override;
+    virtual bool setProperty(AbstractItemAdapter* item, uint id, const QVariant& value, const QModelIndex& index) const;
+
 
     ContextAdapterFactoryPrivate* d_ptr;
 };
@@ -222,11 +223,13 @@ QByteArray ContextExtension::getPropertyName(uint id) const
     return propertyNames()[id];
 }
 
-void ContextExtension::setProperty(AbstractItemAdapter* item, uint id, const QVariant& value) const
+bool ContextExtension::setProperty(AbstractItemAdapter* item, uint id, const QVariant& value, const QModelIndex& index) const
 {
     Q_UNUSED(item)
     Q_UNUSED(id)
     Q_UNUSED(value)
+    Q_UNUSED(index)
+    return false;
 }
 
 void ContextExtension::changeProperty(AbstractItemAdapter* item, uint id)
@@ -262,7 +265,7 @@ void AbstractItemAdapter::dismissCacheEntry(ContextExtension* e, int id)
     Q_ASSERT(e);
     Q_ASSERT(e->d_ptr->d_ptr->q_ptr == viewport()->modelAdapter()->contextAdapterFactory());
     Q_ASSERT(e->d_ptr->d_ptr->m_lGroups[e->d_ptr->m_Id] == e);
-    Q_ASSERT(id >= 0 && id < e->size());
+    Q_ASSERT(id >= 0 && id < (int) e->size());
 
     dx->m_lVariants[e->d_ptr->m_Offset + id] = nullptr;
 }
@@ -273,10 +276,8 @@ QVariant RoleGroup::getProperty(AbstractItemAdapter* item, uint id, const QModel
     const auto metaRole = &d_ptr->m_pMetaType->roles[id];
 
     // Keep track of the accessed roles
-    if (!(metaRole->flags & MetaProperty::Flags::READ)) {
-        d_ptr->m_pMetaType->used << metaRole;
-        //qDebug() << "\n NEW ROLE!" << (*metaRole->name) << d_ptr->m_pMetaType->used.size();
-    }
+    if (!(metaRole->flags & MetaProperty::Flags::READ))
+        d_ptr->m_pMetaType->m_lUsed << metaRole;
 
     metaRole->flags |= MetaProperty::Flags::READ;
 
@@ -293,6 +294,30 @@ QByteArray RoleGroup::getPropertyName(uint id) const
     return *d_ptr->m_pMetaType->roles[id].name;
 }
 
+bool RoleGroup::setProperty(AbstractItemAdapter* item, uint id, const QVariant& value, const QModelIndex& index) const
+{
+    // Avoid "useless" setData. With binding loops this can get very nasty.
+    // Yes: You could to do this on purpose in the past, but it's no longer
+    // safe.
+    if (getProperty(item, id, index) == value)
+        return false;
+
+    const auto metaRole = &d_ptr->m_pMetaType->roles[id];
+
+    // Keep track of the accessed roles
+    if (!(metaRole->flags & MetaProperty::Flags::TRIED_WRITE))
+        d_ptr->m_pMetaType->m_lUsed << metaRole;
+
+    metaRole->flags |= MetaProperty::Flags::TRIED_WRITE;
+
+    if (d_ptr->m_pModel->setData(index, value, metaRole->roleId)) {
+        metaRole->flags |= MetaProperty::Flags::HAS_WRITTEN;
+        return true;
+    }
+
+    return false;
+}
+
 const QMetaObject *DynamicContext::metaObject() const
 {
     Q_ASSERT(m_pMetaType);
@@ -301,27 +326,20 @@ const QMetaObject *DynamicContext::metaObject() const
 
 int DynamicContext::qt_metacall(QMetaObject::Call call, int id, void **argv)
 {
-    if (!m_Mutex.try_lock())
-        return -1;
-
-
     const int realId = id - m_pMetaType->m_pMetaObject->propertyOffset();
 
     //qDebug() << "META" << id << realId << call << QMetaObject::ReadProperty;
-    if (realId < 0) {
-        m_Mutex.unlock();
+    if (realId < 0)
         return QObject::qt_metacall(call, id, argv);
-    }
+
+    const auto group = &m_pMetaType->m_lGroupMapping[realId];
+    Q_ASSERT(group->ptr);
 
     if (call == QMetaObject::ReadProperty) {
         if (Q_UNLIKELY(((size_t)realId) >= m_pMetaType->propertyCount)) {
             Q_ASSERT(false);
-            m_Mutex.unlock();
             return -1;
         }
-
-        const auto group = &m_pMetaType->m_lGroupMapping[realId];
-        Q_ASSERT(group->ptr);
 
         const QModelIndex idx = m_pBuilder->item() ? m_pBuilder->item()->index() : m_Index;
 
@@ -342,19 +360,18 @@ int DynamicContext::qt_metacall(QMetaObject::Call call, int id, void **argv)
 //             delete value;
     }
     else if (call == QMetaObject::WriteProperty) {
-        //qDebug() << "SET" << argv[0];
+        const QVariant  value = QVariant(QMetaType::QVariant, argv[0]).value<QVariant>();
+        const QModelIndex idx = m_pBuilder->item() ? m_pBuilder->item()->index() : m_Index;
 
-        //FIXME enable setData
-        //const QModelIndex idx = m_pBuilder->item() ? m_pBuilder->item()->index() : m_Index;
-        //Q_ASSERT(false); //TODO call setData
-        //const int roleId = m_hIdMapper.value(realId);
-        //m_Index.model()->setData(
-        //    m_Index, roleId, QVariant(property.typeId, argv[0])
-        //);
-        //m_lUsedProperties << roleId;
+        const bool ret = group->ptr->setProperty(
+            m_pBuilder->item(), realId - group->offset, value, idx
+        );
 
-        *reinterpret_cast<int*>(argv[2]) = 1;  // setProperty return value
-        QMetaObject::activate(this, m_pMetaType->m_pMetaObject, realId, nullptr);
+        // Register if setting the property worked
+        *reinterpret_cast<int*>(argv[2]) = ret ? 1 : 0;
+
+        QMetaObject::activate(this, m_pMetaType->m_pMetaObject, realId, argv);
+
     }
     else if (call == QMetaObject::InvokeMetaMethod) {
         int sigId = id - m_pMetaType->m_pMetaObject->methodOffset();
@@ -362,8 +379,6 @@ int DynamicContext::qt_metacall(QMetaObject::Call call, int id, void **argv)
         QMetaObject::activate(this,  m_pMetaType->m_pMetaObject, id, nullptr);
         return -1;
     }
-
-    m_Mutex.unlock();
 
     return -1;
 }
@@ -512,7 +527,7 @@ bool ContextAdapter::updateRoles(const QVector<int> &modified) const
     }
     else {
         // Only update the roles known to have an impact
-        for (auto mr : qAsConst(d_ptr->d_ptr->m_pMetaType->used)) {
+        for (auto mr : qAsConst(d_ptr->d_ptr->m_pMetaType->m_lUsed)) {
             // Use `READ` instead of checking the cache because it could have
             // been dismissed for many reasons.
             if ((!d_ptr->m_Cache) || mr->flags & MetaProperty::Flags::READ) {
@@ -532,7 +547,7 @@ bool ContextAdapter::updateRoles(const QVector<int> &modified) const
                 //QMetaObject::activate(d_ptr, mo, mr->signalId, nullptr);
 
                 //FIXME Use this for now, but it prevent setData from being implemented
-                d_ptr->setProperty(*mr->name, 0x1337);
+                d_ptr->setProperty(*mr->name, d_ptr->property(*mr->name));
 
                 QMetaObject::activate(d_ptr, mo, mr->signalId, nullptr);
 
@@ -586,7 +601,7 @@ QSet<QByteArray> ContextAdapterFactory::usedRoles() const
 
     QSet<QByteArray> ret;
 
-    for (const auto mr : qAsConst(d_ptr->m_pMetaType->used)) {
+    for (const auto mr : qAsConst(d_ptr->m_pMetaType->m_lUsed)) {
         if (mr->roleId != -1)
             ret << *mr->name;
     }

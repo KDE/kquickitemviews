@@ -57,7 +57,7 @@ public:
     virtual ~TreeContextProperties() {}
     virtual QVector<QByteArray>& propertyNames() const override;
     virtual QVariant getProperty(AbstractItemAdapter* item, uint id, const QModelIndex& index) const override;
-    virtual void setProperty(AbstractItemAdapter* item, uint id, const QVariant& value) const override;
+    virtual bool setProperty(AbstractItemAdapter* item, uint id, const QVariant& value, const QModelIndex& index) const override;
 };
 
 class TreeViewPrivate
@@ -183,8 +183,9 @@ QVariant TreeContextProperties::getProperty(AbstractItemAdapter* item, uint id, 
     return !item->isCollapsed();
 }
 
-void TreeContextProperties::setProperty(AbstractItemAdapter* item, uint id, const QVariant& value) const
+bool TreeContextProperties::setProperty(AbstractItemAdapter* item, uint id, const QVariant& value, const QModelIndex& index) const
 {
     Q_ASSERT(id == 0 && item && value.canConvert<bool>());
     item->setCollapsed(!value.toBool());
+    return true;
 }

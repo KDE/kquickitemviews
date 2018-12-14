@@ -619,16 +619,20 @@ ContextAdapterFactory::createAdapter(FactoryFunctor f, QQmlContext *parentContex
     d_ptr->finish();
     ret->d_ptr = new DynamicContext(const_cast<ContextAdapterFactory*>(this));
     ret->d_ptr->d_ptr = d_ptr;
-    ret->d_ptr->setParent(parentContext);
     ret->d_ptr->m_pBuilder   = ret;
     ret->d_ptr->m_pParentCtx = parentContext;
+
+    // Use the core application because the parentContext have an unpredictable
+    // lifecycle and the object may be reparented anyway. If it has no parent,
+    // QtQuick can take ownership and will also destroy it.
+    ret->d_ptr->setParent(QCoreApplication::instance());
 
     //HACK QtQuick ignores
     ret->d_ptr->m_Conn = QObject::connect(ret->d_ptr, &QObject::destroyed, ret->d_ptr, [ret, this, parentContext]() {
         qWarning() << "Rebuilding the cache because QtQuick bugs trashed it";
         ret->d_ptr = new DynamicContext(const_cast<ContextAdapterFactory*>(this));
         ret->d_ptr->d_ptr = d_ptr;
-        ret->d_ptr->setParent(parentContext);
+        ret->d_ptr->setParent(QCoreApplication::instance());
         ret->d_ptr->m_pBuilder   = ret;
         ret->d_ptr->m_pParentCtx = parentContext;
     });

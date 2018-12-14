@@ -400,7 +400,9 @@ void ContentPrivate::slotRowsRemoved(const QModelIndex& parent, int first, int l
 //TODO optimize this
 void ContentPrivate::slotDataChanged(const QModelIndex& tl, const QModelIndex& br, const QVector<int> &roles)
 {
-    Q_UNUSED(roles)
+    Q_ASSERT(((!tl.isValid()) || tl.model() == m_pModelTracker->modelCandidate()));
+    Q_ASSERT(((!br.isValid()) || br.model() == m_pModelTracker->modelCandidate()));
+
     if (!q_ptr->isActive(tl.parent(), tl.row(), br.row()))
         return;
 
@@ -874,7 +876,10 @@ setEdge(EdgeType et, StateTracker::Index* tti, Qt::Edge e)
 
     edges(et)->setEdge(tti, e);
 
-    _DO_TEST(_test_validate_edges_simple, this)
+    // Only test when `tti` is true because when removing the last item, it
+    // will always need to remove both the top and bottom, so removing the
+    // top will fail the test.
+    if (tti) { _DO_TEST(_test_validate_edges_simple, this) }
 }
 
 StateTracker::Index *StateTracker::Content::

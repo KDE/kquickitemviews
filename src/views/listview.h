@@ -108,6 +108,9 @@ public:
     int currentIndex() const;
     void setCurrentIndex(int index);
 
+protected:
+    virtual void applyModelChanges(QAbstractItemModel* m);
+
 Q_SIGNALS:
     void indexChanged(int index);
 

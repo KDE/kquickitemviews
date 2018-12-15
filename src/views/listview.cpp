@@ -128,18 +128,21 @@ ListViewItem::~ListViewItem()
 {
     // If this item is the section owner, assert before crashing
     if (m_pSection && m_pSection->owner() == this) {
-        Q_ASSERT(false); //TODO
+        if (m_pSection->m_RefCount == 1)
+            delete m_pSection;
+        else
+            Q_ASSERT(false); //TODO
     }
 }
 
 ListView::~ListView()
 {
-    // Delete the sections
-    while(auto sec = d_ptr->m_pFirstSection)
-        delete sec;
+    applyModelChanges(nullptr);
 
     if (d_ptr->m_pSections)
         delete d_ptr->m_pSections;
+
+    d_ptr->m_pSections = nullptr;
 }
 
 int ListView::count() const
@@ -577,10 +580,7 @@ ListViewSection::~ListViewSection()
 }
 
 ListViewSections::~ListViewSections()
-{
-
-    delete d_ptr;
-}
+{}
 
 QQmlComponent* ListViewSections::delegate() const
 {
@@ -648,6 +648,15 @@ void ListViewPrivate::slotCurrentIndexChanged(const QModelIndex& index)
 ListViewItem *ListViewSection::owner() const
 {
     return m_pOwner;
+}
+
+void ListView::applyModelChanges(QAbstractItemModel* m)
+{
+    // Delete the sections
+    while(auto sec = d_ptr->m_pFirstSection)
+        delete sec;
+
+    d_ptr->m_pFirstSection = nullptr;
 }
 
 #include <listview.moc>

@@ -183,7 +183,7 @@ QModelIndexList ProximityPrivate::down() const
         return {m_pSelf->index().model()->index(effRow+1, 0, par)};
 
     while (par.isValid()) {
-        auto sib = par.siblingAtRow(par.row()+1);
+        auto sib = par.sibling(par.row()+1, par.column());
         if (sib.isValid())
             return {sib};
 

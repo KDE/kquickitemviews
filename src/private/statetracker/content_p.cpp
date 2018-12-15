@@ -903,7 +903,7 @@ QModelIndex ContentPrivate::getNextIndex(const QModelIndex& idx) const
     if (m_pModelTracker->modelCandidate()->rowCount(idx))
         return m_pModelTracker->modelCandidate()->index(0,0, idx);
 
-    auto sib = idx.siblingAtRow(idx.row()+1);
+    auto sib = idx.sibling(idx.row()+1, idx.column());
 
     if (sib.isValid())
         return sib;
@@ -914,7 +914,7 @@ QModelIndex ContentPrivate::getNextIndex(const QModelIndex& idx) const
     auto p = idx.parent();
 
     while (p.isValid()) {
-        sib = p.siblingAtRow(p.row()+1);
+        sib = p.sibling(p.row()+1, p.column());
         if (sib.isValid())
             return sib;
 

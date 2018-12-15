@@ -577,7 +577,7 @@ static QModelIndex getNextIndex(const QModelIndex& idx)
     if (idx.model()->rowCount(idx))
         return idx.model()->index(0,0, idx);
 
-    auto sib = idx.siblingAtRow(idx.row()+1);
+    auto sib = idx.sibling(idx.row()+1, idx.column());
 
     if (sib.isValid())
         return sib;
@@ -588,7 +588,7 @@ static QModelIndex getNextIndex(const QModelIndex& idx)
     auto p = idx.parent();
 
     while (p.isValid()) {
-        sib = p.siblingAtRow(p.row()+1);
+        sib = p.sibling(p.row()+1, p.column());
         if (sib.isValid())
             return sib;
 

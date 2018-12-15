@@ -73,12 +73,16 @@ SizeHintProxyModel::~SizeHintProxyModel()
 
 void SizeHintProxyModel::setSourceModel(QAbstractItemModel *newSourceModel)
 {
+    if (newSourceModel == sourceModel())
+        return;
 
     d_ptr->reloadContext(newSourceModel);
     d_ptr->m_ReloadContants = true;
     d_ptr->m_hInvertedRoleNames.clear();
     QIdentityProxyModel::setSourceModel(newSourceModel);
     d_ptr->reloadContants();
+    beginResetModel();
+    endResetModel();
 }
 
 QJSValue SizeHintProxyModel::constants() const

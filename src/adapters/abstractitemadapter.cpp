@@ -274,14 +274,18 @@ bool AbstractItemAdapterPrivate::destroy()
     }
     m_pItem = nullptr;
 
-    QTimer::singleShot(0,[this, ptrCopy]() {
-        if (!ptrCopy)
-            delete this;
-        // else the reference will be dropped and the destructor called
-    });
-
-    if (m_pLocker)
-        m_pLocker.clear();
+    if (ptrCopy) {
+        QTimer::singleShot(0,[this, ptrCopy]() {
+            if (!ptrCopy)
+            // else the reference will be dropped and the destructor called
+                delete q_ptr;
+        });
+        if (m_pLocker)
+            m_pLocker.clear();
+    }
+    else {
+        delete q_ptr;
+    }
 
     return true;
 }

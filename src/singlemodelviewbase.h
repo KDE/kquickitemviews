@@ -87,6 +87,8 @@ public:
     bool hasUniformColumnWidth() const;
     void setUniformColumnColumnWidth(bool value);
 
+    Q_INVOKABLE void moveTo(Qt::Edge e);
+
 protected Q_SLOTS:
 
     /**

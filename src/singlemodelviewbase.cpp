@@ -17,6 +17,9 @@
  **************************************************************************/
 #include "singlemodelviewbase.h"
 
+// Qt
+#include <QtCore/QTimer>
+
 // KQuickItemViews
 #include <KQuickItemViews/adapters/selectionadapter.h>
 #include <KQuickItemViews/adapters/contextadapter.h>
@@ -160,4 +163,23 @@ void SingleModelViewBase::setUniformColumnColumnWidth(bool value)
 {
     Q_UNUSED(value)
     //d_ptr->m_pModelAdapter->setUniformColumnColumnWidth(value);
+}
+
+void SingleModelViewBase::moveTo(Qt::Edge e)
+{
+    QTimer::singleShot(0, [this, e]() {
+        //HACK This need the viewportAdapter to be optimized
+        switch(e) {
+            case Qt::TopEdge:
+                setCurrentY(0);
+                break;
+            case Qt::BottomEdge: {
+                int y = currentY();
+                // Keep loading until it doesn't load anything else
+                do {
+                    setCurrentY(999999);
+                } while (currentY() > y && (y = currentY()));
+            }
+        }
+    });
 }

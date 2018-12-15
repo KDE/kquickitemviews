@@ -442,8 +442,12 @@ bool StateTracker::ModelItem::reset()
 
     if (metadata()->viewTracker()) {
         metadata()
-            << IndexMetadata::ViewAction::LEAVE_BUFFER
-            << IndexMetadata::ViewAction::DETACH;
+            << IndexMetadata::ViewAction::LEAVE_BUFFER;
+
+        // Move the item lifecycle forward
+        while (metadata()->viewTracker()->state() != StateTracker::ViewItem::State::POOLED
+          && metadata()->viewTracker()->state() != StateTracker::ViewItem::State::DANGLING)
+            metadata() << IndexMetadata::ViewAction::DETACH;
 
         metadata()->setViewTracker(nullptr);
     }

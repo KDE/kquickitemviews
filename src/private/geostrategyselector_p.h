@@ -64,6 +64,9 @@ public:
 
     virtual int capabilities() const override;
 
+    virtual bool isSizeForced() const override;
+    virtual void setSizeForced(bool f) override;
+
     void setModel(QAbstractItemModel *m);
 
     void setHasScrollbar(bool v);

@@ -95,6 +95,20 @@ int GeoStrategySelector::capabilities() const
         d_ptr->m_A->capabilities() : GeometryAdapter::capabilities();
 }
 
+bool GeoStrategySelector::isSizeForced() const
+{
+    return d_ptr->m_A ?
+        d_ptr->m_A->isSizeForced() : GeometryAdapter::isSizeForced();
+}
+
+void GeoStrategySelector::setSizeForced(bool f)
+{
+    if (d_ptr->m_A)
+        d_ptr->m_A->setSizeForced(f);
+    else
+        GeometryAdapter::setSizeForced(f);
+}
+
 void GeoStrategySelector::setModel(QAbstractItemModel *m)
 {
     if (m == d_ptr->m_pModel)

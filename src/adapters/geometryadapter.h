@@ -100,12 +100,29 @@ public:
         * This GeometryAdapter requires a single delegate instance to work.
         */
         REQUIRES_SINGLE_INSTANCE  = 0x1 << 7,
+
+       /**
+        * Apply the size hints instead of using the delegate implicit size.
+        */
+        FORCE_DELEGATE_SIZE       = 0x1 << 8,
     };
 //     Q_FLAGS(Capabilities)
 
+    /**
+     * A feature set provided by this adapter.
+     */
     Q_PROPERTY(int capabilities READ capabilities NOTIFY flagsChanged)
 
+    /**
+     * If the GeometryAdapter should override the delegate implicit size
+     * with the size hints.
+     */
+    Q_PROPERTY(bool forceSize READ isSizeForced WRITE setSizeForced NOTIFY flagsChanged)
+
     virtual int capabilities() const;
+
+    virtual bool isSizeForced() const;
+    virtual void setSizeForced(bool f);
 
     /**
      * Get the size hints for an AbstractItemAdapter.

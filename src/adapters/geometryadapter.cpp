@@ -98,3 +98,19 @@ int GeometryAdapter::capabilities() const
 {
     return d_ptr->m_Flags;
 }
+
+bool GeometryAdapter::isSizeForced() const
+{
+    return  d_ptr->m_Flags & Capabilities::FORCE_DELEGATE_SIZE;
+}
+
+void GeometryAdapter::setSizeForced(bool f)
+{
+    // This capability has a property because it really depends on the how
+    // the QML delegate is implemented. The developer should be able to
+    // select the preferred value form QML.
+    if (f)
+        addCapabilities   (Capabilities::FORCE_DELEGATE_SIZE);
+    else
+        removeCapabilities(Capabilities::FORCE_DELEGATE_SIZE);
+}

@@ -436,11 +436,19 @@ bool AbstractItemAdapter::remove()
 
 bool AbstractItemAdapter::move()
 {
+    using Cap = GeometryAdapter::Capabilities;
     const auto a = s_ptr->m_pViewport->geometryAdapter();
     Q_ASSERT(a);
 
+    const auto size = a->sizeHint(index(), this);
+
+    if (content() && a->capabilities() & Cap::FORCE_DELEGATE_SIZE) {
+        content()->setSize(size);
+    }
+
     const auto pos = a->positionHint(index(), this);
-    container()->setSize(a->sizeHint(index(), this));
+    container()->setSize(size);
+
     container()->setX(pos.x());
     container()->setY(pos.y());
 
@@ -502,12 +510,17 @@ bool AbstractItemAdapterPrivate::loadDelegate(QQuickItem* parentI) const
     m_pContent->setWidth(q_ptr->view()->width());
     m_pContent->setParentItem(container);
 
+    const auto a = q_ptr->s_ptr->m_pViewport->geometryAdapter();
+
     // Resize the container
-    container->setHeight(m_pContent->height());
+    if (!(a->capabilities() & GeometryAdapter::Capabilities::FORCE_DELEGATE_SIZE))
+        container->setHeight(m_pContent->height());
 
     // Make sure it can be resized dynamically
     QObject::connect(m_pContent, &QQuickItem::heightChanged, container, [container, this]() {
-        container->setHeight(m_pContent->height());
+        const auto a = q_ptr->s_ptr->m_pViewport->geometryAdapter();
+        if (!(a->capabilities() & GeometryAdapter::Capabilities::FORCE_DELEGATE_SIZE))
+            container->setHeight(m_pContent->height());
     });
 
     return true;

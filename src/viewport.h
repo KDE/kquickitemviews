@@ -27,6 +27,7 @@
 class ViewportPrivate;
 class ViewportSync;
 class AbstractItemAdapter;
+class GeometryAdapter;
 
 /**
 * This class exposes a way to track and iterate a subset of the model.
@@ -52,9 +53,6 @@ public:
      */
     QRectF currentRect() const;
 
-    //SizeHintStrategy sizeHintStrategy() const;
-    //void setSizeHintStrategy(SizeHintStrategy s);
-
     ModelAdapter *modelAdapter() const;
 
     QSizeF size() const;
@@ -64,6 +62,9 @@ public:
     QSizeF totalSize() const;
 
     Qt::Edges availableEdges() const;
+
+    GeometryAdapter *geometryAdapter() const;
+    void setGeometryAdapter(GeometryAdapter *a);
 
     void setItemFactory(ViewBase::ItemFactoryBase *factory);
 

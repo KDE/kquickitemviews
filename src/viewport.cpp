@@ -528,4 +528,14 @@ QQmlComponent *ViewportSync::component()
     return m_pComponent;
 }
 
+GeometryAdapter *Viewport::geometryAdapter() const
+{
+    return s_ptr->m_pGeoAdapter;
+}
+
+void Viewport::setGeometryAdapter(GeometryAdapter *a)
+{
+    s_ptr->m_pGeoAdapter->setCurrentAdapter(a);
+}
+
 #include <viewport.moc>

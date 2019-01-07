@@ -209,7 +209,10 @@ void ViewportPrivate::updateAvailableEdges()
     const auto fixedIntersect = [](bool valid, QRectF& vp, QRectF& geo) -> bool {
         Q_UNUSED(valid) //TODO
         return vp.intersects(geo) || (
-            geo.y() >= vp.y() && geo.height() == 0 && geo.y() <= vp.y() + vp.height()
+            geo.y() >= vp.y() && geo.width() == 0 && geo.y() <= vp.y() + vp.height()
+        ) || (
+            geo.height() == 0 && geo.width() > 0  && geo.x() <= vp.x() + vp.width()
+            && geo.x() >= vp.x()
         );
     };
 

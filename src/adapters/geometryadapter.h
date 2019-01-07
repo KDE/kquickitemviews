@@ -105,6 +105,25 @@ public:
         * Apply the size hints instead of using the delegate implicit size.
         */
         FORCE_DELEGATE_SIZE       = 0x1 << 8,
+
+        /**
+         * Each QModelIndex, including the children QModelIndex or positioned
+         * one after the other in a Cartesian plane. This capability is only
+         * relevant when HAS_POSITION_HINTS is set and implies
+         * HAS_ORDERED_SIBLINGS.
+         *
+         * Do not set this hint if the
+         */
+        IS_ORDERED                = 0x1 << 9,
+
+        /**
+         * When the QModelIndex with the same parent are positioned next to
+         * each other on a Cartesian plane.
+         *
+         * Use IS_ORDERED if this is also true among QModelIndex of different
+         * parent.
+         */
+        HAS_ORDERED_SIBLINGS      = 0x1 << 10,
     };
 //     Q_FLAGS(Capabilities)
 

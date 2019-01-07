@@ -423,6 +423,24 @@ bool AbstractItemAdapter::refresh()
     return true;
 }
 
+bool AbstractItemAdapter::remove()
+{
+    return true;
+}
+
+bool AbstractItemAdapter::move()
+{
+    const auto a = s_ptr->m_pViewport->geometryAdapter();
+    Q_ASSERT(a);
+
+    const auto pos = a->positionHint(index(), this);
+    item()->setSize(a->sizeHint(index(), this));
+    item()->setX(pos.x());
+    item()->setY(pos.y());
+
+    return true;
+}
+
 bool AbstractItemAdapter::attach()
 {
     Q_ASSERT(index().isValid());

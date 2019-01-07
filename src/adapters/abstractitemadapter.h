@@ -249,7 +249,7 @@ protected:
     /**
      * Move the delegate instance when it moves itself or its siblings change.
      */
-    virtual bool move   () = 0;
+    virtual bool move   ();
 
     /**
      * This instance is about to be recycled, if it holds a state, remove it.
@@ -261,7 +261,7 @@ protected:
     /**
      * This instance is going to be removed from the view.
      */
-    virtual bool remove () = 0;
+    virtual bool remove ();
 private:
     AbstractItemAdapterPrivate* d_ptr;
 };

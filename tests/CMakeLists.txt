@@ -31,6 +31,7 @@ INCLUDE_DIRECTORIES(SYSTEM ${Qt5Core_INCLUDES})
 
 SET(modelviewtester_SRC
 modelviewtester.cpp
+freefloatingmodel.cpp
 testmain.cpp
 )
 

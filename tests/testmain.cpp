@@ -27,12 +27,16 @@
 #include <QQmlApplicationEngine>
 
 #include "modelviewtester.h"
+#include "freefloatingmodel.h"
 
 #include <KQuickItemViews/plugin.h>
 
 #ifdef KQUICKITEMVIEWS_USE_STATIC_PLUGIN
 Q_IMPORT_PLUGIN(KQuickItemViews)
+#else
+#include <KQuickItemViews/plugin.h>
 #endif
+
 
 int main(int argc, char **argv)
 {
@@ -40,11 +44,19 @@ int main(int argc, char **argv)
 
     QQmlApplicationEngine engine;
 
+    qmlRegisterType<FreeFloatingModel>("modeltest", 1,0, "FreeFloatingModel");
+    qmlRegisterType<ModelViewTester  >("modeltest", 1,0, "ModelViewTester");
+
 #ifdef KQUICKITEMVIEWS_USE_STATIC_PLUGIN
-    qobject_cast<QQmlExtensionPlugin*>(qt_static_plugin_KQuickItemViews().instance())->registerTypes("org.kde.playground.kquickitemviews");
+      qobject_cast<QQmlExtensionPlugin*>(qt_static_plugin_KQuickItemViews().instance())->registerTypes("org.kde.playground.kquickitemviews");
+#else
+      KQuickItemViews v;
+      v.registerTypes("org.kde.playground.kquickitemviews");
 #endif
 
     engine.load(QUrl("qrc:///modeltest.qml"));
 
-    return engine.rootObjects().isEmpty() ? app.exec() : -1;
+    qDebug() << "LOADED" << engine.rootObjects() << engine.rootObjects().isEmpty();
+
+    return engine.rootObjects().isEmpty() ? 1 : app.exec();
 }

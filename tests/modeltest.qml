@@ -18,9 +18,10 @@
 import QtQuick.Window 2.2
 import QtQuick 2.7
 import QtQuick.Layouts 1.0
-import RingQmlWidgets 1.0
 import QtQuick.Controls 2.0
 import org.kde.kirigami 2.2 as Kirigami
+import org.kde.playground.kquickitemviews 1.0 as KQuickItemViews
+import modeltest 1.0
 
 Kirigami.ApplicationWindow {
     id: window
@@ -35,6 +36,8 @@ Kirigami.ApplicationWindow {
                 iconName: "document-edit"
                 text: "HierarchyView"
                 onTriggered: {
+                    treeViewLayout.visible = true
+                    freeFloatingLayout.visible = false
                     listview.model = treeTester
                     treeTester.run()
                 }
@@ -56,6 +59,14 @@ Kirigami.ApplicationWindow {
                 iconName: "document-edit"
                 text: "ListView"
                 onTriggered: {}
+            },
+            Kirigami.Action {
+                iconName: "document-edit"
+                text: "FreeFloatingView"
+                onTriggered: {
+                    treeViewLayout.visible     = false
+                    freeFloatingLayout.visible = true
+                }
             }
         ]
         handleVisible: true
@@ -70,7 +81,12 @@ Kirigami.ApplicationWindow {
 //         id: treeTester2
 //     }
 
+    FreeFloatingModel {
+        id: freeFloatingModel
+    }
+
     ColumnLayout {
+        id: treeViewLayout
         anchors.fill: parent
 
         Slider {
@@ -80,11 +96,11 @@ Kirigami.ApplicationWindow {
             onValueChanged: treeTester.interval = value
         }
 
-        QuickTreeView {
+        KQuickItemViews.TreeView {
             id: listview
             Layout.fillHeight: true
             Layout.fillWidth: true
-            model: testmodel
+            model: treeTester
             delegate: Rectangle {
                 anchors.leftMargin: offset
                 opacity: 0.7
@@ -96,6 +112,28 @@ Kirigami.ApplicationWindow {
                     anchors.fill: parent
                     text: display
                     color: "red"
+                }
+            }
+        }
+    }
+
+    ColumnLayout {
+        id: freeFloatingLayout
+        anchors.fill: parent
+        KQuickItemViews.SizeHintView {
+            id: sizehintview
+            Layout.fillHeight: true
+            Layout.fillWidth: true
+            model: freeFloatingModel
+
+            delegate: Rectangle {
+                color: index == 0 ? "red" : index == 1 ? "blue" : "green"
+                border.width: 1
+                border.color: "gray"
+
+                Text {
+                    anchors.fill: parent
+                    text: display
                 }
             }
         }

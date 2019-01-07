@@ -68,6 +68,12 @@ public:
 
     void setHasScrollbar(bool v);
 
+    /// Return true when the currentAdapter is selected using the capabilities.
+    bool isAutomatic() const;
+
+    GeometryAdapter *currentAdapter() const;
+    void setCurrentAdapter(GeometryAdapter *a);
+
 private:
     GeoStrategySelectorPrivate *d_ptr;
     Q_DECLARE_PRIVATE(GeoStrategySelector)

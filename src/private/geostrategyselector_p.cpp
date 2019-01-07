@@ -22,6 +22,7 @@
 #include <QtCore/QDebug>
 
 // KQuickItemViews
+#include <viewport.h>
 #include <proxies/sizehintproxymodel.h>
 #include <strategies/justintime.h>
 #include <strategies/proxy.h>
@@ -49,6 +50,7 @@ public:
 
     GeometryAdapter    *m_A      {nullptr};
     QAbstractItemModel *m_pModel {nullptr};
+    bool                m_Auto   { true  };
 
     uint m_Features {GeoStrategySelector::Features::NONE};
 
@@ -162,6 +164,9 @@ bool GeoStrategySelectorPrivate::checkProxyModel()
 
 void GeoStrategySelectorPrivate::optimize()
 {
+    if (!m_Auto)
+        return;
+
     // Here will eventually reside the main optimization algorithm. For now
     // just choose between the JustInTime and Proxy adapters, the only ones
     // fully implemented.
@@ -207,4 +212,34 @@ void GeoStrategySelectorPrivate::replaceStrategy(BuiltInStrategies s)
     }
 
     emit q_ptr->dismissResult();
+}
+
+bool GeoStrategySelector::isAutomatic() const
+{
+    return d_ptr->m_Auto;
+}
+
+GeometryAdapter *GeoStrategySelector::currentAdapter() const
+{
+    return d_ptr->m_A;
+}
+
+void GeoStrategySelector::setCurrentAdapter(GeometryAdapter *a)
+{
+    if (a == d_ptr->m_A)
+        return;
+
+    if (d_ptr->m_Auto || a->parent() == viewport())
+        delete d_ptr->m_A;
+
+    d_ptr->m_Auto = !a;
+
+    d_ptr->m_A = a;
+
+    if (d_ptr->m_Auto)
+        d_ptr->optimize();
+
+    Q_ASSERT(d_ptr->m_A);
+
+    emit dismissResult();
 }

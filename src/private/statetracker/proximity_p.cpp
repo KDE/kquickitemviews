@@ -175,12 +175,21 @@ QModelIndexList ProximityPrivate::down() const
     // returning a single item
 
     // Return the first child
-    if (m_pSelf->index().model()->rowCount(m_pSelf->index()))
-        return {m_pSelf->index().model()->index(0, 0, m_pSelf->index())};
+    if (m_pSelf->index().model()->rowCount(m_pSelf->index())) {
+        const QModelIndex idx = m_pSelf->index().model()->index(0, 0, m_pSelf->index());
+        Q_ASSERT_X(idx.isValid(), "proximity", "rowCount() reported multiple children,"
+            "but index() return an invalid index for {0,0}. Make sure rowCount checks"
+            " the parent method parameter.");
+        return idx.isValid() ? QModelIndexList{idx} : QModelIndexList();
+    }
 
     // Return the next sibling
-    if (m_pSelf->index().model()->rowCount(par)-1 > effRow)
-        return {m_pSelf->index().model()->index(effRow+1, 0, par)};
+    if (m_pSelf->index().model()->rowCount(par)-1 > effRow) {
+        const QModelIndex idx = m_pSelf->index().model()->index(effRow+1, 0, par);
+        Q_ASSERT_X(idx.isValid(), "proximity", "rowCount() reported multiple children,"
+            "but index() return an invalid index. Make sure rowCount checks the parent.");
+        return idx.isValid() ? QModelIndexList{idx} : QModelIndexList();
+    }
 
     while (par.isValid()) {
         auto sib = par.sibling(par.row()+1, par.column());

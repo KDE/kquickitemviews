@@ -92,7 +92,7 @@ public:
      * be placed. This isn't as optimial as placing the item directly, but
      * allows for a lot of boilerplate code to be handled internally.
      */
-    virtual QQuickItem *item() const;
+    virtual QQuickItem *container() const;
 
     Viewport *viewport() const;
 

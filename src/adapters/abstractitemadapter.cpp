@@ -183,7 +183,7 @@ QRectF StateTracker::ViewItem::currentGeometry() const
 
 QQuickItem* StateTracker::ViewItem::item() const
 {
-    return d_ptr->item();
+    return d_ptr->container();
 }
 
 bool AbstractItemAdapterPrivate::attach()
@@ -378,7 +378,7 @@ QQmlContext *AbstractItemAdapter::context() const
     return d_ptr->m_pContext;
 }
 
-QQuickItem *AbstractItemAdapter::item() const
+QQuickItem *AbstractItemAdapter::container() const
 {
     d_ptr->load();
     return d_ptr->m_pItem;
@@ -394,12 +394,12 @@ QRectF AbstractItemAdapter::geometry() const
     if (!d_ptr->m_pItem)
         return {};
 
-    const QPointF p = item()->mapFromItem(view()->contentItem(), {0,0});
+    const QPointF p = container()->mapFromItem(view()->contentItem(), {0,0});
     return {
         -p.x(),
         -p.y(),
-        item()->width(),
-        item()->height()
+        container()->width(),
+        container()->height()
     };
 }
 
@@ -434,9 +434,9 @@ bool AbstractItemAdapter::move()
     Q_ASSERT(a);
 
     const auto pos = a->positionHint(index(), this);
-    item()->setSize(a->sizeHint(index(), this));
-    item()->setX(pos.x());
-    item()->setY(pos.y());
+    container()->setSize(a->sizeHint(index(), this));
+    container()->setX(pos.x());
+    container()->setY(pos.y());
 
     return true;
 }
@@ -445,7 +445,7 @@ bool AbstractItemAdapter::attach()
 {
     Q_ASSERT(index().isValid());
 
-    return item();// && move();
+    return container();// && move();
 }
 
 bool AbstractItemAdapter::flush()

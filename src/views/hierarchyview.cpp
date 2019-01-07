@@ -73,18 +73,18 @@ HierarchyViewItem::HierarchyViewItem(Viewport* r) : AbstractItemAdapter(r)
 
 HierarchyViewItem::~HierarchyViewItem()
 {
-    delete item();
+    delete container();
 }
 
 bool HierarchyViewItem::move()
 {
     // Will happen when trying to move a FAILED, but buffered item
-    if (!item()) {
+    if (!container()) {
         qDebug() << "NO ITEM" << index().data();
         return false;
     }
 
-    item()->setWidth(view()->contentItem()->width());
+    container()->setWidth(view()->contentItem()->width());
 
     auto nextElem = static_cast<HierarchyViewItem*>(next(Qt::BottomEdge));
     auto prevElem = static_cast<HierarchyViewItem*>(next(Qt::TopEdge));
@@ -106,25 +106,25 @@ bool HierarchyViewItem::move()
     // might be a good idea to extend Flickable to support a virtual
     // origin point.
     if ((!prevElem) || (nextElem && nextElem->m_IsHead)) {
-        auto anchors = qvariant_cast<QObject*>(item()->property("anchors"));
+        auto anchors = qvariant_cast<QObject*>(container()->property("anchors"));
         anchors->setProperty("top", {});
-        item()->setY(0);
+        container()->setY(0);
         m_IsHead = true;
     }
     else if (prevElem) {
         Q_ASSERT(!m_IsHead);
-        item()->setProperty("y", {});
-        auto anchors = qvariant_cast<QObject*>(item()->property("anchors"));
-        anchors->setProperty("top", prevElem->item()->property("bottom"));
+        container()->setProperty("y", {});
+        auto anchors = qvariant_cast<QObject*>(container()->property("anchors"));
+        anchors->setProperty("top", prevElem->container()->property("bottom"));
     }
 
     // Now, update the next anchors
     if (nextElem) {
         nextElem->m_IsHead = false;
-        nextElem->item()->setProperty("y", {});
+        nextElem->container()->setProperty("y", {});
 
-        auto anchors = qvariant_cast<QObject*>(nextElem->item()->property("anchors"));
-        anchors->setProperty("top", item()->property("bottom"));
+        auto anchors = qvariant_cast<QObject*>(nextElem->container()->property("anchors"));
+        anchors->setProperty("top", container()->property("bottom"));
     }
 
     updateGeometry();
@@ -134,10 +134,10 @@ bool HierarchyViewItem::move()
 
 bool HierarchyViewItem::remove()
 {
-    if (item()) {
-        item()->setParent(nullptr);
-        item()->setParentItem(nullptr);
-        item()->setVisible(false);
+    if (container()) {
+        container()->setParent(nullptr);
+        container()->setParentItem(nullptr);
+        container()->setVisible(false);
     }
 
     auto nextElem = static_cast<HierarchyViewItem*>(next(Qt::BottomEdge));
@@ -145,14 +145,14 @@ bool HierarchyViewItem::remove()
 
     if (nextElem) {
         if (m_IsHead) {
-            auto anchors = qvariant_cast<QObject*>(nextElem->item()->property("anchors"));
+            auto anchors = qvariant_cast<QObject*>(nextElem->container()->property("anchors"));
             anchors->setProperty("top", {});
-            item()->setY(0);
+            container()->setY(0);
             nextElem->m_IsHead = true;
         }
         else { //TODO maybe eventually use a state machine for this
-            auto anchors = qvariant_cast<QObject*>(nextElem->item()->property("anchors"));
-            anchors->setProperty("top", prevElem->item()->property("bottom"));
+            auto anchors = qvariant_cast<QObject*>(nextElem->container()->property("anchors"));
+            anchors->setProperty("top", prevElem->container()->property("bottom"));
         }
     }
 

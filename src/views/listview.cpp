@@ -351,11 +351,11 @@ ListViewPrivate* ListViewItem::d() const
 bool ListViewItem::attach()
 {
     // This will trigger the lazy-loading of the item
-    if (!item())
+    if (!container())
         return false;
 
     // When the item resizes itself
-    QObject::connect(item(), &QQuickItem::heightChanged, item(), [this](){
+    QObject::connect(container(), &QQuickItem::heightChanged, container(), [this](){
         updateGeometry();
     });
 
@@ -367,32 +367,32 @@ void ListViewSection::setOwner(ListViewItem* newParent)
     if (m_pOwner == newParent)
         return;
 
-    if (m_pOwner->item()) {
-        auto otherAnchors = qvariant_cast<QObject*>(newParent->item()->property("anchors"));
-        auto anchors = qvariant_cast<QObject*>(m_pOwner->item()->property("anchors"));
+    if (m_pOwner->container()) {
+        auto otherAnchors = qvariant_cast<QObject*>(newParent->container()->property("anchors"));
+        auto anchors = qvariant_cast<QObject*>(m_pOwner->container()->property("anchors"));
 
         const auto newPrevious = static_cast<ListViewItem*>(m_pOwner->next(Qt::TopEdge));
         Q_ASSERT(newPrevious != m_pOwner);
 
         // Prevent a loop while moving
-        if (otherAnchors && otherAnchors->property("top") == m_pOwner->item()->property("bottom")) {
+        if (otherAnchors && otherAnchors->property("top") == m_pOwner->container()->property("bottom")) {
             anchors->setProperty("top", {});
             otherAnchors->setProperty("top", {});
             otherAnchors->setProperty("y", {});
         }
 
-        anchors->setProperty("top", newParent->item() ?
-            newParent->item()->property("bottom") : QVariant()
+        anchors->setProperty("top", newParent->container() ?
+            newParent->container()->property("bottom") : QVariant()
         );
 
         // Set the old owner new anchors
-        if (newPrevious && newPrevious->item())
-            anchors->setProperty("top", newPrevious->item()->property("bottom"));
+        if (newPrevious && newPrevious->container())
+            anchors->setProperty("top", newPrevious->container()->property("bottom"));
 
         otherAnchors->setProperty("top", m_pItem->property("bottom"));
     }
     else
-        newParent->item()->setY(0);
+        newParent->container()->setY(0);
 
     // Cleanup the previous owner decoration
     if (m_pOwner) {
@@ -410,9 +410,9 @@ void ListViewSection::reparentSection(ListViewItem* newParent, ViewBase* view)
     if (!m_pItem)
         return;
 
-    if (newParent && newParent->item()) {
+    if (newParent && newParent->container()) {
         auto anchors = qvariant_cast<QObject*>(m_pItem->property("anchors"));
-        anchors->setProperty("top", newParent->item()->property("bottom"));
+        anchors->setProperty("top", newParent->container()->property("bottom"));
 
         m_pItem->setParentItem(owner()->view()->contentItem());
     }
@@ -448,7 +448,7 @@ void ListViewSection::reparentSection(ListViewItem* newParent, ViewBase* view)
 
 bool ListViewItem::move()
 {
-    if (!item())
+    if (!container())
         return false;
 
     auto prev = static_cast<ListViewItem*>(next(Qt::TopEdge));
@@ -491,25 +491,25 @@ bool ListViewItem::move()
 
     const qreal y = d()->m_DepthChart.first()*row();
 
-    if (item()->width() != view()->contentItem()->width())
-        item()->setWidth(view()->contentItem()->width());
+    if (container()->width() != view()->contentItem()->width())
+        container()->setWidth(view()->contentItem()->width());
 
-    prevItem = prevItem ? prevItem : prev ? prev->item() : nullptr;
+    prevItem = prevItem ? prevItem : prev ? prev->container() : nullptr;
 
     // So other items can be GCed without always resetting to 0x0, note that it
     // might be a good idea to extend Flickable to support a virtual
     // origin point.
     if (!prevItem)
-        item()->setY(y);
+        container()->setY(y);
     else {
         // Row can be 0 if there is a section
-        Q_ASSERT(row() || (!prev) || (!prev->item()));
+        Q_ASSERT(row() || (!prev) || (!prev->container()));
 
         // Prevent loops when swapping 2 items
         auto otherAnchors = qvariant_cast<QObject*>(prevItem->property("anchors"));
-        auto anchors = qvariant_cast<QObject*>(item()->property("anchors"));
+        auto anchors = qvariant_cast<QObject*>(container()->property("anchors"));
 
-        if (otherAnchors && otherAnchors->property("top") == item()->property("bottom")) {
+        if (otherAnchors && otherAnchors->property("top") == container()->property("bottom")) {
             anchors->setProperty("top", {});
             otherAnchors->setProperty("top", {});
             otherAnchors->setProperty("y", {});

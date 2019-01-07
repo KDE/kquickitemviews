@@ -67,11 +67,12 @@ public:
 
     mutable QSharedPointer<AbstractItemAdapter::SelectionLocker> m_pLocker;
 
-    mutable QQuickItem  *m_pItem    {nullptr};
-    mutable QQmlContext *m_pContext {nullptr};
+    mutable QQuickItem  *m_pContainer {nullptr};
+    mutable QQuickItem  *m_pContent   {nullptr};
+    mutable QQmlContext *m_pContext   {nullptr};
 
     // Helpers
-    QPair<QQuickItem*, QQmlContext*> loadDelegate(QQuickItem* parentI) const;
+    bool loadDelegate(QQuickItem* parentI) const;
 
     // Attributes
     AbstractItemAdapter* q_ptr;
@@ -121,8 +122,8 @@ AbstractItemAdapter::AbstractItemAdapter(Viewport* r) :
 
 AbstractItemAdapter::~AbstractItemAdapter()
 {
-    if (d_ptr->m_pItem)
-        delete d_ptr->m_pItem;
+    if (d_ptr->m_pContainer)
+        delete d_ptr->m_pContainer;
 
     if (d_ptr->m_pContext)
         delete d_ptr->m_pContext;
@@ -188,8 +189,8 @@ QQuickItem* StateTracker::ViewItem::item() const
 
 bool AbstractItemAdapterPrivate::attach()
 {
-    if (m_pItem)
-        m_pItem->setVisible(true);
+    if (m_pContainer)
+        m_pContainer->setVisible(true);
 
     return q_ptr->attach();
 }
@@ -219,7 +220,7 @@ bool AbstractItemAdapterPrivate::remove()
 {
     bool ret = q_ptr->remove();
 
-    m_pItem->setParentItem(nullptr);
+    m_pContainer->setParentItem(nullptr);
     q_ptr->s_ptr->m_pMetadata = nullptr;
 
     return ret;
@@ -227,11 +228,11 @@ bool AbstractItemAdapterPrivate::remove()
 
 bool AbstractItemAdapterPrivate::hide()
 {
-    Q_ASSERT(m_pItem);
-    if (!m_pItem)
+    Q_ASSERT(m_pContainer);
+    if (!m_pContainer)
         return false;
 
-    m_pItem->setVisible(false);
+    m_pContainer->setVisible(false);
 
     return true;
 }
@@ -239,7 +240,7 @@ bool AbstractItemAdapterPrivate::hide()
 // This methodwrap the removal of the element from the view
 bool AbstractItemAdapterPrivate::detach()
 {
-    m_pItem->setParentItem(nullptr);
+    m_pContainer->setParentItem(nullptr);
     remove();
 
     //FIXME
@@ -268,11 +269,13 @@ bool AbstractItemAdapterPrivate::destroy()
     auto ptrCopy = m_pLocker;
 
     //FIXME manage to add to the pool without a SEGFAULT
-    if (m_pItem) {
-        m_pItem->setParentItem(nullptr);
-        delete m_pItem;
+    if (m_pContainer) {
+        m_pContainer->setParentItem(nullptr);
+        delete m_pContainer;
     }
-    m_pItem = nullptr;
+
+    m_pContainer = nullptr;
+    m_pContent   = nullptr;
 
     if (ptrCopy) {
         QTimer::singleShot(0,[this, ptrCopy]() {
@@ -319,7 +322,7 @@ AbstractItemAdapter::weakReference() const
 
 void AbstractItemAdapterPrivate::load()
 {
-    if (m_pContext || m_pItem)
+    if (m_pContext || m_pContainer)
         return;
 
     // Usually if we get here something already failed
@@ -329,26 +332,23 @@ void AbstractItemAdapterPrivate::load()
         return;
     }
 
-    auto pair = loadDelegate(q_ptr->view()->contentItem());
+    loadDelegate(q_ptr->view()->contentItem());
 
-    if (!pair.first) {
+    if (!m_pContainer) {
         qDebug() << "Item failed to load" << q_ptr->index().data();
         return;
     }
 
-    if (!pair.first->z())
-        pair.first->setZ(1);
+    if (!m_pContainer->z())
+        m_pContainer->setZ(1);
 
     /*d()->m_DepthChart[depth()] = std::max(
         d()->m_DepthChart[depth()],
         pair.first->height()
     );*/
 
-    m_pContext = pair.second;
-    m_pItem    = pair.first;
-
     // QtQuick can decide to destroy it even with C++ ownership, so be it
-    connect(m_pItem, &QObject::destroyed, this, &AbstractItemAdapterPrivate::slotDestroyed);
+    connect(m_pContainer, &QObject::destroyed, this, &AbstractItemAdapterPrivate::slotDestroyed);
 
     Q_ASSERT(q_ptr->s_ptr->m_pMetadata);
 
@@ -365,7 +365,7 @@ void AbstractItemAdapterPrivate::load()
         //TODO it should still call the GeometryAdapter, but most of them are
         // currently too buggy for that to help.
         q_ptr->s_ptr->m_pMetadata->setSize(
-            QSizeF(m_pItem->width(), m_pItem->height())
+            QSizeF(m_pContainer->width(), m_pContainer->height())
         );
     }
 
@@ -381,7 +381,13 @@ QQmlContext *AbstractItemAdapter::context() const
 QQuickItem *AbstractItemAdapter::container() const
 {
     d_ptr->load();
-    return d_ptr->m_pItem;
+    return d_ptr->m_pContainer;
+}
+
+QQuickItem *AbstractItemAdapter::content() const
+{
+    d_ptr->load();
+    return d_ptr->m_pContent;
 }
 
 Viewport *AbstractItemAdapter::viewport() const
@@ -391,7 +397,7 @@ Viewport *AbstractItemAdapter::viewport() const
 
 QRectF AbstractItemAdapter::geometry() const
 {
-    if (!d_ptr->m_pItem)
+    if (!d_ptr->m_pContainer)
         return {};
 
     const QPointF p = container()->mapFromItem(view()->contentItem(), {0,0});
@@ -456,51 +462,55 @@ bool AbstractItemAdapter::flush()
 void AbstractItemAdapter::setSelected(bool /*s*/)
 {}
 
-QPair<QQuickItem*, QQmlContext*> AbstractItemAdapterPrivate::loadDelegate(QQuickItem* parentI) const
+bool AbstractItemAdapterPrivate::loadDelegate(QQuickItem* parentI) const
 {
     const auto delegate = q_ptr->s_ptr->m_pViewport->modelAdapter()->delegate();
     if (!delegate) {
         qWarning() << "No delegate is set";
-        return {};
+        return false;
     }
+
+    const auto engine = q_ptr->s_ptr->m_pViewport->s_ptr->engine();
 
     auto pctx = q_ptr->s_ptr->m_pMetadata->contextAdapter()->context();
 
     // Create a parent item to hold the delegate and all children
     auto container = qobject_cast<QQuickItem *>(q_ptr->s_ptr->m_pViewport->s_ptr->component()->create(pctx));
     container->setWidth(q_ptr->view()->width());
-    q_ptr->s_ptr->m_pViewport->s_ptr->engine()->setObjectOwnership(container, QQmlEngine::CppOwnership);
+    engine->setObjectOwnership(container, QQmlEngine::CppOwnership);
     container->setParentItem(parentI);
+
+    m_pContext   = pctx;
+    m_pContainer = container;
 
     // Create a context with all the tree roles
     auto ctx = new QQmlContext(pctx);
 
     // Create the delegate
-    auto item = qobject_cast<QQuickItem *>(delegate->create(ctx));
-    q_ptr->s_ptr->m_pViewport->s_ptr->engine()->setObjectOwnership(item, QQmlEngine::CppOwnership);
+    m_pContent = qobject_cast<QQuickItem *>(delegate->create(ctx));
 
     // It allows the children to be added anyway
-    if(!item) {
+    if(!m_pContent) {
         if (!delegate->errorString().isEmpty())
             qWarning() << delegate->errorString();
 
-        return {container, pctx};
+        return true;
     }
 
-    item->setWidth(q_ptr->view()->width());
-    item->setParentItem(container);
+    engine->setObjectOwnership(m_pContent, QQmlEngine::CppOwnership);
+
+    m_pContent->setWidth(q_ptr->view()->width());
+    m_pContent->setParentItem(container);
 
     // Resize the container
-    container->setHeight(item->height());
+    container->setHeight(m_pContent->height());
 
     // Make sure it can be resized dynamically
-    QObject::connect(item, &QQuickItem::heightChanged, container, [container, item](){
-        container->setHeight(item->height());
+    QObject::connect(m_pContent, &QQuickItem::heightChanged, container, [container, this]() {
+        container->setHeight(m_pContent->height());
     });
 
-    container->setProperty("content", QVariant::fromValue(item));
-
-    return {container, pctx};
+    return true;
 }
 
 void StateTracker::ViewItem::updateGeometry()
@@ -653,7 +663,8 @@ StateTracker::ViewItem::State StateTracker::ViewItem::state() const
 
 void AbstractItemAdapterPrivate::slotDestroyed()
 {
-    m_pItem = nullptr;
+    m_pContainer = nullptr;
+    m_pContent   = nullptr;
 }
 
 #include <abstractitemadapter.moc>

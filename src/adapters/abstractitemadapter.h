@@ -86,13 +86,20 @@ public:
     virtual QQmlContext *context() const;
 
     /**
-     * The QQuickItem used for this item.
+     * The QQuickItem used to wrap the content item.
      *
-     * By default, it will create a container in which another item will
-     * be placed. This isn't as optimial as placing the item directly, but
-     * allows for a lot of boilerplate code to be handled internally.
+     * A container is useful
+     * because there can be decorations around the "real" delegate and they
+     * are provided by the view, not the delegate.
      */
     virtual QQuickItem *container() const;
+
+    /**
+     * The delegate instance.
+     *
+     * This is a children of the `container` item.
+     */
+    virtual QQuickItem *content() const;
 
     Viewport *viewport() const;
 

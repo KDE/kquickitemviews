@@ -86,6 +86,7 @@ set( kquickitemviews_LIB_SRCS
     src/views/flickable.cpp
     src/views/hierarchyview.cpp
     src/views/listview.cpp
+    src/views/sizehintview.cpp
     src/views/treeview.cpp
     src/views/indexview.cpp
 
@@ -139,6 +140,7 @@ set( kquickitemviews_views_LIB_HDRS
     IndexView
     HierarchyView
     ListView
+    SizeHintView
     TreeView
 )
 

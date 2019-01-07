@@ -25,6 +25,7 @@
 #include "views/hierarchyview.h"
 #include "views/listview.h"
 #include "views/treeview.h"
+#include "views/sizehintview.h"
 #include "qmodelindexwatcher.h"
 #include "qmodelindexbinder.h"
 #include "views/comboboxview.h"
@@ -47,6 +48,7 @@ void KQuickItemViews::registerTypes(const char *uri)
     qmlRegisterType<HierarchyView>(uri, 1, 0, "HierarchyView");
     qmlRegisterType<TreeView>(uri, 1, 0, "TreeView");
     qmlRegisterType<ListView>(uri, 1, 0, "ListView");
+    qmlRegisterType<SizeHintView>(uri, 1, 0, "SizeHintView");
     qmlRegisterType<IndexView>(uri, 1, 0, "IndexView");
     qmlRegisterType<ScrollBarAdapter>(uri, 1, 0, "ScrollBarAdapter");
     qmlRegisterType<GeometryAdapter>(uri, 1, 0, "GeometryAdapter");

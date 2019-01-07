@@ -85,8 +85,11 @@ QSizeF GeoStrategySelector::sizeHint(const QModelIndex& i, AbstractItemAdapter *
 
 QPointF GeoStrategySelector::positionHint(const QModelIndex& i, AbstractItemAdapter *a) const
 {
-    return d_ptr->m_A ?
-        d_ptr->m_A->positionHint(i, a) : GeometryAdapter::positionHint(i, a);
+    if (d_ptr->m_A && d_ptr->m_A->capabilities() & Capabilities::HAS_POSITION_HINTS)
+        return d_ptr->m_A->positionHint(i, a);
+
+    //TODO implement the fallback
+    return GeometryAdapter::positionHint(i, a);
 }
 
 int GeoStrategySelector::capabilities() const
@@ -103,10 +106,10 @@ bool GeoStrategySelector::isSizeForced() const
 
 void GeoStrategySelector::setSizeForced(bool f)
 {
+    GeometryAdapter::setSizeForced(f);
+
     if (d_ptr->m_A)
         d_ptr->m_A->setSizeForced(f);
-    else
-        GeometryAdapter::setSizeForced(f);
 }
 
 void GeoStrategySelector::setModel(QAbstractItemModel *m)
@@ -252,6 +255,11 @@ void GeoStrategySelector::setCurrentAdapter(GeometryAdapter *a)
 
     if (d_ptr->m_Auto)
         d_ptr->optimize();
+
+    // Mitigate a race condition when setSizeForced is called before setCurrentAdapter
+    // due to the undefined property order in QML.
+    if (d_ptr->m_A && GeometryAdapter::isSizeForced())
+        d_ptr->m_A->setSizeForced(true);
 
     Q_ASSERT(d_ptr->m_A);
 

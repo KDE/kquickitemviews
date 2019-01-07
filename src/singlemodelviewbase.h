@@ -44,6 +44,12 @@ public:
     Q_PROPERTY(QVariant model READ model WRITE setModel NOTIFY modelChanged)
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged)
 
+    /**
+     * Whether to use the delegate implicit size or always explicitly apply the
+     * size hints explicitly.
+     */
+    Q_PROPERTY(bool forceDelegateSize READ isDelegateSizeForced WRITE setDelegateSizeForced)
+
     /// Assume each hierarchy level have the same height (for performance)
     Q_PROPERTY(bool uniformRowHeight READ hasUniformRowHeight   WRITE setUniformRowHeight)
     /// Assume each column has the same width (for performance)
@@ -72,6 +78,9 @@ public:
 
     QSharedPointer<QItemSelectionModel> selectionModel() const;
     void setSelectionModel(QSharedPointer<QItemSelectionModel> m);
+
+    bool isDelegateSizeForced() const;
+    void setDelegateSizeForced(bool f);
 
     QModelIndex currentIndex() const;
     Q_INVOKABLE void setCurrentIndex(const QModelIndex& index,

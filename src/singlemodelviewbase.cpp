@@ -117,6 +117,18 @@ void SingleModelViewBase::applyModelChanges(QAbstractItemModel* m)
     }
 }
 
+bool SingleModelViewBase::isDelegateSizeForced() const
+{
+    return d_ptr->m_pModelAdapter->viewports().constFirst()->s_ptr->
+        m_pGeoAdapter->isSizeForced();
+}
+
+void SingleModelViewBase::setDelegateSizeForced(bool f)
+{
+    d_ptr->m_pModelAdapter->viewports().constFirst()->s_ptr->
+        m_pGeoAdapter->setSizeForced(f);
+}
+
 bool SingleModelViewBase::isSortingEnabled() const
 {
     return d_ptr->m_IsSortingEnabled;

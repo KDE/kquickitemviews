@@ -17,18 +17,32 @@
  **************************************************************************/
 #include "role.h"
 
+#include <QtCore/QModelIndex>
+#include <QtCore/QRectF>
+#include <QtCore/QHash>
+
+// KQuickItemViews
+#include <viewport.h>
+#include <adapters/modeladapter.h>
+
 class RoleStrategiesPrivate
 {
 public:
-    int     m_Role     { Qt::SizeHintRole };
-    QString m_RoleName {    "sizeHint"    };
+    bool    m_Reload           {       true       };
+    int     m_SizeRole         { Qt::SizeHintRole };
+    int     m_PositionRole     {        -1        };
+    QString m_SizeRoleName     {    "sizeHint"    };
+    QString m_PositionRoleName {                  };
 
     void updateName();
+
+    GeometryStrategies::Role *q_ptr;
 };
 
 GeometryStrategies::Role::Role(Viewport *parent) : GeometryAdapter(parent),
     d_ptr(new RoleStrategiesPrivate())
 {
+    d_ptr->q_ptr = this;
     setCapabilities(Capabilities::HAS_AHEAD_OF_TIME);
 }
 
@@ -39,44 +53,124 @@ GeometryStrategies::Role::~Role()
 
 QSizeF GeometryStrategies::Role::sizeHint(const QModelIndex &index, AbstractItemAdapter *adapter) const
 {
-    Q_UNUSED(index)
     Q_UNUSED(adapter)
-    Q_ASSERT(false); //TODO
-    return {};
+
+    if (d_ptr->m_Reload)
+        d_ptr->updateName();
+
+    const auto val = index.data(d_ptr->m_SizeRole);
+    Q_ASSERT(val.isValid());
+
+    if (val.type() == QMetaType::QRectF) {
+        const QRectF rect = val.toRectF();
+
+        return rect.size();
+    }
+
+    Q_ASSERT(val.toSizeF().isValid());
+
+    return val.toSizeF();
 }
 
-int GeometryStrategies::Role::role() const
+QPointF GeometryStrategies::Role::positionHint(const QModelIndex &index, AbstractItemAdapter *adapter) const
 {
-    return d_ptr->m_Role;
+    Q_UNUSED(adapter)
+    if (d_ptr->m_Reload)
+        d_ptr->updateName();
+
+    const auto val = index.data(d_ptr->m_SizeRole);
+    Q_ASSERT(val.isValid());
+
+    if (val.type() == QMetaType::QRectF) {
+        const QRectF rect = val.toRectF();
+
+        return rect.topLeft();
+    }
+
+    return val.toPointF();
 }
 
-void GeometryStrategies::Role::setRole(int role)
+int GeometryStrategies::Role::sizeRole() const
 {
-    d_ptr->m_Role = role;
+    return d_ptr->m_SizeRole;
+}
+
+void GeometryStrategies::Role::setSizeRole(int role)
+{
+    d_ptr->m_SizeRole = role;
     d_ptr->updateName();
     emit roleChanged();
 }
 
-QString GeometryStrategies::Role::roleName() const
+QString GeometryStrategies::Role::sizeRoleName() const
 {
-    return d_ptr->m_RoleName;
+    return d_ptr->m_SizeRoleName;
 }
 
-void GeometryStrategies::Role::setRoleName(const QString& roleName)
+void GeometryStrategies::Role::setSizeRoleName(const QString& roleName)
 {
-    d_ptr->m_RoleName = roleName;
+    if (d_ptr->m_SizeRoleName == roleName)
+        return;
+
+    d_ptr->m_SizeRoleName = roleName;
+    d_ptr->updateName();
+    emit roleChanged();
+}
+
+int GeometryStrategies::Role::positionRole() const
+{
+    return d_ptr->m_PositionRole;
+}
+
+void GeometryStrategies::Role::setPositionRole(int role)
+{
+    setCapabilities(
+        Capabilities::HAS_AHEAD_OF_TIME | Capabilities::HAS_POSITION_HINTS
+    );
+
+    d_ptr->m_PositionRole = role;
+    d_ptr->updateName();
+    emit roleChanged();
+}
+
+QString GeometryStrategies::Role::positionRoleName() const
+{
+    return d_ptr->m_PositionRoleName;
+}
+
+void GeometryStrategies::Role::setPositionRoleName(const QString& roleName)
+{
+    if (d_ptr->m_PositionRoleName == roleName)
+        return;
+
+    d_ptr->m_PositionRoleName = roleName;
     d_ptr->updateName();
     emit roleChanged();
 }
 
 void RoleStrategiesPrivate::updateName()
 {
-    /*d_ptr->m_SizeHintRole = s.toLatin1();
+    //TODO set the role name from the role index
+    const auto ma = q_ptr->viewport()->modelAdapter();
 
-    if (!d_ptr->m_SizeHintRole.isEmpty() && d_ptr->m_pModelAdapter->rawModel())
-        d_ptr->m_SizeHintRoleIndex = d_ptr->m_pModelAdapter->rawModel()->roleNames().key(
-            d_ptr->m_SizeHintRole
-        );*/
+    if (!ma->rawModel()) {
+        m_Reload = true;
+        return;
+    }
 
-    Q_ASSERT(false); //TODO
+    const auto rn  = ma->rawModel()->roleNames();
+    const auto rnv = rn.values();
+
+    const QByteArray srn = m_SizeRoleName.toLatin1();
+    const QByteArray prn = m_PositionRoleName.toLatin1();
+
+    if ((!srn.isEmpty()) && ma->rawModel() && rnv.contains(srn)) {
+        q_ptr->setSizeRole(rn.key(srn));
+    }
+
+    if ((!prn.isEmpty()) && ma->rawModel() && rnv.contains(prn)) {
+        q_ptr->setPositionRole(rn.key(prn));
+    }
+
+    m_Reload = false;
 }

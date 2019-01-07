@@ -36,16 +36,25 @@ public:
     explicit Role(Viewport *parent = nullptr);
     virtual ~Role();
 
-    Q_PROPERTY(int role READ role WRITE setRole NOTIFY roleChanged)
-    Q_PROPERTY(QString roleName READ roleName WRITE setRoleName NOTIFY roleChanged)
+    Q_PROPERTY(int sizeRole READ sizeRole WRITE setSizeRole NOTIFY roleChanged)
+    Q_PROPERTY(int positionRole READ positionRole WRITE setPositionRole NOTIFY roleChanged)
+    Q_PROPERTY(QString sizeRoleName READ sizeRoleName WRITE setSizeRoleName NOTIFY roleChanged)
+    Q_PROPERTY(QString positionRoleName READ positionRoleName WRITE setPositionRoleName NOTIFY roleChanged)
 
-    int role() const;
-    void setRole(int role);
+    int sizeRole() const;
+    void setSizeRole(int role);
 
-    QString roleName() const;
-    void setRoleName(const QString& roleName);
+    int positionRole() const;
+    void setPositionRole(int role);
+
+    QString positionRoleName() const;
+    void setPositionRoleName(const QString& roleName);
+
+    QString sizeRoleName() const;
+    void setSizeRoleName(const QString& roleName);
 
     Q_INVOKABLE virtual QSizeF sizeHint(const QModelIndex &index, AbstractItemAdapter *adapter) const override;
+    Q_INVOKABLE virtual QPointF positionHint(const QModelIndex &index, AbstractItemAdapter *adapter) const override;
 
 Q_SIGNALS:
     void roleChanged();

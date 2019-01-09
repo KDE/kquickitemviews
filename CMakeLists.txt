@@ -67,6 +67,7 @@ set( kquickitemviews_LIB_SRCS
     src/adapters/scrollbaradapter.cpp
     src/adapters/selectionadapter.cpp
     src/adapters/geometryadapter.cpp
+    src/adapters/viewportadapter.cpp
 
     # Building blocks
     src/flickablescrollbar.cpp
@@ -132,6 +133,7 @@ set( kquickitemviews_adapters_LIB_HDRS
     ScrollbarAdapter
     SelectionAdapter
     GeometryAdapter
+    ViewportAdapter
 )
 
 set( kquickitemviews_views_LIB_HDRS

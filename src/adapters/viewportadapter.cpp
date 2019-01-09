@@ -15,186 +15,81 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  **************************************************************************/
-#include "viewportapter.h"
+#include "viewportadapter.h"
 
-//WARNING This module was dropped from the first release and doesn't compile
+// KQuickItemViews
+#include <viewport.h>
+#include <adapters/geometryadapter.h>
 
 class ViewportAdapterPrivate : public QObject
 {
 public:
-    qreal m_DelayedHeightDelta {   0   };
-    bool  m_DisableApply       { false };
-    qreal m_CurrentHeight      {   0   };
+    Viewport *m_pViewport        {nullptr};
+    bool      m_IsTotalSizeKnown { false };
 
-    void applyDelayedSize();
-    qreal getSectionHeight(const QModelIndex& parent, int first, int last);
-
-    void connectModel(QAbstractItemModel *m);
-    void disconnectModel(QAbstractItemModel *m);
-
-public Q_SLOTS:
-    void slotReset();
-    void slotRowsInserted(const QModelIndex& parent, int first, int last);
-    void slotRowsRemoved(const QModelIndex& parent, int first, int last);
+    // Helper
+    GeometryAdapter *geoAdapter() const;
 };
 
-void ViewportAdapter::setModel(QAbstractItemModel *m)
+ViewportAdapter::ViewportAdapter(Viewport *parent) : QObject(parent),
+    d_ptr(new ViewportAdapterPrivate())
 {
-    if (d_ptr->m_pModel)
-        d_ptr->disconnectModel(d_ptr->m_pModel);
-
-    d_ptr->m_pModel = m;
-
-    if (m)
-        d_ptr->connectModel(m);
+    Q_ASSERT(parent);
+    d_ptr->m_pViewport = parent;
 }
 
-void ViewportAdapterPrivate::slotReset()
+ViewportAdapter::~ViewportAdapter()
 {
-    m_DisableApply = true;
-    m_CurrentHeight = 0.0;
-    if (int rc = m_pModelAdapter->rawModel()->rowCount())
-        slotRowsInserted({}, 0, rc - 1);
-    m_DisableApply = false;
-    applyDelayedSize();
+    delete d_ptr;
 }
 
-
-//TODO add a way to allow model to provide this information manually and
-// generally don't cleanup when this code-path is used. Maybe trun into an
-// adapter
-
-void ViewportAdapterPrivate::applyDelayedSize()
+bool ViewportAdapter::isTotalSizeKnown() const
 {
-    if (m_DisableApply)
-        return;
-
-    m_CurrentHeight += m_DelayedHeightDelta;
-    m_DelayedHeightDelta = 0;
-
-    m_pModelAdapter->view()->contentItem()->setHeight(m_CurrentHeight);
+    return d_ptr->m_IsTotalSizeKnown;
 }
 
-void ViewportAdapterPrivate::slotRowsInserted(const QModelIndex& parent, int first, int last)
+QRectF ViewportAdapter::availableFooterArea() const
 {
-    const bool apply = m_DisableApply;
-    m_DisableApply = false;
-
-    m_DelayedHeightDelta += getSectionHeight(parent, first, last);
-
-    if (m_pModelAdapter->maxDepth() != 1) {
-        const auto idx = m_pModelAdapter->rawModel()->index(first, 0, parent);
-        Q_ASSERT(idx.isValid());
-        if (int rc = m_pModelAdapter->rawModel()->rowCount(idx))
-            slotRowsInserted(idx, 0, rc - 1);
-    }
-
-    m_DisableApply = apply;
-    applyDelayedSize();
+    return {};
 }
 
-void ViewportAdapterPrivate::slotRowsRemoved(const QModelIndex& parent, int first, int last)
+QRectF ViewportAdapter::availableHeaderArea() const
 {
-    const bool apply = m_DisableApply;
-    m_DisableApply = false;
-
-    m_DelayedHeightDelta -= getSectionHeight(parent, first, last);
-
-    if (m_pModelAdapter->maxDepth() != 1) {
-        const auto idx = m_pModelAdapter->rawModel()->index(first, 0, parent);
-        Q_ASSERT(idx.isValid());
-        if (int rc = m_pModelAdapter->rawModel()->rowCount(idx))
-            slotRowsRemoved(idx, 0, rc - 1);
-    }
-
-    m_DisableApply = apply;
-    applyDelayedSize();
+    return {};
 }
 
-void ViewportAdapterPrivate::connectModel(QAbstractItemModel *m)
+Qt::Edges ViewportAdapter::anchoredEdges() const
 {
-    connect(m, &QAbstractItemModel::rowsInserted,
-        this, &ViewportPrivate::slotRowsInserted);
-    connect(m, &QAbstractItemModel::rowsAboutToBeRemoved,
-        this, &ViewportPrivate::slotRowsRemoved);
-    connect(m, &QAbstractItemModel::modelReset,
-        this, &ViewportPrivate::slotReset);
-    connect(m, &QAbstractItemModel::layoutChanged,
-        this, &ViewportPrivate::slotReset);
+    return {};
 }
 
-void ViewportAdapterPrivate::disconnectModel(QAbstractItemModel *m)
+QSizeF ViewportAdapter::totalSize() const
 {
-    disconnect(m, &QAbstractItemModel::rowsInserted,
-        this, &ViewportPrivate::slotRowsInserted);
-    disconnect(m, &QAbstractItemModel::rowsAboutToBeRemoved,
-        this, &ViewportPrivate::slotRowsRemoved);
-    disconnect(m, &QAbstractItemModel::modelReset,
-        this, &ViewportPrivate::slotReset);
-    disconnect(m, &QAbstractItemModel::layoutChanged,
-        this, &ViewportPrivate::slotReset);
+    return {};
 }
 
-
-qreal ViewportPrivate::getSectionHeight(const QModelIndex& parent, int first, int last)
+void ViewportAdapter::onResize(const QRectF& newSize, const QRectF& oldSize)
 {
-    Q_UNUSED(last) //TODO not implemented
-    Q_ASSERT(m_pModelAdapter->rawModel());
-    switch(m_SizeStrategy) {
-        case Strategy::AOT:
-        case Strategy::JIT:
-        case Strategy::DELEGATE:
-            Q_ASSERT(false); // Should not get here
-            return 0.0;
-        case Strategy::UNIFORM:
-            Q_ASSERT(m_KnowsRowHeight);
-            break;
-        case Strategy::PROXY: {
-            Q_ASSERT(q_ptr->modelAdapter()->hasSizeHints());
-            const auto idx = m_pModelAdapter->rawModel()->index(first, 0, parent);
-            return qobject_cast<SizeHintProxyModel*>(m_pModelAdapter->rawModel())
-                ->sizeHintForIndex(idx).height();
-        }
-        case Strategy::ROLE:
-            Q_ASSERT(false); //TODO not implemented
-            break;
-    }
-
-    Q_ASSERT(false);
-    return 0.0;
+    Q_UNUSED(newSize)
+    Q_UNUSED(oldSize)
 }
 
-void Viewport::setSizeHintStrategy(Strategy s)
+void ViewportAdapter::onEnterViewport(AbstractItemAdapter *item)
 {
-    const auto old = d_ptr->m_SizeStrategy;
-
-    auto needConnect = [](Strategy s) {
-        return s == Strategy::PROXY || s == Strategy::UNIFORM || s == Strategy::ROLE;
-    };
-
-    const bool wasConnected = needConnect(old);
-    const bool willConnect  = needConnect( s );
-
-    s_ptr->m_pReflector->modelTracker() << StateTracker::Model::Action::RESET;
-    d_ptr->m_SizeStrategy = s;
-
-    const auto m = d_ptr->m_pModelAdapter->rawModel();
-
-    if (m && wasConnected && !willConnect) {
-        dsfdsfdsDisconnecT();
-    }
-    else if (d_ptr->m_pModelAdapter->rawModel() && willConnect && !wasConnected) {
-        dslfdslkfhConnect();
-    }
+    Q_UNUSED(item)
 }
 
-
-bool Viewport::isTotalSizeKnown() const
+void ViewportAdapter::onLeaveViewport(AbstractItemAdapter *item)
 {
-    if (!d_ptr->m_pModelAdapter->delegate())
-        return false;
+    Q_UNUSED(item)
+}
 
-    if (!d_ptr->m_pModelAdapter->rawModel())
-        return true;
+QSizeF ViewportAdapter::sizeHint(const QModelIndex &index, AbstractItemAdapter *adapter) const
+{
+    return d_ptr->m_pViewport->geometryAdapter()->sizeHint(index, adapter);
+}
 
+QPointF ViewportAdapter::positionHint(const QModelIndex &index, AbstractItemAdapter *adapter) const
+{
+    return d_ptr->m_pViewport->geometryAdapter()->positionHint(index, adapter);
 }

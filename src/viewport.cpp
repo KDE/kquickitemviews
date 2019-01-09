@@ -111,9 +111,6 @@ void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel
 
     Q_ASSERT(m_pModelAdapter->rawModel() == m);
 
-    if (m_pViewAdapter) //TODO
-        m_pViewAdapter->setModel(m);
-
     q_ptr->s_ptr->m_pGeoAdapter->setModel(m);
 
     if (m && m_ViewRect.size().isValid() && m_pModelAdapter->delegate()) {

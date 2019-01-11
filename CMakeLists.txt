@@ -9,8 +9,6 @@ endif(POLICY CMP0063)
 find_package(ECM 1.1.0 REQUIRED NO_MODULE)
 list(APPEND CMAKE_MODULE_PATH "${ECM_MODULE_PATH}")
 
-option(BUILD_SHARED_LIBS "" OFF)
-
 include(ECMInstallIcons)
 include(ECMOptionalAddSubdirectory)
 include(CMakePackageConfigHelpers)
@@ -22,6 +20,12 @@ include(KDECompilerSettings)
 SET(CMAKE_C_VISIBILITY_PRESET hidden)
 SET(CMAKE_CXX_VISIBILITY_PRESET hidden)
 SET(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
+
+# When used with `add_subdirectory`, assume it is a static Qt plugin
+get_directory_property(USES_ADD_SUBDIRECTORY PARENT_DIRECTORY)
+if(USES_ADD_SUBDIRECTORY)
+   set(BUILD_SHARED_LIBS OFF)
+endif()
 
 if(NOT BUILD_SHARED_LIBS)
     set(ENABLE__STATIC_PLUGIN 1)
@@ -38,7 +42,7 @@ if(ENABLE__STATIC_PLUGIN)
     add_definitions(-DQT_PLUGIN)
     add_definitions(-DQT_STATICPLUGIN=1)
     add_definitions(-DKQUICKITEMVIEWS_USE_STATIC_PLUGIN=1)
-elseif (BUILD_TESTING)
+elseif (BUILD_TESTING OR USES_ADD_SUBDIRECTORY)
     add_subdirectory(tests)
 endif(ENABLE__STATIC_PLUGIN)
 

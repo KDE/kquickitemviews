@@ -270,9 +270,11 @@ install(EXPORT KQuickItemViewsTargets
 
 # Allow #include <KQuickItemViews/Foo> to work both both in add_subdirectory
 # and on installed targets
-install(CODE "execute_process( \
-    COMMAND ${CMAKE_COMMAND} -E create_symlink \
-        ${CMAKE_INSTALL_FULL_INCLUDEDIR}/KQuickItemViews \
-        ${CMAKE_INSTALL_FULL_INCLUDEDIR}/KQuickItemViews/KQuickItemViews   \
-    )"
-)
+if(NOT USES_ADD_SUBDIRECTORY)
+    install(CODE "execute_process( \
+        COMMAND ${CMAKE_COMMAND} -E create_symlink \
+            ${CMAKE_INSTALL_FULL_INCLUDEDIR}/KQuickItemViews \
+            ${CMAKE_INSTALL_FULL_INCLUDEDIR}/KQuickItemViews/KQuickItemViews   \
+        )"
+    )
+endif()

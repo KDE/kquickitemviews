@@ -98,11 +98,13 @@ QVariant SingleModelViewBase::model() const
 void SingleModelViewBase::setModel(const QVariant& m)
 {
     d_ptr->m_pModelAdapter->setModel(m);
+    emit modelChanged();
 }
 
 void SingleModelViewBase::setSelectionModel(QSharedPointer<QItemSelectionModel> m)
 {
     d_ptr->m_pModelAdapter->selectionAdapter()->setSelectionModel(m);
+    emit selectionModelChanged();
 }
 
 QAbstractItemModel *SingleModelViewBase::rawModel() const

@@ -130,9 +130,24 @@ ListViewItem::~ListViewItem()
     if (m_pSection && m_pSection->owner() == this) {
         if (m_pSection->m_RefCount == 1)
             delete m_pSection;
-        else
-            Q_ASSERT(false); //TODO
+        else {
+            auto u = static_cast<ListViewItem*>(next(Qt::TopEdge));
+            auto d = static_cast<ListViewItem*>(next(Qt::BottomEdge));
+            if (u && u->m_pSection == m_pSection) {
+                m_pSection->setOwner(u);
+            }
+            else if(d && d->m_pSection == m_pSection) {
+                m_pSection->setOwner(d);
+                Q_ASSERT(d == m_pSection->owner());
+            }
+            else
+                Q_ASSERT(false); //TODO
+        }
     }
+
+    // Happens on reset
+    if (m_pSection && --m_pSection->m_RefCount <= 0)
+        delete m_pSection;
 }
 
 ListView::~ListView()
@@ -270,6 +285,8 @@ ListViewSection* ListViewPrivate::getSection(ListViewItem* i)
         //Q_ASSERT(false); //TODO when GC is enabled, the assert is to make sure I don't forget
         return nullptr;
     }
+
+    Q_ASSERT(!i->m_pSection); //TODO
 
     // Check if the nearby sections are compatible
     for (auto& s : {

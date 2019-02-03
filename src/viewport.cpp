@@ -494,12 +494,21 @@ void Viewport::resize(const QRectF& rect)
 
     d_ptr->updateAvailableEdges();
 
-    if ((!wasValid) && rect.isValid() && d_ptr->m_pModelAdapter->delegate()) {
+    if ((!d_ptr->m_pModelAdapter) || (!d_ptr->m_pModelAdapter->rawModel()))
+        return;
+
+    if (!d_ptr->m_pModelAdapter->delegate())
+        return;
+
+    if (!rect.isValid())
+        return;
+
+    // Refresh the content
+    if (!wasValid)
         s_ptr->m_pReflector->modelTracker()
             << StateTracker::Model::Action::POPULATE
             << StateTracker::Model::Action::ENABLE;
-    }
-    else if (rect.isValid() && d_ptr->m_pModelAdapter && d_ptr->m_pModelAdapter->delegate()) {
+    else {
         //FIXME make sure the state machine handle the lack of delegate properly
         s_ptr->m_pReflector->modelTracker() << StateTracker::Model::Action::MOVE;
     }

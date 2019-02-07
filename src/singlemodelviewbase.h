@@ -44,6 +44,12 @@ public:
     Q_PROPERTY(QVariant model READ model WRITE setModel NOTIFY modelChanged)
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged)
 
+    // Visible content
+    Q_PROPERTY(QModelIndex topLeft     READ topLeft     NOTIFY cornerChanged)
+    Q_PROPERTY(QModelIndex topRight    READ topRight    NOTIFY cornerChanged)
+    Q_PROPERTY(QModelIndex bottomLeft  READ bottomLeft  NOTIFY cornerChanged)
+    Q_PROPERTY(QModelIndex bottomRight READ bottomRight NOTIFY cornerChanged)
+
     /**
      * Whether to use the delegate implicit size or always explicitly apply the
      * size hints explicitly.
@@ -96,7 +102,13 @@ public:
     bool hasUniformColumnWidth() const;
     void setUniformColumnColumnWidth(bool value);
 
+    QModelIndex topLeft    () const;
+    QModelIndex topRight   () const;
+    QModelIndex bottomLeft () const;
+    QModelIndex bottomRight() const;
+
     Q_INVOKABLE void moveTo(Qt::Edge e);
+    Q_INVOKABLE QModelIndex indexAt(const QPoint & point) const;
 
 protected Q_SLOTS:
 
@@ -121,6 +133,7 @@ Q_SIGNALS:
     void selectionModelChanged() const;
     void modelChanged();
     void delegateChanged(QQmlComponent* delegate);
+    void cornerChanged();
 //     virtual void countChanged() override final;
 
 private:

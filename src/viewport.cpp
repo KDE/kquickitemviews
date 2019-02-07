@@ -240,6 +240,8 @@ void ViewportPrivate::updateAvailableEdges()
 
     q_ptr->s_ptr->m_pReflector->modelTracker() << StateTracker::Model::Action::TRIM;
 
+    const auto oldBve(bve), oldTve(tve);
+
     bve = q_ptr->s_ptr->m_pReflector->getEdge(
         IndexMetadata::EdgeType::VISIBLE, Qt::BottomEdge
     );
@@ -273,6 +275,9 @@ void ViewportPrivate::updateAvailableEdges()
 
         emit v->contentHeightChanged( v->contentItem()->height() );
     }
+
+    if (oldTve != tve || oldBve != bve)
+        emit q_ptr->cornerChanged();
 }
 
 void ViewportSync::geometryUpdated(IndexMetadata *item)
@@ -545,6 +550,34 @@ GeometryAdapter *Viewport::geometryAdapter() const
 void Viewport::setGeometryAdapter(GeometryAdapter *a)
 {
     s_ptr->m_pGeoAdapter->setCurrentAdapter(a);
+}
+
+QModelIndex Viewport::indexAt(const QPoint &point) const
+{
+    return {}; //TODO
+}
+
+QModelIndex Viewport::indexAt(Qt::Corner corner) const
+{
+    // multi column isn't supported yet, so it is close enough for now
+    switch (corner) {
+        case Qt::TopLeftCorner:
+        case Qt::TopRightCorner:
+            return indexAt(Qt::TopEdge);
+        case Qt::BottomLeftCorner:
+        case Qt::BottomRightCorner:
+            return indexAt(Qt::BottomEdge);
+    }
+
+    return {};
+}
+
+QModelIndex Viewport::indexAt(Qt::Edge edge) const
+{
+    if (auto tve = s_ptr->m_pReflector->getEdge(IndexMetadata::EdgeType::VISIBLE, edge))
+        return tve->index();
+
+    return {};
 }
 
 #include <viewport.moc>

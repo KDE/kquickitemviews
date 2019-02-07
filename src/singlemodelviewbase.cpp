@@ -24,7 +24,7 @@
 #include <KQuickItemViews/adapters/selectionadapter.h>
 #include <KQuickItemViews/adapters/contextadapter.h>
 #include <KQuickItemViews/adapters/modeladapter.h>
-#include <KQuickItemViews/viewport.h>
+#include "viewport.h"
 #include "private/viewport_p.h"
 #include "private/geostrategyselector_p.h"
 
@@ -45,7 +45,8 @@ SingleModelViewBase::SingleModelViewBase(ItemFactoryBase *factory, QQuickItem* p
     d_ptr->m_pModelAdapter = new ModelAdapter(this);
     addModelAdapter(d_ptr->m_pModelAdapter);
 
-    d_ptr->m_pModelAdapter->viewports().first()->setItemFactory(factory);
+    auto vp = d_ptr->m_pModelAdapter->viewports().first();
+    vp->setItemFactory(factory);
 
     auto sm = d_ptr->m_pModelAdapter->selectionAdapter();
 
@@ -56,6 +57,8 @@ SingleModelViewBase::SingleModelViewBase(ItemFactoryBase *factory, QQuickItem* p
         this, &SingleModelViewBase::selectionModelChanged);
     connect(d_ptr->m_pModelAdapter, &ModelAdapter::modelAboutToChange,
         this, &SingleModelViewBase::applyModelChanges);
+    connect(vp, &Viewport::cornerChanged,
+        this, &SingleModelViewBase::cornerChanged);
 }
 
 SingleModelViewBase::~SingleModelViewBase()
@@ -194,6 +197,34 @@ void SingleModelViewBase::moveTo(Qt::Edge e)
                     setCurrentY(999999);
                 } while (currentY() > y && (y = currentY()));
             }
+            case Qt::LeftEdge:
+            case Qt::RightEdge:
+                break; //TODO
         }
     });
+}
+
+QModelIndex SingleModelViewBase::indexAt(const QPoint & point) const
+{
+    return d_ptr->m_pModelAdapter->viewports().first()->indexAt(point);
+}
+
+QModelIndex SingleModelViewBase::topLeft() const
+{
+    return d_ptr->m_pModelAdapter->viewports().first()->indexAt(Qt::TopLeftCorner);
+}
+
+QModelIndex SingleModelViewBase::topRight() const
+{
+    return d_ptr->m_pModelAdapter->viewports().first()->indexAt(Qt::TopRightCorner);
+}
+
+QModelIndex SingleModelViewBase::bottomLeft() const
+{
+    return d_ptr->m_pModelAdapter->viewports().first()->indexAt(Qt::BottomLeftCorner);
+}
+
+QModelIndex SingleModelViewBase::bottomRight() const
+{
+    return d_ptr->m_pModelAdapter->viewports().first()->indexAt(Qt::BottomRightCorner);
 }

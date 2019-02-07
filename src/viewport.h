@@ -70,10 +70,15 @@ public:
 
     void resize(const QRectF& rect);
 
+    QModelIndex indexAt(const QPoint & point) const;
+    QModelIndex indexAt(Qt::Corner corner) const;
+    QModelIndex indexAt(Qt::Edge edge) const;
+
     ViewportSync *s_ptr;
 
 Q_SIGNALS:
     void contentChanged();
+    void cornerChanged();
 
 public:
     ViewportPrivate *d_ptr;

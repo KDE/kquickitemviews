@@ -109,6 +109,7 @@ public:
 
     Q_INVOKABLE void moveTo(Qt::Edge e);
     Q_INVOKABLE QModelIndex indexAt(const QPoint & point) const;
+    Q_INVOKABLE QRectF itemRect(const QModelIndex& i) const;
 
 protected Q_SLOTS:
 

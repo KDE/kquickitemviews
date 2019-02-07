@@ -74,6 +74,8 @@ public:
     QModelIndex indexAt(Qt::Corner corner) const;
     QModelIndex indexAt(Qt::Edge edge) const;
 
+    QRectF itemRect(const QModelIndex& i) const;
+
     ViewportSync *s_ptr;
 
 Q_SIGNALS:

@@ -228,3 +228,9 @@ QModelIndex SingleModelViewBase::bottomRight() const
 {
     return d_ptr->m_pModelAdapter->viewports().first()->indexAt(Qt::BottomRightCorner);
 }
+
+
+QRectF SingleModelViewBase::itemRect(const QModelIndex& i) const
+{
+    return d_ptr->m_pModelAdapter->viewports().first()->itemRect(i);
+}

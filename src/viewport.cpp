@@ -580,4 +580,14 @@ QModelIndex Viewport::indexAt(Qt::Edge edge) const
     return {};
 }
 
+QRectF Viewport::itemRect(const QModelIndex& i) const
+{
+    if (auto md = s_ptr->m_pReflector->metadataForIndex(i))
+        return md->decoratedGeometry();
+
+    //TODO load it
+
+    return {};
+}
+
 #include <viewport.moc>

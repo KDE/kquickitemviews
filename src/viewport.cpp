@@ -105,7 +105,7 @@ void ViewportPrivate::slotModelAboutToChange(QAbstractItemModel* m, QAbstractIte
 void ViewportPrivate::slotModelChanged(QAbstractItemModel* m, QAbstractItemModel* o)
 {
     Q_UNUSED(o)
-    m_pModelAdapter->view()->setCurrentY(0);
+    m_pModelAdapter->view()->setContentY(0);
 
     q_ptr->s_ptr->m_pReflector->modelTracker()->setModel(m);
 

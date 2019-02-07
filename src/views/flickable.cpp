@@ -169,13 +169,13 @@ QRectF Flickable::viewport() const
 {
     return {
         0.0,
-        currentY(),
+        contentY(),
         width(),
         height()
     };
 }
 
-qreal Flickable::currentY() const
+qreal Flickable::contentY() const
 {
     if (!d_ptr->m_pContainer)
         return 0;
@@ -183,7 +183,7 @@ qreal Flickable::currentY() const
     return -d_ptr->m_pContainer->y();
 }
 
-void Flickable::setCurrentY(qreal y)
+void Flickable::setContentY(qreal y)
 {
     if (!d_ptr->m_pContainer)
         return;
@@ -199,7 +199,7 @@ void Flickable::setCurrentY(qreal y)
 
     d_ptr->m_pContainer->setY(-y);
 
-    emit currentYChanged(y);
+    emit contentYChanged(y);
     emit viewportChanged(viewport());
     emit percentageChanged(
         ((-d_ptr->m_pContainer->y()))/(d_ptr->m_pContainer->height()-height())
@@ -296,7 +296,7 @@ bool Flickable::event(QEvent *event)
     const auto e = d_ptr->eventMapper(event);
 
     if (event->type() == QEvent::Wheel) {
-        setCurrentY(currentY() - static_cast<QWheelEvent*>(event)->angleDelta().y());
+        setContentY(contentY() - static_cast<QWheelEvent*>(event)->angleDelta().y());
         event->accept();
         return true;
     }
@@ -386,7 +386,7 @@ bool FlickablePrivate::drag(QMouseEvent* e)
 
     const int dy(e->pos().y() - m_DragPoint.y());
     m_DragPoint = e->pos();
-    q_ptr->setCurrentY(q_ptr->currentY() - dy);
+    q_ptr->setContentY(q_ptr->contentY() - dy);
 
     // Reset the inertia on the differential inflexion points
     if ((m_LastDelta >= 0) ^ (dy >= 0)) {
@@ -466,7 +466,7 @@ bool FlickablePrivate::inertia(QMouseEvent*)
 {
     m_Velocity *= m_DecelRate;
 
-    q_ptr->setCurrentY(q_ptr->currentY() - m_Velocity);
+    q_ptr->setContentY(q_ptr->contentY() - m_Velocity);
 
     // Clamp the asymptotes to avoid an infinite loop, I chose a random value
     if (std::fabs(m_Velocity) < 0.05)

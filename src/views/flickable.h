@@ -41,7 +41,7 @@ class Q_DECL_EXPORT Flickable : public QQuickItem
     Q_OBJECT
 public:
     // Implement some of the QtQuick2.Flickable API
-    Q_PROPERTY(qreal contentY READ currentY WRITE setCurrentY NOTIFY currentYChanged)
+    Q_PROPERTY(qreal contentY READ contentY WRITE setContentY NOTIFY contentYChanged)
     Q_PROPERTY(qreal contentHeight READ contentHeight NOTIFY contentHeightChanged )
     Q_PROPERTY(bool dragging READ isDragging NOTIFY draggingChanged)
     Q_PROPERTY(bool flicking READ isDragging NOTIFY movingChanged)
@@ -56,15 +56,15 @@ public:
     /**
      * The geometry of the content subset currently displayed be the Flickable.
      *
-     * It is usually {0, currentY, height, width}.
+     * It is usually {0, contentY, height, width}.
      */
     Q_PROPERTY(QRectF viewport READ viewport NOTIFY viewportChanged)
 
     explicit Flickable(QQuickItem* parent = nullptr);
     virtual ~Flickable();
 
-    qreal currentY() const;
-    virtual void setCurrentY(qreal y);
+    qreal contentY() const;
+    virtual void setContentY(qreal y);
 
     QRectF viewport() const;
 
@@ -88,7 +88,7 @@ public:
 
 Q_SIGNALS:
     void contentHeightChanged(qreal height);
-    void currentYChanged(qreal y);
+    void contentYChanged(qreal y);
     void percentageChanged(qreal percent);
     void draggingChanged(bool dragging);
     void movingChanged(bool dragging);

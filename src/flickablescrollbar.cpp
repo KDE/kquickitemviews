@@ -56,7 +56,7 @@ void FlickableScrollBar::setView(QObject* v)
     if (d_ptr->m_pView) {
         disconnect(d_ptr->m_pView, &Flickable::contentHeightChanged,
             d_ptr, &FlickableScrollBarPrivate::recomputeGeometry);
-        disconnect(d_ptr->m_pView, &Flickable::currentYChanged,
+        disconnect(d_ptr->m_pView, &Flickable::contentYChanged,
             d_ptr, &FlickableScrollBarPrivate::recomputeGeometry);
         disconnect(d_ptr->m_pView, &Flickable::heightChanged,
             d_ptr, &FlickableScrollBarPrivate::recomputeGeometry);
@@ -68,7 +68,7 @@ void FlickableScrollBar::setView(QObject* v)
 
     connect(d_ptr->m_pView, &Flickable::contentHeightChanged,
         d_ptr, &FlickableScrollBarPrivate::recomputeGeometry);
-    connect(d_ptr->m_pView, &Flickable::currentYChanged,
+    connect(d_ptr->m_pView, &Flickable::contentYChanged,
         d_ptr, &FlickableScrollBarPrivate::recomputeGeometry);
     connect(d_ptr->m_pView, &Flickable::heightChanged,
         d_ptr, &FlickableScrollBarPrivate::recomputeGeometry);
@@ -87,7 +87,7 @@ void FlickableScrollBar::setPosition(qreal p)
         return;
 
     // Simple rule of 3
-    d_ptr->m_pView->setCurrentY(
+    d_ptr->m_pView->setContentY(
         (p * d_ptr->m_pView->contentHeight()) / d_ptr->m_pView->height()
     );
 }
@@ -119,7 +119,7 @@ void FlickableScrollBarPrivate::recomputeGeometry()
     const qreal pageHeight   = m_pView->height();
     const qreal pageCount    = totalHeight/pageHeight;
     const qreal handleHeight = std::max(pageHeight/pageCount, 50.0);
-    const qreal handleBegin  = (m_pView->currentY()*pageHeight)/totalHeight;
+    const qreal handleBegin  = (m_pView->contentY()*pageHeight)/totalHeight;
 
     m_HandleHeight = handleHeight;
     m_Position     = handleBegin;

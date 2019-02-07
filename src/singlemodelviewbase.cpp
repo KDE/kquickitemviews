@@ -188,14 +188,14 @@ void SingleModelViewBase::moveTo(Qt::Edge e)
         //HACK This need the viewportAdapter to be optimized
         switch(e) {
             case Qt::TopEdge:
-                setCurrentY(0);
+                setContentY(0);
                 break;
             case Qt::BottomEdge: {
-                int y = currentY();
+                int y = contentY();
                 // Keep loading until it doesn't load anything else
                 do {
-                    setCurrentY(999999);
-                } while (currentY() > y && (y = currentY()));
+                    setContentY(999999);
+                } while (contentY() > y && (y = contentY()));
             }
             case Qt::LeftEdge:
             case Qt::RightEdge:

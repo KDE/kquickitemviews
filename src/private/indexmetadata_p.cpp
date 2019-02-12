@@ -105,7 +105,7 @@ IndexMetadata::IndexMetadata(StateTracker::Index *idxT, Viewport *p) :
 IndexMetadata::~IndexMetadata()
 {
     if (d_ptr->m_pContextAdapter) {
-        if (d_ptr->m_pContextAdapter->isActive())
+        if (d_ptr->m_pContextAdapter->isActive() && d_ptr->m_pContextAdapter->context())
             d_ptr->m_pContextAdapter->context()->setContextObject(nullptr);
         delete d_ptr->m_pContextAdapter;
     }

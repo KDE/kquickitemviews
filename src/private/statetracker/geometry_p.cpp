@@ -163,9 +163,6 @@ void StateTracker::Geometry::setPosition(const QPointF& pos)
 
 void StateTracker::Geometry::setSize(const QSizeF& size)
 {
-    // setSize should not be used to reset the size
-    Q_ASSERT(size.isValid());
-
     m_Size = size;
     performAction(IndexMetadata::GeometryAction::RESIZE);
 }

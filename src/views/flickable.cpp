@@ -116,7 +116,7 @@ const FlickablePrivate::DragState FlickablePrivate::m_fStateMap[5][8] {
 const FlickablePrivate::StateF FlickablePrivate::m_fStateMachine[5][8] {
 /*             TIMEOUT      PRESS      RELEASE     MOVE       TIMER      OTHER     ACCEPT   REJECT  */
 /* IDLE    */ {A error  , A start  , A nothing , A nothing, A error  , A nothing, A error, A error  },
-/* PRESSED */ {A error  , A nothing, A cancel  , A eval   , A error  , A nothing, A error, A error  },
+/* PRESSED */ {A error  , A start  , A cancel  , A eval   , A error  , A nothing, A error, A error  },
 /* EVAL    */ {A error  , A nothing, A cancel  , A eval   , A error  , A nothing, A lock , A cancel },
 /* DRAGGED */ {A error  , A drag   , A release , A drag   , A error  , A nothing, A error, A error  },
 /* INERTIA */ {A stop   , A stop   , A stop    , A error  , A inertia, A nothing, A error, A error  }};

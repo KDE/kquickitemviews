@@ -822,6 +822,10 @@ void ContentPrivate::slotCleanup()
 
     m_hMapper.clear();
     m_pRoot = new StateTracker::ModelItem(m_pViewport);
+
+    // Reset the edges
+    for (int i = 0; i < 3; i++)
+        m_lRects[i] = ModelRect();
 }
 
 StateTracker::ModelItem* ContentPrivate::ttiForIndex(const QModelIndex& idx) const

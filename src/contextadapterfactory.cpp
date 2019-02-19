@@ -703,6 +703,12 @@ QQmlContext* ContextAdapter::context() const
         d_ptr->m_pCtx->engine()->setObjectOwnership(
             d_ptr->m_pCtx, QQmlEngine::CppOwnership
         );
+
+        // No amount of setObjectOwnership will prevent Qt 5.12 from doing
+        // what's it's told. Mitigate this.
+        QObject::connect(d_ptr->m_pCtx, &QObject::destroyed, d_ptr, [this]() {
+            d_ptr->m_pCtx = nullptr;
+        });
     }
 
     return d_ptr->m_pCtx;

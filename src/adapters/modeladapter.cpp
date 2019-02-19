@@ -75,6 +75,7 @@ public:
 
 public Q_SLOTS:
     void slotContentChanged();
+    void slotDestroyed();
 };
 
 ModelAdapter::ModelAdapter(ViewBase* parent) : QObject(parent),
@@ -114,11 +115,16 @@ QVariant ModelAdapter::model() const
 
 void ModelAdapterPrivate::setModelCommon(QAbstractItemModel* m, QAbstractItemModel* old)
 {
-    Q_UNUSED(old)
+    if (old)
+        disconnect(old, &QObject::destroyed, this, &ModelAdapterPrivate::slotDestroyed);
+
     q_ptr->selectionAdapter()->s_ptr->setModel(m);
 
     if (auto f = m_pRoleContextFactory)
         f->setModel(m);
+
+    if (m)
+        connect(m, &QObject::destroyed, this, &ModelAdapterPrivate::slotDestroyed);
 }
 
 void ModelAdapter::setModel(const QVariant& var)
@@ -300,6 +306,13 @@ QVector<Viewport*> ModelAdapter::viewports() const
 void ModelAdapterPrivate::slotContentChanged()
 {
     emit q_ptr->contentChanged();
+}
+
+void ModelAdapterPrivate::slotDestroyed()
+{
+    q_ptr->setModel(
+        QVariant::fromValue((QAbstractItemModel*)nullptr)
+    );
 }
 
 QAbstractItemModel *ModelAdapter::rawModel() const

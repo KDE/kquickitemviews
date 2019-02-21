@@ -85,7 +85,7 @@ StateTracker::Geometry::State StateTracker::Geometry::performAction(IndexMetadat
 
     // Validate the state
     //BEGIN debug
-    switch(m_State) {
+    /*switch(m_State) {
         case StateTracker::Geometry::State::VALID:
         case StateTracker::Geometry::State::PENDING:
             Q_ASSERT(!(m_Position.x() == -1 && m_Position.y() == -1));
@@ -99,7 +99,7 @@ StateTracker::Geometry::State StateTracker::Geometry::performAction(IndexMetadat
             break;
         case StateTracker::Geometry::State::INIT:
             break;
-    }
+    }*/
     //END debug
 
     return m_State;
